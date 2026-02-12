@@ -3,8 +3,8 @@ import os
 import aws_cdk as cdk
 from aws_cdk import aws_iam as iam
 from aws_cdk import aws_cognito as cognito
-from aws_cdk import aws_secretsmanager as secretsmanager
 from aws_cdk import aws_ssm as ssm
+from aws_cdk import custom_resources as cr
 from aws_cdk.aws_bedrock_agentcore_alpha import (
     AgentRuntimeArtifact,
     Runtime,
@@ -121,16 +121,55 @@ class AgentcoreCdkStack(cdk.Stack):
             ),
         )
 
-        # Secrets Manager secret for gateway OAuth credentials
-        oauth_secret = secretsmanager.Secret(
-            self, "GatewayOAuthSecret",
-            secret_object_value={
-                "clientId": cdk.SecretValue.unsafe_plain_text(user_pool_client.user_pool_client_id),
-                "clientSecret": user_pool_client.user_pool_client_secret,
-            },
+        # Create OAuth2 credential provider in AgentCore token vault via SDK
+        oauth_provider_name = "cognito-oauth-client"
+        oauth_provider = cr.AwsCustomResource(
+            self, "OAuthCredentialProvider",
+            install_latest_aws_sdk=True,
+            on_create=cr.AwsSdkCall(
+                service="@aws-sdk/client-bedrock-agentcore-control",
+                action="CreateOauth2CredentialProvider",
+                parameters={
+                    "name": oauth_provider_name,
+                    "credentialProviderVendor": "CustomOauth2",
+                    "oauth2ProviderConfigInput": {
+                        "customOauth2ProviderConfig": {
+                            "oauthDiscovery": {
+                                "discoveryUrl": f"https://cognito-idp.{self.region}.amazonaws.com/{user_pool.user_pool_id}/.well-known/openid-configuration",
+                            },
+                            "clientId": user_pool_client.user_pool_client_id,
+                            "clientSecret": user_pool_client.user_pool_client_secret.unsafe_unwrap(),
+                        },
+                    },
+                },
+                physical_resource_id=cr.PhysicalResourceId.from_response("credentialProviderArn"),
+            ),
+            on_delete=cr.AwsSdkCall(
+                service="@aws-sdk/client-bedrock-agentcore-control",
+                action="DeleteOauth2CredentialProvider",
+                parameters={
+                    "name": oauth_provider_name,
+                },
+            ),
+            policy=cr.AwsCustomResourcePolicy.from_statements([
+                iam.PolicyStatement(
+                    actions=[
+                        "bedrock-agentcore:CreateTokenVault",
+                        "bedrock-agentcore:GetTokenVault",
+                        "bedrock-agentcore:CreateOauth2CredentialProvider",
+                        "bedrock-agentcore:DeleteOauth2CredentialProvider",
+                        "secretsmanager:CreateSecret",
+                        "secretsmanager:DeleteSecret",
+                    ],
+                    resources=["*"],
+                ),
+            ]),
         )
 
-        # URL-encode the runtime ARN (replace : → %3A, / → %2F) for the endpoint
+        provider_arn = oauth_provider.get_response_field("credentialProviderArn")
+        secret_arn = oauth_provider.get_response_field("clientSecretArn.secretArn")
+
+        # URL-encode the runtime ARN (replace : -> %3A, / -> %2F) for the endpoint
         escaped_arn = cdk.Fn.join("%2F", cdk.Fn.split("/",
             cdk.Fn.join("%3A", cdk.Fn.split(":", mcp_calculator_runtime.agent_runtime_arn))
         ))
@@ -144,8 +183,8 @@ class AgentcoreCdkStack(cdk.Stack):
             endpoint=mcp_runtime_endpoint,
             credential_provider_configurations=[
                 GatewayCredentialProvider.from_oauth_identity_arn(
-                    provider_arn="arn:aws:bedrock-agentcore:ap-southeast-2:354334841216:token-vault/default/oauth2credentialprovider/cognito-oauth-client-avb0n",
-                    secret_arn=oauth_secret.secret_arn,
+                    provider_arn=provider_arn,
+                    secret_arn=secret_arn,
                     scopes=["agentcore/invoke"],
                 ),
             ],
@@ -188,4 +227,5 @@ class AgentcoreCdkStack(cdk.Stack):
         cdk.CfnOutput(self, "TokenEndpoint", value=f"{user_pool_domain.base_url()}/oauth2/token")
         cdk.CfnOutput(self, "McpCalculatorRuntimeArn", value=mcp_calculator_runtime.agent_runtime_arn)
         cdk.CfnOutput(self, "AgentRuntimeArn", value=agent_runtime.agent_runtime_arn)
-        cdk.CfnOutput(self, "GatewayOAuthSecretArn", value=oauth_secret.secret_arn)
+        cdk.CfnOutput(self, "OAuthProviderArn", value=provider_arn)
+        cdk.CfnOutput(self, "OAuthSecretArn", value=secret_arn)
