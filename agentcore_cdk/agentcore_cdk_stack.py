@@ -3,6 +3,7 @@ import os
 import aws_cdk as cdk
 from aws_cdk import aws_iam as iam
 from aws_cdk import aws_cognito as cognito
+from aws_cdk import aws_secretsmanager as secretsmanager
 from aws_cdk import aws_ssm as ssm
 from aws_cdk.aws_bedrock_agentcore_alpha import (
     AgentRuntimeArtifact,
@@ -11,6 +12,7 @@ from aws_cdk.aws_bedrock_agentcore_alpha import (
     ProtocolType,
     Gateway,
     GatewayAuthorizer,
+    GatewayCredentialProvider,
 )
 from constructs import Construct
 
@@ -119,6 +121,36 @@ class AgentcoreCdkStack(cdk.Stack):
             ),
         )
 
+        # Secrets Manager secret for gateway OAuth credentials
+        oauth_secret = secretsmanager.Secret(
+            self, "GatewayOAuthSecret",
+            secret_object_value={
+                "clientId": cdk.SecretValue.unsafe_plain_text(user_pool_client.user_pool_client_id),
+                "clientSecret": user_pool_client.user_pool_client_secret,
+            },
+        )
+
+        # URL-encode the runtime ARN (replace : → %3A, / → %2F) for the endpoint
+        escaped_arn = cdk.Fn.join("%2F", cdk.Fn.split("/",
+            cdk.Fn.join("%3A", cdk.Fn.split(":", mcp_calculator_runtime.agent_runtime_arn))
+        ))
+        mcp_runtime_endpoint = f"https://bedrock-agentcore.{self.region}.amazonaws.com/runtimes/{escaped_arn}/invocations?qualifier=DEFAULT"
+
+        # Gateway target for MCP Calculator runtime
+        gateway.add_mcp_server_target(
+            "McpCalculatorTarget",
+            gateway_target_name="mcp-calculator",
+            description="MCP Calculator runtime",
+            endpoint=mcp_runtime_endpoint,
+            credential_provider_configurations=[
+                GatewayCredentialProvider.from_oauth_identity_arn(
+                    provider_arn="arn:aws:bedrock-agentcore:ap-southeast-2:354334841216:token-vault/default/oauth2credentialprovider/cognito-oauth-client-avb0n",
+                    secret_arn=oauth_secret.secret_arn,
+                    scopes=["agentcore/invoke"],
+                ),
+            ],
+        )
+
         ssm.StringParameter(
             self, "McpCalculatorRuntimeArnParam",
             parameter_name="/agentcore/mcp-calculator-runtime-arn",
@@ -156,3 +188,4 @@ class AgentcoreCdkStack(cdk.Stack):
         cdk.CfnOutput(self, "TokenEndpoint", value=f"{user_pool_domain.base_url()}/oauth2/token")
         cdk.CfnOutput(self, "McpCalculatorRuntimeArn", value=mcp_calculator_runtime.agent_runtime_arn)
         cdk.CfnOutput(self, "AgentRuntimeArn", value=agent_runtime.agent_runtime_arn)
+        cdk.CfnOutput(self, "GatewayOAuthSecretArn", value=oauth_secret.secret_arn)
