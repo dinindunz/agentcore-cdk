@@ -3,4 +3,4 @@ strands-agents>=1.14.0
 strands-agents-tools
 mcp
 boto3
-requests
+httpx

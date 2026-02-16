@@ -52,10 +52,25 @@ class AgentcoreCdkStack(cdk.Stack):
             )
         )
 
+        role.add_to_policy(
+            iam.PolicyStatement(
+                actions=["bedrock-agentcore:InvokeGateway"],
+                resources=[f"arn:aws:bedrock-agentcore:{self.region}:{self.account}:gateway/*"],
+            )
+        )
+
         gateway = Gateway(
             self, "McpGateway",
             gateway_name="agentcoreMcpGateway",
             authorizer_configuration=GatewayAuthorizer.using_aws_iam(),
+        )
+
+        # Grant the Gateway's service role permissions for outbound auth
+        gateway.role.add_to_policy(
+            iam.PolicyStatement(
+                actions=["bedrock-agentcore:*"],
+                resources=["*"],
+            )
         )
 
         # Cognito User Pool for Runtime auth
@@ -97,7 +112,7 @@ class AgentcoreCdkStack(cdk.Stack):
 
         mcp_calculator_runtime = Runtime(
             self, "McpCalculator",
-            runtime_name="mcpCalculator",
+            runtime_name="mcp_calculator",
             execution_role=role,
             agent_runtime_artifact=mcp_calculator_runtime_artifact,
             protocol_configuration=ProtocolType.MCP,
@@ -111,8 +126,8 @@ class AgentcoreCdkStack(cdk.Stack):
         )
 
         agent_runtime = Runtime(
-            self, "Agent",
-            runtime_name="agent",
+            self, "AgentCalculator",
+            runtime_name="agent_calculator",
             execution_role=role,
             agent_runtime_artifact=agent_runtime_artifact,
             protocol_configuration=ProtocolType.HTTP,
@@ -220,6 +235,15 @@ class AgentcoreCdkStack(cdk.Stack):
             string_value=f"{user_pool_domain.base_url()}/oauth2/token",
         )
 
+        gateway_url = f"https://{gateway.gateway_id}.gateway.bedrock-agentcore.{self.region}.amazonaws.com/mcp"
+
+        ssm.StringParameter(
+            self, "GatewayUrlParam",
+            parameter_name="/agentcore/gateway-url",
+            string_value=gateway_url,
+        )
+
+        cdk.CfnOutput(self, "GatewayUrl", value=gateway_url)
         cdk.CfnOutput(self, "UserPoolId", value=user_pool.user_pool_id)
         cdk.CfnOutput(self, "UserPoolClientId", value=user_pool_client.user_pool_client_id)
         cdk.CfnOutput(self, "CognitoIssuer", value=f"https://cognito-idp.{self.region}.amazonaws.com/{user_pool.user_pool_id}")

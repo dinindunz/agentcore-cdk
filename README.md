@@ -22,3 +22,9 @@ Invoke the Agent runtime:
 ```bash
 python invoke_agent.py
 ```
+
+Invoke the MCP Calculator runtime via the Gateway:
+
+```bash
+python invoke_mcp_via_gateway.py
+```

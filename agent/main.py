@@ -1,8 +1,10 @@
-import base64
-import urllib.parse
+import hashlib
+from typing import Generator
 
 import boto3
-import requests
+import httpx
+from botocore.auth import SigV4Auth
+from botocore.awsrequest import AWSRequest
 from bedrock_agentcore.runtime import BedrockAgentCoreApp
 from mcp.client.streamable_http import streamablehttp_client
 from strands import Agent
@@ -10,54 +12,57 @@ from strands.tools.mcp import MCPClient
 
 REGION_NAME = "ap-southeast-2"
 
-# Fetch config from SSM
 ssm_client = boto3.client("ssm", region_name=REGION_NAME)
+GATEWAY_URL = ssm_client.get_parameter(Name="/agentcore/gateway-url")["Parameter"]["Value"]
 
 
-def get_ssm_param(name):
-    return ssm_client.get_parameter(Name=name)["Parameter"]["Value"]
+class HTTPXSigV4Auth(httpx.Auth):
+    """httpx Auth handler that signs requests with AWS SigV4."""
+
+    def __init__(self, service: str, region: str):
+        session = boto3.Session()
+        self.credentials = session.get_credentials().get_frozen_credentials()
+        self.service = service
+        self.region = region
+
+    def auth_flow(self, request: httpx.Request) -> Generator[httpx.Request, httpx.Response, None]:
+        # Read the body
+        body = request.content if request.content else b""
+        if isinstance(body, str):
+            body = body.encode("utf-8")
+
+        # Build an AWSRequest to sign
+        aws_request = AWSRequest(
+            method=request.method,
+            url=str(request.url),
+            data=body,
+            headers={
+                "Host": request.url.host,
+                "Content-Type": request.headers.get("Content-Type", "application/json"),
+            },
+        )
+        aws_request.headers["X-Amz-Content-Sha256"] = hashlib.sha256(body).hexdigest()
+
+        # Sign the request
+        signer = SigV4Auth(self.credentials, self.service, self.region)
+        signer.add_auth(aws_request)
+
+        # Copy signed headers back to the httpx request
+        for key, value in aws_request.headers.items():
+            request.headers[key] = value
+
+        yield request
 
 
-mcp_calculator_arn = get_ssm_param("/agentcore/mcp-calculator-runtime-arn")
-cognito_client_id = get_ssm_param("/agentcore/cognito-client-id")
-cognito_user_pool_id = get_ssm_param("/agentcore/cognito-user-pool-id")
-cognito_token_endpoint = get_ssm_param("/agentcore/cognito-token-endpoint")
-
-# Fetch client secret from Cognito
-cognito_client = boto3.client("cognito-idp", region_name=REGION_NAME)
-cognito_client_secret = cognito_client.describe_user_pool_client(
-    UserPoolId=cognito_user_pool_id,
-    ClientId=cognito_client_id,
-)["UserPoolClient"]["ClientSecret"]
-
-# Get Cognito access token via client credentials
-token_response = requests.post(
-    cognito_token_endpoint,
-    headers={
-        "Content-Type": "application/x-www-form-urlencoded",
-        "Authorization": "Basic " + base64.b64encode(
-            f"{cognito_client_id}:{cognito_client_secret}".encode()
-        ).decode(),
-    },
-    data={
-        "grant_type": "client_credentials",
-        "scope": "agentcore/invoke",
-    },
-)
-token_response.raise_for_status()
-access_token = token_response.json()["access_token"]
-
-# Construct the MCP Calculator invocation URL
-escaped_arn = urllib.parse.quote(mcp_calculator_arn, safe="")
-mcp_calculator_url = f"https://bedrock-agentcore.{REGION_NAME}.amazonaws.com/runtimes/{escaped_arn}/invocations?qualifier=DEFAULT"
+sigv4_auth = HTTPXSigV4Auth(service="bedrock-agentcore", region=REGION_NAME)
 
 app = BedrockAgentCoreApp()
 
 
 def create_mcp_transport():
     return streamablehttp_client(
-        mcp_calculator_url,
-        headers={"Authorization": f"Bearer {access_token}"},
+        GATEWAY_URL,
+        auth=sigv4_auth,
     )
 
 
