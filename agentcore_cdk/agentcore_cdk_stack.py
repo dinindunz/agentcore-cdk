@@ -108,7 +108,7 @@ class AgentcoreCdkStack(cdk.Stack):
 
         mcp_calculator_runtime = Runtime(
             self, "McpCalculator",
-            runtime_name="mcp_calculator",
+            runtime_name="mcp_calculator_v2",
             execution_role=role,
             agent_runtime_artifact=mcp_calculator_runtime_artifact,
             protocol_configuration=ProtocolType.MCP,
@@ -123,7 +123,7 @@ class AgentcoreCdkStack(cdk.Stack):
 
         agent_runtime = Runtime(
             self, "AgentCalculator",
-            runtime_name="agent_calculator",
+            runtime_name="agent_calculator_v2",
             execution_role=role,
             agent_runtime_artifact=agent_runtime_artifact,
             protocol_configuration=ProtocolType.HTTP,

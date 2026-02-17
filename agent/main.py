@@ -46,7 +46,7 @@ mcp_client.__enter__()
 tools = mcp_client.list_tools_sync()
 agent = Agent(
     tools=tools,
-    system_prompt="You are a helpful assistant. Provide friendly, conversational responses.",
+    system_prompt="You are a helpful assistant. Provide friendly, conversational responses. Always use tools provided.",
 )
 
 
