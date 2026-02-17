@@ -213,7 +213,7 @@ class AgentcoreCdkStack(cdk.Stack):
         # ---------------------------------------------------------------
 
         # Agent Cognito User Pool — authenticates requests to the agent runtime
-        agent = self._create_user_pool(
+        agent_auth = self._create_user_pool(
             prefix="Agent",
             pool_name="agentcore-agent-user-pool",
             domain_prefix="agentcore-agent",
@@ -223,7 +223,7 @@ class AgentcoreCdkStack(cdk.Stack):
         )
 
         # JWT Gateway Cognito User Pool — authenticates inbound gateway requests
-        gateway = self._create_user_pool(
+        gateway_auth = self._create_user_pool(
             prefix="JwtGateway",
             pool_name="agentcore-gateway-pool",
             domain_prefix="agentcore-gateway",
@@ -233,7 +233,7 @@ class AgentcoreCdkStack(cdk.Stack):
         )
 
         # MCP Cognito User Pool — authenticates requests to MCP runtimes
-        mcp = self._create_user_pool(
+        mcp_auth = self._create_user_pool(
             prefix="Mcp",
             pool_name="agentcore-mcp-user-pool",
             domain_prefix="agentcore-mcp",
@@ -259,10 +259,10 @@ class AgentcoreCdkStack(cdk.Stack):
                     "oauth2ProviderConfigInput": {
                         "customOauth2ProviderConfig": {
                             "oauthDiscovery": {
-                                "discoveryUrl": f"https://cognito-idp.{self.region}.amazonaws.com/{mcp.user_pool.user_pool_id}/.well-known/openid-configuration",
+                                "discoveryUrl": f"https://cognito-idp.{self.region}.amazonaws.com/{mcp_auth.user_pool.user_pool_id}/.well-known/openid-configuration",
                             },
-                            "clientId": mcp.client.user_pool_client_id,
-                            "clientSecret": mcp.client.user_pool_client_secret.unsafe_unwrap(),
+                            "clientId": mcp_auth.client.user_pool_client_id,
+                            "clientSecret": mcp_auth.client.user_pool_client_secret.unsafe_unwrap(),
                         },
                     },
                 },
@@ -311,7 +311,7 @@ class AgentcoreCdkStack(cdk.Stack):
             runtime_name="agent_runtime",
             asset_path="agent",
             protocol=ProtocolType.HTTP,
-            auth_pool=agent,
+            auth_pool=agent_auth,
             ssm_param_name="/agentcore/agent-runtime-arn",
         )
 
@@ -321,7 +321,7 @@ class AgentcoreCdkStack(cdk.Stack):
             runtime_name="mcp_calculator",
             asset_path="mcp/calculator",
             protocol=ProtocolType.MCP,
-            auth_pool=mcp,
+            auth_pool=mcp_auth,
             ssm_param_name="/agentcore/mcp-calculator-runtime-arn",
         )
 
@@ -344,8 +344,8 @@ class AgentcoreCdkStack(cdk.Stack):
             prefix="Jwt",
             gateway_name="agentcore-jwt-gateway",
             authorizer_configuration=GatewayAuthorizer.using_cognito(
-                user_pool=gateway.user_pool,
-                allowed_clients=[gateway.client],
+                user_pool=gateway_auth.user_pool,
+                allowed_clients=[gateway_auth.client],
             ),
             ssm_param_name="/agentcore/jwt-gateway-url",
         )
@@ -384,27 +384,33 @@ class AgentcoreCdkStack(cdk.Stack):
         cdk.CfnOutput(self, "IamGatewayUrl", value=iam_gateway_url)
         cdk.CfnOutput(self, "JwtGatewayUrl", value=jwt_gateway_url)
         cdk.CfnOutput(
-            self, "JwtGatewayUserPoolId", value=gateway.user_pool.user_pool_id
+            self, "JwtGatewayUserPoolId", value=gateway_auth.user_pool.user_pool_id
         )
         cdk.CfnOutput(
-            self, "JwtGatewayUserPoolClientId", value=gateway.client.user_pool_client_id
+            self,
+            "JwtGatewayUserPoolClientId",
+            value=gateway_auth.client.user_pool_client_id,
         )
         cdk.CfnOutput(
             self,
             "JwtGatewayTokenEndpoint",
-            value=f"{gateway.domain.base_url()}/oauth2/token",
+            value=f"{gateway_auth.domain.base_url()}/oauth2/token",
         )
-        cdk.CfnOutput(self, "AgentUserPoolId", value=agent.user_pool.user_pool_id)
+        cdk.CfnOutput(self, "AgentUserPoolId", value=agent_auth.user_pool.user_pool_id)
         cdk.CfnOutput(
-            self, "AgentUserPoolClientId", value=agent.client.user_pool_client_id
+            self, "AgentUserPoolClientId", value=agent_auth.client.user_pool_client_id
         )
         cdk.CfnOutput(
-            self, "AgentTokenEndpoint", value=f"{agent.domain.base_url()}/oauth2/token"
+            self,
+            "AgentTokenEndpoint",
+            value=f"{agent_auth.domain.base_url()}/oauth2/token",
         )
-        cdk.CfnOutput(self, "McpUserPoolId", value=mcp.user_pool.user_pool_id)
-        cdk.CfnOutput(self, "McpUserPoolClientId", value=mcp.client.user_pool_client_id)
+        cdk.CfnOutput(self, "McpUserPoolId", value=mcp_auth.user_pool.user_pool_id)
         cdk.CfnOutput(
-            self, "McpTokenEndpoint", value=f"{mcp.domain.base_url()}/oauth2/token"
+            self, "McpUserPoolClientId", value=mcp_auth.client.user_pool_client_id
+        )
+        cdk.CfnOutput(
+            self, "McpTokenEndpoint", value=f"{mcp_auth.domain.base_url()}/oauth2/token"
         )
         cdk.CfnOutput(
             self, "AgentCalculatorRuntimeArn", value=agent_rt.runtime.agent_runtime_arn
