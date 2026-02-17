@@ -1,8 +1,9 @@
 import os
-
 import aws_cdk as cdk
+from typing import NamedTuple
 from aws_cdk import aws_iam as iam
 from aws_cdk import aws_cognito as cognito
+from aws_cdk import aws_secretsmanager as secretsmanager
 from aws_cdk import aws_ssm as ssm
 from aws_cdk import custom_resources as cr
 from aws_cdk.aws_bedrock_agentcore_alpha import (
@@ -17,241 +18,399 @@ from aws_cdk.aws_bedrock_agentcore_alpha import (
 from constructs import Construct
 
 
+class UserPoolResources(NamedTuple):
+    user_pool: cognito.UserPool
+    domain: cognito.UserPoolDomain
+    resource_server: cognito.UserPoolResourceServer
+    client: cognito.UserPoolClient
+
+
+class RuntimeResources(NamedTuple):
+    runtime: Runtime
+    role: iam.Role
+
+
 class AgentcoreCdkStack(cdk.Stack):
 
-    def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
-        super().__init__(scope, construct_id, **kwargs)
-
-        role = iam.Role(
-            self, "AgentRole",
-            assumed_by=iam.ServicePrincipal("bedrock-agentcore.amazonaws.com"),
+    def _create_user_pool(
+        self,
+        prefix: str,
+        pool_name: str,
+        domain_prefix: str,
+        resource_server_id: str,
+        scope_description: str,
+        secret_name: str,
+    ) -> UserPoolResources:
+        """Create a Cognito user pool with domain, resource server, client, and credentials secret."""
+        scope = cognito.ResourceServerScope(
+            scope_name="invoke", scope_description=scope_description
         )
 
-        role.add_to_policy(
-            iam.PolicyStatement(
-                actions=["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream"],
-                resources=["*"],
-            )
-        )
-
-        role.add_managed_policy(
-            iam.ManagedPolicy.from_aws_managed_policy_name("CloudWatchFullAccess")
-        )
-
-        role.add_to_policy(
-            iam.PolicyStatement(
-                actions=["ssm:GetParameter"],
-                resources=[f"arn:aws:ssm:{self.region}:{self.account}:parameter/agentcore/*"],
-            )
-        )
-
-        role.add_to_policy(
-            iam.PolicyStatement(
-                actions=["cognito-idp:DescribeUserPoolClient"],
-                resources=[f"arn:aws:cognito-idp:{self.region}:{self.account}:userpool/*"],
-            )
-        )
-
-        # Cognito User Pool for Runtime auth
         user_pool = cognito.UserPool(
-            self, "AgentCoreUserPool",
-            user_pool_name="agentcore-user-pool",
+            self,
+            f"{prefix}UserPool",
+            user_pool_name=pool_name,
             self_sign_up_enabled=False,
             sign_in_aliases=cognito.SignInAliases(email=True),
             removal_policy=cdk.RemovalPolicy.DESTROY,
         )
 
-        user_pool_domain = user_pool.add_domain(
-            "AgentCoreUserPoolDomain",
-            cognito_domain=cognito.CognitoDomainOptions(
-                domain_prefix="agentcore-mcp",
-            ),
+        domain = user_pool.add_domain(
+            f"{prefix}UserPoolDomain",
+            cognito_domain=cognito.CognitoDomainOptions(domain_prefix=domain_prefix),
         )
 
         resource_server = user_pool.add_resource_server(
-            "AgentCoreResourceServer",
-            identifier="agentcore",
-            scopes=[
-                cognito.ResourceServerScope(scope_name="invoke", scope_description="Invoke AgentCore runtimes"),
-            ],
+            f"{prefix}ResourceServer",
+            identifier=resource_server_id,
+            scopes=[scope],
         )
 
-        user_pool_client = user_pool.add_client(
-            "AgentCoreUserPoolClient",
+        client = user_pool.add_client(
+            f"{prefix}UserPoolClient",
             generate_secret=True,
             o_auth=cognito.OAuthSettings(
                 flows=cognito.OAuthFlows(client_credentials=True),
-                scopes=[cognito.OAuthScope.resource_server(resource_server, cognito.ResourceServerScope(scope_name="invoke", scope_description="Invoke AgentCore runtimes"))],
+                scopes=[cognito.OAuthScope.resource_server(resource_server, scope)],
             ),
         )
 
-        gateway = Gateway(
-            self, "McpGateway",
-            gateway_name="agentcoreMcpGateway",
-            authorizer_configuration=GatewayAuthorizer.using_cognito(
-                user_pool=user_pool,
-                allowed_clients=[user_pool_client],
+        # Store all Cognito credentials in a single secret
+        secretsmanager.Secret(
+            self,
+            f"{prefix}CognitoSecret",
+            secret_name=secret_name,
+            secret_object_value={
+                "client_id": cdk.SecretValue.unsafe_plain_text(
+                    client.user_pool_client_id
+                ),
+                "client_secret": client.user_pool_client_secret,
+                "user_pool_id": cdk.SecretValue.unsafe_plain_text(
+                    user_pool.user_pool_id
+                ),
+                "token_endpoint": cdk.SecretValue.unsafe_plain_text(
+                    f"{domain.base_url()}/oauth2/token"
+                ),
+            },
+            removal_policy=cdk.RemovalPolicy.DESTROY,
+        )
+
+        return UserPoolResources(user_pool, domain, resource_server, client)
+
+    def _create_runtime(
+        self,
+        prefix: str,
+        runtime_name: str,
+        asset_path: str,
+        protocol: ProtocolType,
+        auth_pool: UserPoolResources,
+        ssm_param_name: str,
+    ) -> RuntimeResources:
+        """Create an AgentCore runtime with its own execution role, artifact, and SSM param."""
+        role = iam.Role(
+            self,
+            f"{prefix}ExecutionRole",
+            assumed_by=iam.ServicePrincipal("bedrock-agentcore.amazonaws.com"),
+            inline_policies={
+                "BasePolicy": iam.PolicyDocument(
+                    statements=[
+                        iam.PolicyStatement(
+                            actions=[
+                                "bedrock:InvokeModel",
+                                "bedrock:InvokeModelWithResponseStream",
+                            ],
+                            resources=["*"],
+                        ),
+                        iam.PolicyStatement(
+                            actions=["ssm:GetParameter"],
+                            resources=[
+                                f"arn:aws:ssm:{self.region}:{self.account}:parameter/agentcore/*"
+                            ],
+                        ),
+                        iam.PolicyStatement(
+                            actions=["secretsmanager:GetSecretValue"],
+                            resources=[
+                                f"arn:aws:secretsmanager:{self.region}:{self.account}:secret:agentcore/*"
+                            ],
+                        ),
+                    ]
+                ),
+            },
+            managed_policies=[
+                iam.ManagedPolicy.from_aws_managed_policy_name("CloudWatchFullAccess"),
+            ],
+        )
+
+        artifact = AgentRuntimeArtifact.from_asset(
+            os.path.join(os.path.dirname(__file__), "..", asset_path)
+        )
+
+        runtime = Runtime(
+            self,
+            f"{prefix}Runtime",
+            runtime_name=runtime_name,
+            execution_role=role,
+            agent_runtime_artifact=artifact,
+            protocol_configuration=protocol,
+            authorizer_configuration=RuntimeAuthorizerConfiguration.using_cognito(
+                auth_pool.user_pool,
+                [auth_pool.client],
             ),
         )
 
-        # Grant the Gateway's service role permissions for outbound auth
-        gateway.role.add_to_policy(
+        ssm.StringParameter(
+            self,
+            f"{prefix}RuntimeArnParam",
+            parameter_name=ssm_param_name,
+            string_value=runtime.agent_runtime_arn,
+        )
+
+        return RuntimeResources(runtime, role)
+
+    def _create_gateway(
+        self,
+        prefix: str,
+        gateway_name: str,
+        authorizer_configuration: GatewayAuthorizer,
+        ssm_param_name: str,
+    ) -> Gateway:
+        """Create an AgentCore gateway with OAuth role permissions and SSM param for its URL."""
+        gw = Gateway(
+            self,
+            f"{prefix}Gateway",
+            gateway_name=gateway_name,
+            authorizer_configuration=authorizer_configuration,
+        )
+
+        # Service role permissions for the OAuth credential provider flow
+        gw.role.add_to_policy(
             iam.PolicyStatement(
-                actions=["bedrock-agentcore:*"],
+                actions=[
+                    "bedrock-agentcore:CompleteResourceTokenAuth",
+                    "bedrock-agentcore:GetWorkloadAccessToken",
+                    "bedrock-agentcore:GetResourceOauth2Token",
+                ],
                 resources=["*"],
             )
         )
 
-        mcp_calculator_runtime_artifact = AgentRuntimeArtifact.from_asset(
-            os.path.join(os.path.dirname(__file__), "..", "mcp-calculator")
+        gateway_url = f"https://{gw.gateway_id}.gateway.bedrock-agentcore.{self.region}.amazonaws.com/mcp"
+
+        ssm.StringParameter(
+            self,
+            f"{prefix}GatewayUrlParam",
+            parameter_name=ssm_param_name,
+            string_value=gateway_url,
         )
 
-        mcp_calculator_runtime = Runtime(
-            self, "McpCalculator",
-            runtime_name="mcp_calculator_v2",
-            execution_role=role,
-            agent_runtime_artifact=mcp_calculator_runtime_artifact,
-            protocol_configuration=ProtocolType.MCP,
-            authorizer_configuration=RuntimeAuthorizerConfiguration.using_cognito(
-                user_pool, [user_pool_client],
-            ),
+        return gw
+
+    def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
+        super().__init__(scope, construct_id, **kwargs)
+
+        # ---------------------------------------------------------------
+        # Cognito User Pools
+        # ---------------------------------------------------------------
+
+        # Agent Cognito User Pool — authenticates requests to the agent runtime
+        agent = self._create_user_pool(
+            prefix="Agent",
+            pool_name="agentcore-agent-user-pool",
+            domain_prefix="agentcore-agent",
+            resource_server_id="agent",
+            scope_description="Invoke agent runtime",
+            secret_name="agentcore/agent-cognito",
         )
 
-        agent_runtime_artifact = AgentRuntimeArtifact.from_asset(
-            os.path.join(os.path.dirname(__file__), "..", "agent")
+        # JWT Gateway Cognito User Pool — authenticates inbound gateway requests
+        gateway = self._create_user_pool(
+            prefix="JwtGateway",
+            pool_name="agentcore-gateway-pool",
+            domain_prefix="agentcore-gateway",
+            resource_server_id="gateway",
+            scope_description="Invoke AgentCore Gateway",
+            secret_name="agentcore/jwt-gateway-cognito",
         )
 
-        agent_runtime = Runtime(
-            self, "AgentCalculator",
-            runtime_name="agent_calculator_v2",
-            execution_role=role,
-            agent_runtime_artifact=agent_runtime_artifact,
-            protocol_configuration=ProtocolType.HTTP,
-            authorizer_configuration=RuntimeAuthorizerConfiguration.using_cognito(
-                user_pool, [user_pool_client],
-            ),
+        # MCP Cognito User Pool — authenticates requests to MCP runtimes
+        mcp = self._create_user_pool(
+            prefix="Mcp",
+            pool_name="agentcore-mcp-user-pool",
+            domain_prefix="agentcore-mcp",
+            resource_server_id="mcp",
+            scope_description="Invoke MCP runtimes",
+            secret_name="agentcore/mcp-cognito",
         )
 
-        # Create OAuth2 credential provider in AgentCore token vault via SDK
-        oauth_provider_name = "cognito-oauth-client"
-        oauth_provider = cr.AwsCustomResource(
-            self, "OAuthCredentialProvider",
+        # ---------------------------------------------------------------
+        # OAuth2 Credential Provider — stores MCP Cognito credentials in AgentCore Identity
+        # ---------------------------------------------------------------
+        mcp_oauth_provider_name = "mcp-runtime-oauth-provider"
+        mcp_oauth_provider = cr.AwsCustomResource(
+            self,
+            "McpOAuthCredentialProvider",
             install_latest_aws_sdk=True,
             on_create=cr.AwsSdkCall(
                 service="@aws-sdk/client-bedrock-agentcore-control",
                 action="CreateOauth2CredentialProvider",
                 parameters={
-                    "name": oauth_provider_name,
+                    "name": mcp_oauth_provider_name,
                     "credentialProviderVendor": "CustomOauth2",
                     "oauth2ProviderConfigInput": {
                         "customOauth2ProviderConfig": {
                             "oauthDiscovery": {
-                                "discoveryUrl": f"https://cognito-idp.{self.region}.amazonaws.com/{user_pool.user_pool_id}/.well-known/openid-configuration",
+                                "discoveryUrl": f"https://cognito-idp.{self.region}.amazonaws.com/{mcp.user_pool.user_pool_id}/.well-known/openid-configuration",
                             },
-                            "clientId": user_pool_client.user_pool_client_id,
-                            "clientSecret": user_pool_client.user_pool_client_secret.unsafe_unwrap(),
+                            "clientId": mcp.client.user_pool_client_id,
+                            "clientSecret": mcp.client.user_pool_client_secret.unsafe_unwrap(),
                         },
                     },
                 },
-                physical_resource_id=cr.PhysicalResourceId.from_response("credentialProviderArn"),
+                physical_resource_id=cr.PhysicalResourceId.from_response(
+                    "credentialProviderArn"
+                ),
             ),
             on_delete=cr.AwsSdkCall(
                 service="@aws-sdk/client-bedrock-agentcore-control",
                 action="DeleteOauth2CredentialProvider",
                 parameters={
-                    "name": oauth_provider_name,
+                    "name": mcp_oauth_provider_name,
                 },
             ),
-            policy=cr.AwsCustomResourcePolicy.from_statements([
-                iam.PolicyStatement(
-                    actions=[
-                        "bedrock-agentcore:CreateTokenVault",
-                        "bedrock-agentcore:GetTokenVault",
-                        "bedrock-agentcore:CreateOauth2CredentialProvider",
-                        "bedrock-agentcore:DeleteOauth2CredentialProvider",
-                        "secretsmanager:CreateSecret",
-                        "secretsmanager:DeleteSecret",
-                    ],
-                    resources=["*"],
-                ),
-            ]),
+            policy=cr.AwsCustomResourcePolicy.from_statements(
+                [
+                    iam.PolicyStatement(
+                        actions=[
+                            "bedrock-agentcore:CreateTokenVault",
+                            "bedrock-agentcore:GetTokenVault",
+                            "bedrock-agentcore:CreateOauth2CredentialProvider",
+                            "bedrock-agentcore:DeleteOauth2CredentialProvider",
+                            "secretsmanager:CreateSecret",
+                            "secretsmanager:DeleteSecret",
+                        ],
+                        resources=["*"],
+                    ),
+                ]
+            ),
         )
 
-        provider_arn = oauth_provider.get_response_field("credentialProviderArn")
-        secret_arn = oauth_provider.get_response_field("clientSecretArn.secretArn")
-
-        # URL-encode the runtime ARN (replace : -> %3A, / -> %2F) for the endpoint
-        escaped_arn = cdk.Fn.join("%2F", cdk.Fn.split("/",
-            cdk.Fn.join("%3A", cdk.Fn.split(":", mcp_calculator_runtime.agent_runtime_arn))
-        ))
-        mcp_runtime_endpoint = f"https://bedrock-agentcore.{self.region}.amazonaws.com/runtimes/{escaped_arn}/invocations?qualifier=DEFAULT"
-
-        # Gateway target for MCP Calculator runtime
-        gateway.add_mcp_server_target(
-            "McpCalculatorTarget",
-            gateway_target_name="mcp-calculator",
-            description="MCP Calculator runtime",
-            endpoint=mcp_runtime_endpoint,
-            credential_provider_configurations=[
-                GatewayCredentialProvider.from_oauth_identity_arn(
-                    provider_arn=provider_arn,
-                    secret_arn=secret_arn,
-                    scopes=["agentcore/invoke"],
-                ),
-            ],
+        mcp_oauth_provider_arn = mcp_oauth_provider.get_response_field(
+            "credentialProviderArn"
+        )
+        mcp_oauth_secret_arn = mcp_oauth_provider.get_response_field(
+            "clientSecretArn.secretArn"
         )
 
-        ssm.StringParameter(
-            self, "McpCalculatorRuntimeArnParam",
-            parameter_name="/agentcore/mcp-calculator-runtime-arn",
-            string_value=mcp_calculator_runtime.agent_runtime_arn,
+        # ---------------------------------------------------------------
+        # Runtimes
+        # ---------------------------------------------------------------
+
+        # Agent Runtime — Bedrock-powered agent that calls MCP tools
+        agent_rt = self._create_runtime(
+            prefix="AgentRuntime",
+            runtime_name="agent_runtime",
+            asset_path="agent",
+            protocol=ProtocolType.HTTP,
+            auth_pool=agent,
+            ssm_param_name="/agentcore/agent-runtime-arn",
         )
 
-        ssm.StringParameter(
-            self, "AgentRuntimeArnParam",
-            parameter_name="/agentcore/agent-runtime-arn",
-            string_value=agent_runtime.agent_runtime_arn,
+        # MCP Calculator Runtime — hosts the calculator MCP server
+        mcp_rt = self._create_runtime(
+            prefix="McpCalculator",
+            runtime_name="mcp_calculator",
+            asset_path="mcp-calculator",
+            protocol=ProtocolType.MCP,
+            auth_pool=mcp,
+            ssm_param_name="/agentcore/mcp-calculator-runtime-arn",
         )
 
-        ssm.StringParameter(
-            self, "CognitoClientIdParam",
-            parameter_name="/agentcore/cognito-client-id",
-            string_value=user_pool_client.user_pool_client_id,
+        # URL-encode the runtime ARN for the invocation endpoint
+        escaped_arn = cdk.Fn.join(
+            "%2F",
+            cdk.Fn.split(
+                "/",
+                cdk.Fn.join("%3A", cdk.Fn.split(":", mcp_rt.runtime.agent_runtime_arn)),
+            ),
+        )
+        mcp_calculator_runtime_endpoint = f"https://bedrock-agentcore.{self.region}.amazonaws.com/runtimes/{escaped_arn}/invocations?qualifier=DEFAULT"
+
+        # ---------------------------------------------------------------
+        # Gateways
+        # ---------------------------------------------------------------
+
+        # JWT Gateway — Cognito-authenticated MCP gateway
+        jwt_gateway = self._create_gateway(
+            prefix="Jwt",
+            gateway_name="agentcore-jwt-gateway",
+            authorizer_configuration=GatewayAuthorizer.using_cognito(
+                user_pool=gateway.user_pool,
+                allowed_clients=[gateway.client],
+            ),
+            ssm_param_name="/agentcore/jwt-gateway-url",
         )
 
-        ssm.StringParameter(
-            self, "CognitoClientSecretParam",
-            parameter_name="/agentcore/cognito-client-secret",
-            string_value=user_pool_client.user_pool_client_secret.unsafe_unwrap(),
+        # IAM Gateway — SigV4-authenticated MCP gateway
+        iam_gateway = self._create_gateway(
+            prefix="Iam",
+            gateway_name="agentcore-iam-gateway",
+            authorizer_configuration=GatewayAuthorizer.using_aws_iam(),
+            ssm_param_name="/agentcore/iam-gateway-url",
         )
 
-        ssm.StringParameter(
-            self, "CognitoUserPoolIdParam",
-            parameter_name="/agentcore/cognito-user-pool-id",
-            string_value=user_pool.user_pool_id,
+        # ---------------------------------------------------------------
+        # Gateway Targets — attach MCP Calculator to all gateways
+        # ---------------------------------------------------------------
+        mcp_credential_provider = GatewayCredentialProvider.from_oauth_identity_arn(
+            provider_arn=mcp_oauth_provider_arn,
+            secret_arn=mcp_oauth_secret_arn,
+            scopes=["mcp/invoke"],
         )
 
-        ssm.StringParameter(
-            self, "CognitoTokenEndpointParam",
-            parameter_name="/agentcore/cognito-token-endpoint",
-            string_value=f"{user_pool_domain.base_url()}/oauth2/token",
+        for prefix, gw in [("Jwt", jwt_gateway), ("Iam", iam_gateway)]:
+            gw.add_mcp_server_target(
+                f"{prefix}McpCalculatorTarget",
+                gateway_target_name="mcp-calculator",
+                description="MCP Calculator runtime",
+                endpoint=mcp_calculator_runtime_endpoint,
+                credential_provider_configurations=[mcp_credential_provider],
+            )
+
+        # ---------------------------------------------------------------
+        # Stack Outputs
+        # ---------------------------------------------------------------
+        iam_gateway_url = f"https://{iam_gateway.gateway_id}.gateway.bedrock-agentcore.{self.region}.amazonaws.com/mcp"
+        jwt_gateway_url = f"https://{jwt_gateway.gateway_id}.gateway.bedrock-agentcore.{self.region}.amazonaws.com/mcp"
+        cdk.CfnOutput(self, "IamGatewayUrl", value=iam_gateway_url)
+        cdk.CfnOutput(self, "JwtGatewayUrl", value=jwt_gateway_url)
+        cdk.CfnOutput(
+            self, "JwtGatewayUserPoolId", value=gateway.user_pool.user_pool_id
         )
-
-        gateway_url = f"https://{gateway.gateway_id}.gateway.bedrock-agentcore.{self.region}.amazonaws.com/mcp"
-
-        ssm.StringParameter(
-            self, "GatewayUrlParam",
-            parameter_name="/agentcore/gateway-url",
-            string_value=gateway_url,
+        cdk.CfnOutput(
+            self, "JwtGatewayUserPoolClientId", value=gateway.client.user_pool_client_id
         )
-
-        cdk.CfnOutput(self, "GatewayUrl", value=gateway_url)
-        cdk.CfnOutput(self, "UserPoolId", value=user_pool.user_pool_id)
-        cdk.CfnOutput(self, "UserPoolClientId", value=user_pool_client.user_pool_client_id)
-        cdk.CfnOutput(self, "CognitoIssuer", value=f"https://cognito-idp.{self.region}.amazonaws.com/{user_pool.user_pool_id}")
-        cdk.CfnOutput(self, "AuthorizationEndpoint", value=f"{user_pool_domain.base_url()}/oauth2/authorize")
-        cdk.CfnOutput(self, "TokenEndpoint", value=f"{user_pool_domain.base_url()}/oauth2/token")
-        cdk.CfnOutput(self, "McpCalculatorRuntimeArn", value=mcp_calculator_runtime.agent_runtime_arn)
-        cdk.CfnOutput(self, "AgentRuntimeArn", value=agent_runtime.agent_runtime_arn)
-        cdk.CfnOutput(self, "OAuthProviderArn", value=provider_arn)
-        cdk.CfnOutput(self, "OAuthSecretArn", value=secret_arn)
+        cdk.CfnOutput(
+            self,
+            "JwtGatewayTokenEndpoint",
+            value=f"{gateway.domain.base_url()}/oauth2/token",
+        )
+        cdk.CfnOutput(self, "AgentUserPoolId", value=agent.user_pool.user_pool_id)
+        cdk.CfnOutput(
+            self, "AgentUserPoolClientId", value=agent.client.user_pool_client_id
+        )
+        cdk.CfnOutput(
+            self, "AgentTokenEndpoint", value=f"{agent.domain.base_url()}/oauth2/token"
+        )
+        cdk.CfnOutput(self, "McpUserPoolId", value=mcp.user_pool.user_pool_id)
+        cdk.CfnOutput(self, "McpUserPoolClientId", value=mcp.client.user_pool_client_id)
+        cdk.CfnOutput(
+            self, "McpTokenEndpoint", value=f"{mcp.domain.base_url()}/oauth2/token"
+        )
+        cdk.CfnOutput(
+            self, "AgentCalculatorRuntimeArn", value=agent_rt.runtime.agent_runtime_arn
+        )
+        cdk.CfnOutput(
+            self, "McpCalculatorRuntimeArn", value=mcp_rt.runtime.agent_runtime_arn
+        )
+        cdk.CfnOutput(self, "McpOAuthProviderArn", value=mcp_oauth_provider_arn)
+        cdk.CfnOutput(self, "McpOAuthSecretArn", value=mcp_oauth_secret_arn)

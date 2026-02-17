@@ -1,4 +1,3 @@
-import base64
 import json
 import urllib.parse
 import uuid
@@ -6,40 +5,32 @@ import uuid
 import boto3
 import requests
 
-# === Fetch config from SSM ===
 REGION_NAME = "ap-southeast-2"
 ssm_client = boto3.client("ssm", region_name=REGION_NAME)
+sm_client = boto3.client("secretsmanager", region_name=REGION_NAME)
 
+# Fetch Cognito credentials from Secrets Manager
+agent_cognito = json.loads(
+    sm_client.get_secret_value(SecretId="agentcore/agent-cognito")["SecretString"]
+)
+CLIENT_ID = agent_cognito["client_id"]
+CLIENT_SECRET = agent_cognito["client_secret"]
+TOKEN_ENDPOINT = agent_cognito["token_endpoint"]
 
-def get_ssm_param(name):
-    return ssm_client.get_parameter(Name=name)["Parameter"]["Value"]
-
-
-CLIENT_ID = get_ssm_param("/agentcore/cognito-client-id")
-TOKEN_ENDPOINT = get_ssm_param("/agentcore/cognito-token-endpoint")
-USER_POOL_ID = get_ssm_param("/agentcore/cognito-user-pool-id")
-agent_arn = get_ssm_param("/agentcore/agent-runtime-arn")
-
-# Fetch client secret from Cognito
-cognito_client = boto3.client("cognito-idp", region_name=REGION_NAME)
-CLIENT_SECRET = cognito_client.describe_user_pool_client(
-    UserPoolId=USER_POOL_ID,
-    ClientId=CLIENT_ID,
-)["UserPoolClient"]["ClientSecret"]
+agent_arn = ssm_client.get_parameter(Name="/agentcore/agent-runtime-arn")["Parameter"][
+    "Value"
+]
 
 session_id = str(uuid.uuid4())
 
 # === Authenticate with Cognito (client credentials) ===
 token_response = requests.post(
     TOKEN_ENDPOINT,
-    headers={
-        "Content-Type": "application/x-www-form-urlencoded",
-        "Authorization": "Basic " + base64.b64encode(f"{CLIENT_ID}:{CLIENT_SECRET}".encode()).decode(),
-    },
     data={
         "grant_type": "client_credentials",
-        "scope": "agentcore/invoke",
+        "scope": "agent/invoke",
     },
+    auth=(CLIENT_ID, CLIENT_SECRET),
 )
 token_response.raise_for_status()
 access_token = token_response.json()["access_token"]
@@ -50,9 +41,11 @@ escaped_agent_arn = urllib.parse.quote(agent_arn, safe="")
 url = f"https://bedrock-agentcore.{REGION_NAME}.amazonaws.com/runtimes/{escaped_agent_arn}/invocations?qualifier=DEFAULT"
 print(f"Invoking Agent at URL: {url}")
 
-payload = json.dumps({
-    "prompt": "What is 2 + 5?",
-})
+payload = json.dumps(
+    {
+        "prompt": "What is 2 + 5?",
+    }
+)
 
 invoke_response = requests.post(
     url,

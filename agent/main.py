@@ -1,3 +1,5 @@
+import json
+
 import boto3
 import httpx
 from bedrock_agentcore.runtime import BedrockAgentCoreApp
@@ -8,21 +10,27 @@ from strands.tools.mcp import MCPClient
 REGION_NAME = "ap-southeast-2"
 
 ssm_client = boto3.client("ssm", region_name=REGION_NAME)
-GATEWAY_URL = ssm_client.get_parameter(Name="/agentcore/gateway-url")["Parameter"]["Value"]
-TOKEN_ENDPOINT = ssm_client.get_parameter(Name="/agentcore/cognito-token-endpoint")["Parameter"]["Value"]
-CLIENT_ID = ssm_client.get_parameter(Name="/agentcore/cognito-client-id")["Parameter"]["Value"]
-CLIENT_SECRET = ssm_client.get_parameter(Name="/agentcore/cognito-client-secret")["Parameter"]["Value"]
+sm_client = boto3.client("secretsmanager", region_name=REGION_NAME)
+
+GATEWAY_URL = ssm_client.get_parameter(Name="/agentcore/jwt-gateway-url")["Parameter"][
+    "Value"
+]
+
+# Fetch Cognito credentials from Secrets Manager
+gateway_cognito = json.loads(
+    sm_client.get_secret_value(SecretId="agentcore/jwt-gateway-cognito")["SecretString"]
+)
 
 
 def get_access_token() -> str:
     """Get an OAuth2 access token using client_credentials flow."""
     response = httpx.post(
-        TOKEN_ENDPOINT,
+        gateway_cognito["token_endpoint"],
         data={
             "grant_type": "client_credentials",
-            "scope": "agentcore/invoke",
+            "scope": "gateway/invoke",
         },
-        auth=(CLIENT_ID, CLIENT_SECRET),
+        auth=(gateway_cognito["client_id"], gateway_cognito["client_secret"]),
     )
     response.raise_for_status()
     return response.json()["access_token"]
