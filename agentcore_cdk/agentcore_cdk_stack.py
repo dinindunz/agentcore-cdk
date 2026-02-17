@@ -319,7 +319,7 @@ class AgentcoreCdkStack(cdk.Stack):
         mcp_rt = self._create_runtime(
             prefix="McpCalculator",
             runtime_name="mcp_calculator",
-            asset_path="mcp-calculator",
+            asset_path="mcp/calculator",
             protocol=ProtocolType.MCP,
             auth_pool=mcp,
             ssm_param_name="/agentcore/mcp-calculator-runtime-arn",

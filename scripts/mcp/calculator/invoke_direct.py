@@ -6,26 +6,30 @@ import uuid
 import boto3
 import requests
 
-# === Fetch config from SSM ===
+# === Fetch config from AWS ===
 REGION_NAME = "ap-southeast-2"
 ssm_client = boto3.client("ssm", region_name=REGION_NAME)
+secrets_client = boto3.client("secretsmanager", region_name=REGION_NAME)
 
 
 def get_ssm_param(name):
     return ssm_client.get_parameter(Name=name)["Parameter"]["Value"]
 
 
-CLIENT_ID = get_ssm_param("/agentcore/cognito-client-id")
-TOKEN_ENDPOINT = get_ssm_param("/agentcore/cognito-token-endpoint")
-USER_POOL_ID = get_ssm_param("/agentcore/cognito-user-pool-id")
-mcp_calculator_arn = get_ssm_param("/agentcore/mcp-calculator-runtime-arn")
+def get_secret(name):
+    response = secrets_client.get_secret_value(SecretId=name)
+    return json.loads(response["SecretString"])
 
-# Fetch client secret from Cognito
-cognito_client = boto3.client("cognito-idp", region_name=REGION_NAME)
-CLIENT_SECRET = cognito_client.describe_user_pool_client(
-    UserPoolId=USER_POOL_ID,
-    ClientId=CLIENT_ID,
-)["UserPoolClient"]["ClientSecret"]
+
+# Fetch MCP Cognito credentials from Secrets Manager
+mcp_cognito = get_secret("agentcore/mcp-cognito")
+CLIENT_ID = mcp_cognito["client_id"]
+CLIENT_SECRET = mcp_cognito["client_secret"]
+TOKEN_ENDPOINT = mcp_cognito["token_endpoint"]
+USER_POOL_ID = mcp_cognito["user_pool_id"]
+
+# Fetch MCP Calculator runtime ARN from SSM
+mcp_calculator_arn = get_ssm_param("/agentcore/mcp-calculator-runtime-arn")
 
 session_id = str(uuid.uuid4())
 
@@ -38,7 +42,7 @@ token_response = requests.post(
     },
     data={
         "grant_type": "client_credentials",
-        "scope": "agentcore/invoke",
+        "scope": "mcp/invoke",
     },
 )
 token_response.raise_for_status()
