@@ -52,27 +52,6 @@ class AgentcoreCdkStack(cdk.Stack):
             )
         )
 
-        role.add_to_policy(
-            iam.PolicyStatement(
-                actions=["bedrock-agentcore:InvokeGateway"],
-                resources=[f"arn:aws:bedrock-agentcore:{self.region}:{self.account}:gateway/*"],
-            )
-        )
-
-        gateway = Gateway(
-            self, "McpGateway",
-            gateway_name="agentcoreMcpGateway",
-            authorizer_configuration=GatewayAuthorizer.using_aws_iam(),
-        )
-
-        # Grant the Gateway's service role permissions for outbound auth
-        gateway.role.add_to_policy(
-            iam.PolicyStatement(
-                actions=["bedrock-agentcore:*"],
-                resources=["*"],
-            )
-        )
-
         # Cognito User Pool for Runtime auth
         user_pool = cognito.UserPool(
             self, "AgentCoreUserPool",
@@ -104,6 +83,23 @@ class AgentcoreCdkStack(cdk.Stack):
                 flows=cognito.OAuthFlows(client_credentials=True),
                 scopes=[cognito.OAuthScope.resource_server(resource_server, cognito.ResourceServerScope(scope_name="invoke", scope_description="Invoke AgentCore runtimes"))],
             ),
+        )
+
+        gateway = Gateway(
+            self, "McpGateway",
+            gateway_name="agentcoreMcpGateway",
+            authorizer_configuration=GatewayAuthorizer.using_cognito(
+                user_pool=user_pool,
+                allowed_clients=[user_pool_client],
+            ),
+        )
+
+        # Grant the Gateway's service role permissions for outbound auth
+        gateway.role.add_to_policy(
+            iam.PolicyStatement(
+                actions=["bedrock-agentcore:*"],
+                resources=["*"],
+            )
         )
 
         mcp_calculator_runtime_artifact = AgentRuntimeArtifact.from_asset(
@@ -221,6 +217,12 @@ class AgentcoreCdkStack(cdk.Stack):
             self, "CognitoClientIdParam",
             parameter_name="/agentcore/cognito-client-id",
             string_value=user_pool_client.user_pool_client_id,
+        )
+
+        ssm.StringParameter(
+            self, "CognitoClientSecretParam",
+            parameter_name="/agentcore/cognito-client-secret",
+            string_value=user_pool_client.user_pool_client_secret.unsafe_unwrap(),
         )
 
         ssm.StringParameter(

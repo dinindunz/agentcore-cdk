@@ -1,16 +1,34 @@
-import hashlib
 import json
 import uuid
 
 import boto3
 import requests
-from botocore.auth import SigV4Auth
-from botocore.awsrequest import AWSRequest
 
 REGION_NAME = "ap-southeast-2"
 
 ssm_client = boto3.client("ssm", region_name=REGION_NAME)
 GATEWAY_URL = ssm_client.get_parameter(Name="/agentcore/gateway-url")["Parameter"]["Value"]
+TOKEN_ENDPOINT = ssm_client.get_parameter(Name="/agentcore/cognito-token-endpoint")["Parameter"]["Value"]
+CLIENT_ID = ssm_client.get_parameter(Name="/agentcore/cognito-client-id")["Parameter"]["Value"]
+CLIENT_SECRET = ssm_client.get_parameter(Name="/agentcore/cognito-client-secret")["Parameter"]["Value"]
+
+# Get OAuth2 access token using client_credentials flow
+token_response = requests.post(
+    TOKEN_ENDPOINT,
+    data={
+        "grant_type": "client_credentials",
+        "scope": "agentcore/invoke",
+    },
+    auth=(CLIENT_ID, CLIENT_SECRET),
+)
+token_response.raise_for_status()
+access_token = token_response.json()["access_token"]
+
+headers = {
+    "Content-Type": "application/json",
+    "Accept": "application/json, text/event-stream",
+    "Authorization": f"Bearer {access_token}",
+}
 
 session_id = str(uuid.uuid4())
 
@@ -22,7 +40,7 @@ list_tools_payload = json.dumps({
     "params": {},
 })
 
-# Then call the add tool (will use the correct name after listing)
+# Then call the add tool
 call_tool_payload = json.dumps({
     "jsonrpc": "2.0",
     "id": 2,
@@ -37,37 +55,15 @@ call_tool_payload = json.dumps({
 })
 
 
-def sigv4_sign(url, method, body, region, service):
-    """Sign a request with SigV4 and return headers."""
-    session = boto3.Session()
-    credentials = session.get_credentials().get_frozen_credentials()
-
-    aws_request = AWSRequest(
-        method=method,
-        url=url,
-        data=body,
-        headers={
-            "Content-Type": "application/json",
-            "Accept": "application/json, text/event-stream",
-            "X-Amz-Content-Sha256": hashlib.sha256(body.encode()).hexdigest(),
-        },
-    )
-
-    SigV4Auth(credentials, service, region).add_auth(aws_request)
-    return dict(aws_request.headers)
-
-
 # List tools first
 print(f"Invoking Gateway at: {GATEWAY_URL}")
 print("\n=== Listing tools ===")
-headers = sigv4_sign(GATEWAY_URL, "POST", list_tools_payload, REGION_NAME, "bedrock-agentcore")
 response = requests.post(GATEWAY_URL, headers=headers, data=list_tools_payload)
 print(f"Status Code: {response.status_code}")
 print(f"Response: {response.content}")
 
 # Call add tool
 print("\n=== Calling add tool ===")
-headers = sigv4_sign(GATEWAY_URL, "POST", call_tool_payload, REGION_NAME, "bedrock-agentcore")
 response = requests.post(GATEWAY_URL, headers=headers, data=call_tool_payload)
 print(f"Status Code: {response.status_code}")
 print(f"Response: {response.content}")
