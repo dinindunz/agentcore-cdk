@@ -1,6 +1,9 @@
+import hashlib
 import json
 
 import boto3
+import botocore.auth
+import botocore.awsrequest
 import httpx
 from bedrock_agentcore.runtime import BedrockAgentCoreApp
 from mcp.client.streamable_http import streamablehttp_client
@@ -12,9 +15,12 @@ REGION_NAME = "ap-southeast-2"
 ssm_client = boto3.client("ssm", region_name=REGION_NAME)
 sm_client = boto3.client("secretsmanager", region_name=REGION_NAME)
 
-GATEWAY_URL = ssm_client.get_parameter(Name="/agentcore/jwt-gateway-url")["Parameter"][
-    "Value"
-]
+JWT_GATEWAY_URL = ssm_client.get_parameter(Name="/agentcore/jwt-gateway-url")[
+    "Parameter"
+]["Value"]
+IAM_GATEWAY_URL = ssm_client.get_parameter(Name="/agentcore/iam-gateway-url")[
+    "Parameter"
+]["Value"]
 
 # Fetch Cognito credentials from Secrets Manager
 gateway_cognito = json.loads(
@@ -36,22 +42,73 @@ def get_access_token() -> str:
     return response.json()["access_token"]
 
 
+class SigV4Auth(httpx.Auth):
+    """Signs requests with AWS SigV4 using the runtime's execution role credentials."""
+
+    requires_request_body = True
+
+    def __init__(self, region: str, service: str = "bedrock-agentcore"):
+        self.region = region
+        self.service = service
+        self._boto_session = boto3.Session(region_name=region)
+
+    def auth_flow(self, request: httpx.Request):
+        # Refresh credentials each call to handle credential rotation on long-running containers
+        credentials = self._boto_session.get_credentials().get_frozen_credentials()
+        body = request.content or b""
+
+        # Only sign Host + Content-Type to keep SignedHeaders minimal and stable
+        aws_request = botocore.awsrequest.AWSRequest(
+            method=request.method,
+            url=str(request.url),
+            data=body,
+            headers={
+                "Host": request.url.host,
+                "Content-Type": request.headers.get("content-type", "application/json"),
+            },
+        )
+        aws_request.headers["X-Amz-Content-Sha256"] = hashlib.sha256(body).hexdigest()
+
+        signer = botocore.auth.SigV4Auth(credentials, self.service, self.region)
+        signer.add_auth(aws_request)
+
+        for key, value in aws_request.headers.items():
+            request.headers[key] = value
+        yield request
+
+
 access_token = get_access_token()
+sigv4_auth = SigV4Auth(region=REGION_NAME)
 
 app = BedrockAgentCoreApp()
 
 
-def create_mcp_transport():
+def create_jwt_transport():
     return streamablehttp_client(
-        GATEWAY_URL,
+        JWT_GATEWAY_URL,
         headers={"Authorization": f"Bearer {access_token}"},
     )
 
 
-mcp_client = MCPClient(lambda: create_mcp_transport())
-mcp_client.__enter__()
+def create_iam_transport():
+    return streamablehttp_client(
+        IAM_GATEWAY_URL,
+        auth=sigv4_auth,
+    )
 
-tools = mcp_client.list_tools_sync()
+
+jwt_client = MCPClient(lambda: create_jwt_transport())
+jwt_client.__enter__()
+
+iam_client = MCPClient(lambda: create_iam_transport())
+iam_client.__enter__()
+
+_seen_tool_names: set[str] = set()
+tools = []
+for tool in jwt_client.list_tools_sync() + iam_client.list_tools_sync():
+    if tool.tool_name not in _seen_tool_names:
+        _seen_tool_names.add(tool.tool_name)
+        tools.append(tool)
 agent = Agent(
     tools=tools,
     system_prompt="You are a helpful assistant. Provide friendly, conversational responses. Always use tools provided.",

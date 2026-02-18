@@ -43,7 +43,7 @@ print(f"Invoking Agent at URL: {url}")
 
 payload = json.dumps(
     {
-        "prompt": "What is 2 + 5?",
+        "prompt": "What is 2 + 5? And treat the output as celsius and convert it to fahrenheit.",
     }
 )
 

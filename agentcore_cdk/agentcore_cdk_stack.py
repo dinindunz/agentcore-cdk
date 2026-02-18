@@ -3,6 +3,7 @@ import aws_cdk as cdk
 from typing import NamedTuple
 from aws_cdk import aws_iam as iam
 from aws_cdk import aws_cognito as cognito
+from aws_cdk import aws_lambda as lambda_
 from aws_cdk import aws_secretsmanager as secretsmanager
 from aws_cdk import aws_ssm as ssm
 from aws_cdk import custom_resources as cr
@@ -14,6 +15,7 @@ from aws_cdk.aws_bedrock_agentcore_alpha import (
     Gateway,
     GatewayAuthorizer,
     GatewayCredentialProvider,
+    ToolSchema,
 )
 from constructs import Construct
 
@@ -173,6 +175,7 @@ class AgentcoreCdkStack(cdk.Stack):
         gateway_name: str,
         authorizer_configuration: GatewayAuthorizer,
         ssm_param_name: str,
+        credential_provider_name: str,
     ) -> Gateway:
         """Create an AgentCore gateway with OAuth role permissions and SSM param for its URL."""
         gw = Gateway(
@@ -183,6 +186,8 @@ class AgentcoreCdkStack(cdk.Stack):
         )
 
         # Service role permissions for the OAuth credential provider flow
+        workload_identity_base = f"arn:aws:bedrock-agentcore:{self.region}:{self.account}:workload-identity-directory/default"
+        token_vault_base = f"arn:aws:bedrock-agentcore:{self.region}:{self.account}:token-vault/default"
         gw.role.add_to_policy(
             iam.PolicyStatement(
                 actions=[
@@ -190,7 +195,12 @@ class AgentcoreCdkStack(cdk.Stack):
                     "bedrock-agentcore:GetWorkloadAccessToken",
                     "bedrock-agentcore:GetResourceOauth2Token",
                 ],
-                resources=["*"],
+                resources=[
+                    workload_identity_base,
+                    f"{workload_identity_base}/workload-identity/{gateway_name}-*",
+                    token_vault_base,
+                    f"{token_vault_base}/oauth2credentialprovider/{credential_provider_name}",
+                ],
             )
         )
 
@@ -302,7 +312,7 @@ class AgentcoreCdkStack(cdk.Stack):
         )
 
         # ---------------------------------------------------------------
-        # Runtimes
+        # Agent Runtimes
         # ---------------------------------------------------------------
 
         # Agent Runtime — Bedrock-powered agent that calls MCP tools
@@ -315,6 +325,10 @@ class AgentcoreCdkStack(cdk.Stack):
             ssm_param_name="/agentcore/agent-runtime-arn",
         )
 
+        # ---------------------------------------------------------------
+        # MCP Runtimes
+        # ---------------------------------------------------------------
+        
         # MCP Calculator Runtime — hosts the calculator MCP server
         mcp_rt = self._create_runtime(
             prefix="McpCalculator",
@@ -336,6 +350,19 @@ class AgentcoreCdkStack(cdk.Stack):
         mcp_calculator_runtime_endpoint = f"https://bedrock-agentcore.{self.region}.amazonaws.com/runtimes/{escaped_arn}/invocations?qualifier=DEFAULT"
 
         # ---------------------------------------------------------------
+        # MCP Lambda Targets
+        # ---------------------------------------------------------------
+        
+        temperature_lambda = lambda_.DockerImageFunction(
+            self,
+            "McpTemperatureConverter",
+            function_name="mcp_temperature_converter",
+            code=lambda_.DockerImageCode.from_image_asset(
+                os.path.join(os.path.dirname(__file__), "..", "mcp", "temperature_converter")
+            ),
+        )
+        
+        # ---------------------------------------------------------------
         # Gateways
         # ---------------------------------------------------------------
 
@@ -348,6 +375,7 @@ class AgentcoreCdkStack(cdk.Stack):
                 allowed_clients=[gateway_auth.client],
             ),
             ssm_param_name="/agentcore/jwt-gateway-url",
+            credential_provider_name=mcp_oauth_provider_name,
         )
 
         # IAM Gateway — SigV4-authenticated MCP gateway
@@ -356,10 +384,22 @@ class AgentcoreCdkStack(cdk.Stack):
             gateway_name="agentcore-iam-gateway",
             authorizer_configuration=GatewayAuthorizer.using_aws_iam(),
             ssm_param_name="/agentcore/iam-gateway-url",
+            credential_provider_name=mcp_oauth_provider_name,
+        )
+
+        # Grant the agent runtime's execution role permission to invoke the IAM gateway
+        # The JWT gateway uses Cognito auth, authorisation is determined entirely by whether your Bearer token is valid
+        agent_rt.role.add_to_policy(
+            iam.PolicyStatement(
+                actions=["bedrock-agentcore:InvokeGateway"],
+                resources=[
+                    f"arn:aws:bedrock-agentcore:{self.region}:{self.account}:gateway/{iam_gateway.gateway_id}"
+                ],
+            )
         )
 
         # ---------------------------------------------------------------
-        # Gateway Targets — attach MCP Calculator to all gateways
+        # Gateway Targets
         # ---------------------------------------------------------------
         mcp_credential_provider = GatewayCredentialProvider.from_oauth_identity_arn(
             provider_arn=mcp_oauth_provider_arn,
@@ -367,14 +407,27 @@ class AgentcoreCdkStack(cdk.Stack):
             scopes=["mcp/invoke"],
         )
 
-        for prefix, gw in [("Jwt", jwt_gateway), ("Iam", iam_gateway)]:
-            gw.add_mcp_server_target(
-                f"{prefix}McpCalculatorTarget",
-                gateway_target_name="mcp-calculator",
-                description="MCP Calculator runtime",
-                endpoint=mcp_calculator_runtime_endpoint,
-                credential_provider_configurations=[mcp_credential_provider],
-            )
+        # MCP Calculator target — IAM gateway only
+        iam_gateway.add_mcp_server_target(
+            "CalculatorTarget",
+            gateway_target_name="calculator",
+            description="MCP Calculator runtime",
+            endpoint=mcp_calculator_runtime_endpoint,
+            credential_provider_configurations=[mcp_credential_provider],
+        )
+
+        # Temperature Converter Lambda — JWT gateway only
+        jwt_gateway.add_lambda_target(
+            "TemperatureConverterTarget",
+            gateway_target_name="temperature-converter",
+            description="Temperature conversion tools (Celsius <> Fahrenheit)",
+            lambda_function=temperature_lambda,
+            tool_schema=ToolSchema.from_local_asset(
+                os.path.join(
+                    os.path.dirname(__file__), "..", "mcp", "temperature_converter", "schema.json"
+                )
+            ),
+        )
 
         # ---------------------------------------------------------------
         # Stack Outputs
