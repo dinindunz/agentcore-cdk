@@ -4,6 +4,7 @@ from typing import NamedTuple
 from aws_cdk import aws_iam as iam
 from aws_cdk import aws_cognito as cognito
 from aws_cdk import aws_lambda as lambda_
+from aws_cdk import aws_ecr_assets as ecr_assets
 from aws_cdk import aws_secretsmanager as secretsmanager
 from aws_cdk import aws_ssm as ssm
 from aws_cdk import custom_resources as cr
@@ -357,8 +358,10 @@ class AgentcoreCdkStack(cdk.Stack):
             self,
             "McpTemperatureConverter",
             function_name="mcp_temperature_converter",
+            architecture=lambda_.Architecture.ARM_64,
             code=lambda_.DockerImageCode.from_image_asset(
-                os.path.join(os.path.dirname(__file__), "..", "mcp", "temperature_converter")
+                os.path.join(os.path.dirname(__file__), "..", "mcp", "temperature_converter"),
+                platform=ecr_assets.Platform.LINUX_ARM64,
             ),
         )
         
