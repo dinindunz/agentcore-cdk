@@ -13,7 +13,7 @@ from aws_cdk.aws_bedrock_agentcore_alpha import (
 )
 from constructs import Construct
 
-from .constructs import UserPoolConstruct, RuntimeConstruct, GatewayConstruct
+from .custom_constructs import UserPoolConstruct, RuntimeConstruct, GatewayConstruct
 from .utils import to_kebab_case
 
 

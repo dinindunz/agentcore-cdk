@@ -1,7 +1,0 @@
-README.md
-pyproject.toml
-agentcore_cdk.egg-info/PKG-INFO
-agentcore_cdk.egg-info/SOURCES.txt
-agentcore_cdk.egg-info/dependency_links.txt
-agentcore_cdk.egg-info/requires.txt
-agentcore_cdk.egg-info/top_level.txt
