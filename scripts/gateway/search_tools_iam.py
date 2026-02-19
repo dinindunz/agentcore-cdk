@@ -1,4 +1,5 @@
 import json
+import os
 import sys
 import urllib.request
 import urllib.error
@@ -6,8 +7,11 @@ import urllib.error
 import boto3
 from botocore.auth import SigV4Auth
 from botocore.awsrequest import AWSRequest
+from dotenv import load_dotenv
 
-REGION_NAME = "ap-southeast-2"
+load_dotenv()
+
+REGION_NAME = os.environ["REGION_NAME"]
 SERVICE_NAME = "bedrock-agentcore"
 
 ssm_client = boto3.client("ssm", region_name=REGION_NAME)

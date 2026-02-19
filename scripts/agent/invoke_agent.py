@@ -1,11 +1,15 @@
 import json
+import os
 import urllib.parse
 import uuid
 
 import boto3
 import requests
+from dotenv import load_dotenv
 
-REGION_NAME = "ap-southeast-2"
+load_dotenv()
+
+REGION_NAME = os.environ["REGION_NAME"]
 ssm_client = boto3.client("ssm", region_name=REGION_NAME)
 sm_client = boto3.client("secretsmanager", region_name=REGION_NAME)
 

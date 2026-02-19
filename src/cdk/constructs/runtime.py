@@ -140,9 +140,30 @@ class RuntimeConstruct(Construct):
             string_value=self._runtime.agent_runtime_arn,
         )
 
+        # Build the MCP invocation endpoint with URL-encoded ARN
+        if protocol == ProtocolType.MCP:
+            escaped_arn = cdk.Fn.join(
+                "%2F",
+                cdk.Fn.split(
+                    "/",
+                    cdk.Fn.join(
+                        "%3A",
+                        cdk.Fn.split(":", self._runtime.agent_runtime_arn),
+                    ),
+                ),
+            )
+            self._endpoint = f"https://bedrock-agentcore.{stack.region}.amazonaws.com/runtimes/{escaped_arn}/invocations?qualifier=DEFAULT"
+        else:
+            self._endpoint = None
+
     @property
     def runtime(self) -> Runtime:
         return self._runtime
+
+    @property
+    def endpoint(self) -> str | None:
+        """MCP invocation endpoint (only available for MCP protocol runtimes)."""
+        return self._endpoint
 
     @property
     def role(self) -> iam.Role:

@@ -1,6 +1,10 @@
+from dotenv import load_dotenv
+
 import aws_cdk as cdk
 
 from src.cdk import AgentcoreCdkStack
+
+load_dotenv()
 
 
 app = cdk.App()

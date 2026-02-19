@@ -54,6 +54,7 @@ class AgentcoreCdkStack(cdk.Stack):
 
         # ---------------------------------------------------------------
         # AgentCore Identity - OAuth2 Credential Provider — Stores MCP Cognito credentials
+        # Use this when you want to use a Cognito user pool as the identity source for authenticating to MCP AgentCore runtimes
         # ---------------------------------------------------------------
         mcp_oauth_provider_name = f"{stack_prefix}-mcp-runtime-oauth-provider"
         mcp_oauth_provider = cr.AwsCustomResource(
@@ -118,6 +119,58 @@ class AgentcoreCdkStack(cdk.Stack):
         )
 
         # ---------------------------------------------------------------
+        # AgentCore Identity - API Key Credential Provider — Stores GitHub PAT
+        # ---------------------------------------------------------------
+        github_api_key_provider_name = f"{stack_prefix}-github-api-key-provider"
+        github_api_key_provider = cr.AwsCustomResource(
+            self,
+            "GithubApiKeyCredentialProvider",
+            install_latest_aws_sdk=True,
+            on_create=cr.AwsSdkCall(
+                service="@aws-sdk/client-bedrock-agentcore-control",
+                action="CreateApiKeyCredentialProvider",
+                parameters={
+                    "name": github_api_key_provider_name,
+                    "apiKey": os.environ["GITHUB_TOKEN"],
+                },
+                physical_resource_id=cr.PhysicalResourceId.from_response(
+                    "credentialProviderArn"
+                ),
+            ),
+            on_delete=cr.AwsSdkCall(
+                service="@aws-sdk/client-bedrock-agentcore-control",
+                action="DeleteApiKeyCredentialProvider",
+                parameters={"name": github_api_key_provider_name},
+            ),
+            policy=cr.AwsCustomResourcePolicy.from_statements(
+                [
+                    iam.PolicyStatement(
+                        actions=[
+                            "bedrock-agentcore:CreateTokenVault",
+                            "bedrock-agentcore:GetTokenVault",
+                            "bedrock-agentcore:CreateApiKeyCredentialProvider",
+                            "bedrock-agentcore:DeleteApiKeyCredentialProvider",
+                        ],
+                        resources=["*"],
+                    ),
+                ]
+            ),
+        )
+
+        github_provider_arn = github_api_key_provider.get_response_field(
+            "credentialProviderArn"
+        )
+        github_secret_arn = github_api_key_provider.get_response_field(
+            "apiKeySecretArn.secretArn"
+        )
+        github_credential_provider = (
+            GatewayCredentialProvider.from_api_key_identity_arn(
+                provider_arn=github_provider_arn,
+                secret_arn=github_secret_arn,
+            )
+        )
+
+        # ---------------------------------------------------------------
         # Gateways — created before the agent runtime so their SSM paths
         # can be injected as environment variables into the agent container
         # ---------------------------------------------------------------
@@ -131,7 +184,7 @@ class AgentcoreCdkStack(cdk.Stack):
                 user_pool=gateway_auth.user_pool,
                 allowed_clients=[gateway_auth.client],
             ),
-            credential_provider_name=mcp_oauth_provider_name,
+            api_key_provider_names=[github_api_key_provider_name],
         )
 
         # IAM Gateway — SigV4-authenticated MCP gateway
@@ -140,7 +193,7 @@ class AgentcoreCdkStack(cdk.Stack):
             "IamGateway",
             gateway_name="iam-gateway",
             authorizer_configuration=GatewayAuthorizer.using_aws_iam(),
-            credential_provider_name=mcp_oauth_provider_name,
+            oauth2_provider_names=[mcp_oauth_provider_name],
         )
 
         # ---------------------------------------------------------------
@@ -156,6 +209,7 @@ class AgentcoreCdkStack(cdk.Stack):
             protocol=ProtocolType.HTTP,
             auth_pool=agent_auth,
             environment_variables={
+                "REGION_NAME": self.region,
                 "JWT_GATEWAY_SSM_PATH": jwt_gw.ssm_url_param_name,
                 "IAM_GATEWAY_SSM_PATH": iam_gw.ssm_url_param_name,
                 "GATEWAY_COGNITO_SECRET": gateway_auth.secret_name,
@@ -182,19 +236,6 @@ class AgentcoreCdkStack(cdk.Stack):
             protocol=ProtocolType.MCP,
             auth_pool=mcp_auth,
         )
-
-        # URL-encode the runtime ARN for the MCP calculator invocation endpoint
-        escaped_arn = cdk.Fn.join(
-            "%2F",
-            cdk.Fn.split(
-                "/",
-                cdk.Fn.join(
-                    "%3A",
-                    cdk.Fn.split(":", mcp_calculator_rt.runtime.agent_runtime_arn),
-                ),
-            ),
-        )
-        mcp_calculator_runtime_endpoint = f"https://bedrock-agentcore.{self.region}.amazonaws.com/runtimes/{escaped_arn}/invocations?qualifier=DEFAULT"
 
         # ---------------------------------------------------------------
         # MCP Lambdas
@@ -223,7 +264,7 @@ class AgentcoreCdkStack(cdk.Stack):
             "CalculatorTarget",
             gateway_target_name="calculator",
             description="Calculator tools (add, subtract, multiply, divide)",
-            endpoint=mcp_calculator_runtime_endpoint,
+            endpoint=mcp_calculator_rt.endpoint,
             credential_provider_configurations=[mcp_credential_provider],
         )
 
@@ -247,16 +288,8 @@ class AgentcoreCdkStack(cdk.Stack):
         # ---------------------------------------------------------------
         # Stack Outputs
         # ---------------------------------------------------------------
-        cdk.CfnOutput(
-            self,
-            "IamGatewayUrl",
-            value=f"https://{iam_gw.gateway.gateway_id}.gateway.bedrock-agentcore.{self.region}.amazonaws.com/mcp",
-        )
-        cdk.CfnOutput(
-            self,
-            "JwtGatewayUrl",
-            value=f"https://{jwt_gw.gateway.gateway_id}.gateway.bedrock-agentcore.{self.region}.amazonaws.com/mcp",
-        )
+        cdk.CfnOutput(self, "IamGatewayUrl", value=iam_gw.url)
+        cdk.CfnOutput(self, "JwtGatewayUrl", value=jwt_gw.url)
         cdk.CfnOutput(
             self, "JwtGatewayUserPoolId", value=gateway_auth.user_pool.user_pool_id
         )
@@ -294,3 +327,5 @@ class AgentcoreCdkStack(cdk.Stack):
         )
         cdk.CfnOutput(self, "McpOAuthProviderArn", value=mcp_oauth_provider_arn)
         cdk.CfnOutput(self, "McpOAuthSecretArn", value=mcp_oauth_secret_arn)
+        cdk.CfnOutput(self, "GithubApiKeyProviderArn", value=github_provider_arn)
+        cdk.CfnOutput(self, "GithubApiKeySecretArn", value=github_secret_arn)

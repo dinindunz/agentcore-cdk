@@ -5,8 +5,6 @@ COPY . .
 
 RUN pip install --no-cache-dir .
 
-ENV AWS_REGION=ap-southeast-2
-ENV AWS_DEFAULT_REGION=ap-southeast-2
 ENV DOCKER_CONTAINER=1
 ENV PYTHONUNBUFFERED=1
 ENV APP_VERSION=5

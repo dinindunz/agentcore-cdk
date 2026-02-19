@@ -1,7 +1,6 @@
 import hashlib
 import json
 import os
-
 import boto3
 import botocore.auth
 import botocore.awsrequest
@@ -11,7 +10,8 @@ from mcp.client.streamable_http import streamablehttp_client
 from strands import Agent
 from strands.tools.mcp import MCPClient
 
-REGION_NAME = "ap-southeast-2"
+
+REGION_NAME = os.environ["REGION_NAME"]
 
 ssm_client = boto3.client("ssm", region_name=REGION_NAME)
 sm_client = boto3.client("secretsmanager", region_name=REGION_NAME)

@@ -1,3 +1,5 @@
+from typing import Sequence
+
 import aws_cdk as cdk
 from aws_cdk import aws_iam as iam
 from aws_cdk import aws_ssm as ssm
@@ -8,7 +10,7 @@ from ..utils import to_kebab_case
 
 
 class GatewayConstruct(Construct):
-    """AgentCore gateway with OAuth service role permissions and SSM URL parameter."""
+    """AgentCore gateway with credential provider service role permissions and SSM URL parameter."""
 
     def __init__(
         self,
@@ -17,7 +19,8 @@ class GatewayConstruct(Construct):
         *,
         gateway_name: str,
         authorizer_configuration: GatewayAuthorizer,
-        credential_provider_name: str,
+        oauth2_provider_names: Sequence[str] | None = None,
+        api_key_provider_names: Sequence[str] | None = None,
     ) -> None:
         super().__init__(scope, id)
 
@@ -37,35 +40,58 @@ class GatewayConstruct(Construct):
             authorizer_configuration=authorizer_configuration,
         )
 
-        # Service role permissions for the OAuth credential provider flow
-        workload_identity_base = f"arn:aws:bedrock-agentcore:{stack.region}:{stack.account}:workload-identity-directory/default"
-        token_vault_base = f"arn:aws:bedrock-agentcore:{stack.region}:{stack.account}:token-vault/default"
-        self._gateway.role.add_to_policy(
-            iam.PolicyStatement(
-                actions=[
-                    "bedrock-agentcore:CompleteResourceTokenAuth",
-                    "bedrock-agentcore:GetWorkloadAccessToken",
-                    "bedrock-agentcore:GetResourceOauth2Token",
-                ],
-                resources=[
-                    workload_identity_base,
-                    f"{workload_identity_base}/workload-identity/{prefixed_gateway_name}-*",
-                    token_vault_base,
-                    f"{token_vault_base}/oauth2credentialprovider/{credential_provider_name}",
-                ],
+        # Service role permissions for credential provider flows
+        has_oauth2 = bool(oauth2_provider_names)
+        has_api_key = bool(api_key_provider_names)
+
+        if has_oauth2 or has_api_key:
+            workload_identity_base = f"arn:aws:bedrock-agentcore:{stack.region}:{stack.account}:workload-identity-directory/default"
+            token_vault_base = f"arn:aws:bedrock-agentcore:{stack.region}:{stack.account}:token-vault/default"
+
+            actions = [
+                "bedrock-agentcore:CompleteResourceTokenAuth",
+                "bedrock-agentcore:GetWorkloadAccessToken",
+            ]
+            resources = [
+                workload_identity_base,
+                f"{workload_identity_base}/workload-identity/{prefixed_gateway_name}-*",
+                token_vault_base,
+            ]
+
+            if has_oauth2:
+                actions.append("bedrock-agentcore:GetResourceOauth2Token")
+                for name in oauth2_provider_names:
+                    resources.append(
+                        f"{token_vault_base}/oauth2credentialprovider/{name}"
+                    )
+
+            if has_api_key:
+                actions.append("bedrock-agentcore:GetResourceApiKeyToken")
+                for name in api_key_provider_names:
+                    resources.append(
+                        f"{token_vault_base}/apikeycredentialprovider/{name}"
+                    )
+
+            self._gateway.role.add_to_policy(
+                iam.PolicyStatement(actions=actions, resources=resources)
             )
-        )
+
+        self._url = f"https://{self._gateway.gateway_id}.gateway.bedrock-agentcore.{stack.region}.amazonaws.com/mcp"
 
         ssm.StringParameter(
             self,
             "UrlParam",
             parameter_name=self._ssm_url_param_name,
-            string_value=f"https://{self._gateway.gateway_id}.gateway.bedrock-agentcore.{stack.region}.amazonaws.com/mcp",
+            string_value=self._url,
         )
 
     @property
     def gateway(self) -> Gateway:
         return self._gateway
+
+    @property
+    def url(self) -> str:
+        return self._url
 
     @property
     def ssm_url_param_name(self) -> str:
