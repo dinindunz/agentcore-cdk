@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import aws_cdk as cdk
 
-from src.cdk import AgentcoreCdkStack
+from stack import AgentcoreCdkStack
 
 
 app = cdk.App()

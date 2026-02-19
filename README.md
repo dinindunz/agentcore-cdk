@@ -5,14 +5,16 @@
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+pip install .
 ```
 
 ## Deployment
 
-Deploy to different environments by specifying the `env` context parameter:
+CDK files live in `src/cdk/`. Deploy from there, specifying the `env` context parameter:
 
 ```bash
+cd src/cdk
+
 # Deploy to dev environment (default)
 cdk deploy
 
@@ -28,20 +30,26 @@ cdk deploy -c env=prod
 
 ## Invoking
 
-Invoke the MCP Calculator runtime:
+Invoke the MCP Calculator runtime directly:
 
 ```bash
-python invoke_mcp.py
+python scripts/mcp/calculator/invoke_direct.py
+```
+
+Invoke the MCP Calculator via the IAM gateway:
+
+```bash
+python scripts/mcp/calculator/invoke_via_iam_gateway.py
+```
+
+Invoke the MCP Calculator via the JWT gateway:
+
+```bash
+python scripts/mcp/calculator/invoke_via_jwt_gateway.py
 ```
 
 Invoke the Agent runtime:
 
 ```bash
-python invoke_agent.py
-```
-
-Invoke the MCP Calculator runtime via the Gateway:
-
-```bash
-python invoke_mcp_via_gateway.py
+python scripts/agent/invoke_agent.py
 ```

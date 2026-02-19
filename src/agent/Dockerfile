@@ -3,8 +3,7 @@ WORKDIR /app
 
 COPY . .
 
-RUN python -m pip install --no-cache-dir -r requirements.txt
-RUN python -m pip install --no-cache-dir aws_opentelemetry_distro_genai_beta>=0.1.2
+RUN pip install --no-cache-dir .
 
 ENV AWS_REGION=ap-southeast-2
 ENV AWS_DEFAULT_REGION=ap-southeast-2

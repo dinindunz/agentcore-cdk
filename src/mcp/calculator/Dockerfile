@@ -3,7 +3,7 @@ WORKDIR /app
 
 COPY . .
 
-RUN python -m pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir .
 
 ENV AWS_REGION=ap-southeast-2
 ENV AWS_DEFAULT_REGION=ap-southeast-2

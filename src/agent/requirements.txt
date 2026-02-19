@@ -1,6 +1,0 @@
-bedrock-agentcore>=0.1.0
-strands-agents>=1.26.0
-strands-agents-tools
-mcp
-boto3
-httpx
