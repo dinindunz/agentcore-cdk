@@ -1,10 +1,3 @@
-#!/usr/bin/env python3
-import os
-import sys
-
-# Add project root to sys.path so src.cdk resolves as a package (enabling relative imports)
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
-
 import aws_cdk as cdk
 
 from src.cdk import AgentcoreCdkStack

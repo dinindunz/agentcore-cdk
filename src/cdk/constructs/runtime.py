@@ -1,6 +1,8 @@
 import os
 
 import aws_cdk as cdk
+from aws_cdk import aws_ecr as ecr
+from aws_cdk import aws_ecr_assets as ecr_assets
 from aws_cdk import aws_iam as iam
 from aws_cdk import aws_ssm as ssm
 from aws_cdk.aws_bedrock_agentcore_alpha import (
@@ -9,6 +11,7 @@ from aws_cdk.aws_bedrock_agentcore_alpha import (
     RuntimeAuthorizerConfiguration,
     ProtocolType,
 )
+from cdk_ecr_deployment import ECRDeployment, DockerImageName
 from constructs import Construct
 
 from .cognito import UserPoolConstruct
@@ -16,7 +19,7 @@ from ..utils import to_kebab_case, to_snake_case
 
 
 class RuntimeConstruct(Construct):
-    """AgentCore runtime with execution role, container artifact, and SSM ARN parameter."""
+    """AgentCore runtime with execution role, ECR repository, container artifact, and SSM ARN parameter."""
 
     def __init__(
         self,
@@ -77,9 +80,40 @@ class RuntimeConstruct(Construct):
             ],
         )
 
+        # Create a named ECR repository for this runtime
+        repo_name = f"{stack_prefix}-{to_kebab_case(runtime_name)}"
+        self._ecr_repo = ecr.Repository(
+            self,
+            "EcrRepo",
+            repository_name=repo_name,
+            removal_policy=cdk.RemovalPolicy.DESTROY,
+            empty_on_delete=True,
+            lifecycle_rules=[ecr.LifecycleRule(max_image_count=5)],
+        )
+
+        # Build the Docker image (pushed to CDK bootstrap ECR during synth/deploy)
         # __file__ is src/cdk/constructs/runtime.py — ../.. resolves to src/
-        artifact = AgentRuntimeArtifact.from_asset(
-            os.path.join(os.path.dirname(__file__), "..", "..", asset_path)
+        docker_asset = ecr_assets.DockerImageAsset(
+            self,
+            "DockerAsset",
+            directory=os.path.join(os.path.dirname(__file__), "..", "..", asset_path),
+        )
+
+        # Copy the built image into our named ECR repository
+        image_deployment = ECRDeployment(
+            self,
+            "ImageDeployment",
+            src=DockerImageName(docker_asset.image_uri),
+            dest=DockerImageName(
+                f"{self._ecr_repo.repository_uri}:{docker_asset.image_tag}"
+            ),
+        )
+
+        # Grant the runtime execution role permission to pull from our ECR repo
+        self._ecr_repo.grant_pull(self._role)
+
+        artifact = AgentRuntimeArtifact.from_ecr_repository(
+            self._ecr_repo, docker_asset.image_tag
         )
 
         self._runtime = Runtime(
@@ -96,6 +130,9 @@ class RuntimeConstruct(Construct):
             environment_variables=environment_variables,
         )
 
+        # Ensure the image is copied into our ECR repo before the Runtime is created
+        self._runtime.node.add_dependency(image_deployment)
+
         ssm.StringParameter(
             self,
             "ArnParam",
@@ -110,3 +147,7 @@ class RuntimeConstruct(Construct):
     @property
     def role(self) -> iam.Role:
         return self._role
+
+    @property
+    def ecr_repository(self) -> ecr.Repository:
+        return self._ecr_repo

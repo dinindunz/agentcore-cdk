@@ -10,11 +10,9 @@ pip install .
 
 ## Deployment
 
-CDK files live in `src/cdk/`. Deploy from there, specifying the `env` context parameter:
+Deploy from the project root, specifying the `env` context parameter:
 
 ```bash
-cd src/cdk
-
 # Deploy to dev environment (default)
 cdk deploy
 
@@ -42,14 +40,26 @@ Invoke the MCP Calculator via the IAM gateway:
 python scripts/mcp/calculator/invoke_via_iam_gateway.py
 ```
 
-Invoke the MCP Calculator via the JWT gateway:
+Invoke the Temperature Converter via the JWT gateway:
 
 ```bash
-python scripts/mcp/calculator/invoke_via_jwt_gateway.py
+python scripts/mcp/temperature_converter/invoke_via_jwt_gateway.py
 ```
 
 Invoke the Agent runtime:
 
 ```bash
 python scripts/agent/invoke_agent.py
+```
+
+## Gateway Tool Search
+
+Semantically search for tools across all gateway targets using the `x_amz_bedrock_agentcore_search` built-in. Returns the most relevant tools ranked by semantic similarity. Accepts an optional query argument:
+
+```bash
+# Search via JWT gateway (Cognito auth)
+python scripts/gateway/search_tools_jwt.py "find calculator tools"
+
+# Search via IAM gateway (SigV4 auth)
+python scripts/gateway/search_tools_iam.py "convert temperature"
 ```

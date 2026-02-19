@@ -40,7 +40,7 @@ headers = {
 
 session_id = str(uuid.uuid4())
 
-# First, list available tools
+# List available tools
 list_tools_payload = json.dumps(
     {
         "jsonrpc": "2.0",
@@ -50,32 +50,54 @@ list_tools_payload = json.dumps(
     }
 )
 
-# Then call the add tool
-call_tool_payload = json.dumps(
+# Call celsius_to_fahrenheit: 100°C → 212°F
+celsius_to_fahrenheit_payload = json.dumps(
     {
         "jsonrpc": "2.0",
         "id": 2,
         "method": "tools/call",
         "params": {
-            "name": "calculator___add",
+            "name": "temperature-converter___celsius_to_fahrenheit",
             "arguments": {
-                "a": 10,
-                "b": 5,
+                "celsius": 100,
+            },
+        },
+    }
+)
+
+# Call fahrenheit_to_celsius: 32°F → 0°C
+fahrenheit_to_celsius_payload = json.dumps(
+    {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "method": "tools/call",
+        "params": {
+            "name": "temperature-converter___fahrenheit_to_celsius",
+            "arguments": {
+                "fahrenheit": 32,
             },
         },
     }
 )
 
 
-# List tools first
 print(f"Invoking JWT Gateway at: {GATEWAY_URL}")
+
 print("\n=== Listing tools ===")
 response = requests.post(GATEWAY_URL, headers=headers, data=list_tools_payload)
 print(f"Status Code: {response.status_code}")
 print(f"Response: {response.content}")
 
-# Call add tool
-print("\n=== Calling add tool ===")
-response = requests.post(GATEWAY_URL, headers=headers, data=call_tool_payload)
+print("\n=== Calling celsius_to_fahrenheit (100°C) ===")
+response = requests.post(
+    GATEWAY_URL, headers=headers, data=celsius_to_fahrenheit_payload
+)
+print(f"Status Code: {response.status_code}")
+print(f"Response: {response.content}")
+
+print("\n=== Calling fahrenheit_to_celsius (32°F) ===")
+response = requests.post(
+    GATEWAY_URL, headers=headers, data=fahrenheit_to_celsius_payload
+)
 print(f"Status Code: {response.status_code}")
 print(f"Response: {response.content}")

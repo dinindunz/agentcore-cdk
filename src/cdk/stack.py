@@ -13,7 +13,7 @@ from aws_cdk.aws_bedrock_agentcore_alpha import (
 )
 from constructs import Construct
 
-from .custom_constructs import UserPoolConstruct, RuntimeConstruct, GatewayConstruct
+from .constructs import UserPoolConstruct, RuntimeConstruct, GatewayConstruct
 from .utils import to_kebab_case
 
 
@@ -197,7 +197,7 @@ class AgentcoreCdkStack(cdk.Stack):
         mcp_calculator_runtime_endpoint = f"https://bedrock-agentcore.{self.region}.amazonaws.com/runtimes/{escaped_arn}/invocations?qualifier=DEFAULT"
 
         # ---------------------------------------------------------------
-        # MCP Lambda Targets
+        # MCP Lambdas
         # ---------------------------------------------------------------
 
         # Temperature Converter Lambda — a simple Lambda function that performs temperature conversions (Celsius <> Fahrenheit)

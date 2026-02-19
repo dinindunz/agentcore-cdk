@@ -106,6 +106,8 @@ jwt_client.__enter__()
 iam_client = MCPClient(lambda: create_iam_transport())
 iam_client.__enter__()
 
+# TODO: Both gateways expose the tool search tool `x_amz_bedrock_agentcore_search` under the same name,
+# so only the first one encountered (JWT) is loaded — the IAM gateway's search tool is silently dropped.
 _seen_tool_names: set[str] = set()
 tools = []
 for tool in jwt_client.list_tools_sync() + iam_client.list_tools_sync():
