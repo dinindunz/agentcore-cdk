@@ -22,14 +22,16 @@ def get_secret(name):
 
 
 # Fetch MCP Cognito credentials from Secrets Manager
-mcp_cognito = get_secret("agentcore/mcp-cognito")
+mcp_cognito = get_secret("agentcore-cdk-stack-dev/mcp-cognito")
 CLIENT_ID = mcp_cognito["client_id"]
 CLIENT_SECRET = mcp_cognito["client_secret"]
 TOKEN_ENDPOINT = mcp_cognito["token_endpoint"]
 USER_POOL_ID = mcp_cognito["user_pool_id"]
 
 # Fetch MCP Calculator runtime ARN from SSM
-mcp_calculator_arn = get_ssm_param("/agentcore/mcp-calculator-runtime-arn")
+mcp_calculator_arn = get_ssm_param(
+    "/agentcore-cdk-stack-dev/mcp-calculator-runtime-arn"
+)
 
 session_id = str(uuid.uuid4())
 
@@ -38,7 +40,8 @@ token_response = requests.post(
     TOKEN_ENDPOINT,
     headers={
         "Content-Type": "application/x-www-form-urlencoded",
-        "Authorization": "Basic " + base64.b64encode(f"{CLIENT_ID}:{CLIENT_SECRET}".encode()).decode(),
+        "Authorization": "Basic "
+        + base64.b64encode(f"{CLIENT_ID}:{CLIENT_SECRET}".encode()).decode(),
     },
     data={
         "grant_type": "client_credentials",
@@ -55,18 +58,20 @@ url = f"https://bedrock-agentcore.{REGION_NAME}.amazonaws.com/runtimes/{escaped_
 print(f"Invoking MCP Calculator at URL: {url}")
 
 # MCP JSON-RPC 2.0 payload to call the "add" tool
-payload = json.dumps({
-    "jsonrpc": "2.0",
-    "id": 1,
-    "method": "tools/call",
-    "params": {
-        "name": "add",
-        "arguments": {
-            "a": 10,
-            "b": 5,
+payload = json.dumps(
+    {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "tools/call",
+        "params": {
+            "name": "add",
+            "arguments": {
+                "a": 10,
+                "b": 5,
+            },
         },
-    },
-})
+    }
+)
 
 invoke_response = requests.post(
     url,

@@ -11,15 +11,17 @@ sm_client = boto3.client("secretsmanager", region_name=REGION_NAME)
 
 # Fetch Cognito credentials from Secrets Manager
 agent_cognito = json.loads(
-    sm_client.get_secret_value(SecretId="agentcore/agent-cognito")["SecretString"]
+    sm_client.get_secret_value(SecretId="agentcore-cdk-stack-dev/agent-cognito")[
+        "SecretString"
+    ]
 )
 CLIENT_ID = agent_cognito["client_id"]
 CLIENT_SECRET = agent_cognito["client_secret"]
 TOKEN_ENDPOINT = agent_cognito["token_endpoint"]
 
-agent_arn = ssm_client.get_parameter(Name="/agentcore/agent-runtime-arn")["Parameter"][
-    "Value"
-]
+agent_arn = ssm_client.get_parameter(Name="/agentcore-cdk-stack-dev/agent-runtime-arn")[
+    "Parameter"
+]["Value"]
 
 session_id = str(uuid.uuid4())
 

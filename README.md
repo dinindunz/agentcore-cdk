@@ -6,7 +6,24 @@
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+```
+
+## Deployment
+
+Deploy to different environments by specifying the `env` context parameter:
+
+```bash
+# Deploy to dev environment (default)
 cdk deploy
+
+# Or explicitly specify dev
+cdk deploy -c env=dev
+
+# Deploy to test environment
+cdk deploy -c env=test
+
+# Deploy to prod environment
+cdk deploy -c env=prod
 ```
 
 ## Invoking

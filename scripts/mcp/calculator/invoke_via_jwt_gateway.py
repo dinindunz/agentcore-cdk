@@ -9,13 +9,15 @@ REGION_NAME = "ap-southeast-2"
 ssm_client = boto3.client("ssm", region_name=REGION_NAME)
 sm_client = boto3.client("secretsmanager", region_name=REGION_NAME)
 
-GATEWAY_URL = ssm_client.get_parameter(Name="/agentcore/jwt-gateway-url")["Parameter"][
-    "Value"
-]
+GATEWAY_URL = ssm_client.get_parameter(Name="/agentcore-cdk-stack-dev/jwt-gateway-url")[
+    "Parameter"
+]["Value"]
 
 # Fetch Cognito credentials from Secrets Manager
 gateway_cognito = json.loads(
-    sm_client.get_secret_value(SecretId="agentcore/jwt-gateway-cognito")["SecretString"]
+    sm_client.get_secret_value(SecretId="agentcore-cdk-stack-dev/gateway-cognito")[
+        "SecretString"
+    ]
 )
 
 # Get OAuth2 access token using client_credentials flow
@@ -55,7 +57,7 @@ call_tool_payload = json.dumps(
         "id": 2,
         "method": "tools/call",
         "params": {
-            "name": "mcp-calculator___add",
+            "name": "calculator___add",
             "arguments": {
                 "a": 10,
                 "b": 5,

@@ -1,5 +1,6 @@
 import hashlib
 import json
+import os
 
 import boto3
 import botocore.auth
@@ -15,16 +16,18 @@ REGION_NAME = "ap-southeast-2"
 ssm_client = boto3.client("ssm", region_name=REGION_NAME)
 sm_client = boto3.client("secretsmanager", region_name=REGION_NAME)
 
-JWT_GATEWAY_URL = ssm_client.get_parameter(Name="/agentcore/jwt-gateway-url")[
+JWT_GATEWAY_URL = ssm_client.get_parameter(Name=os.environ["JWT_GATEWAY_SSM_PATH"])[
     "Parameter"
 ]["Value"]
-IAM_GATEWAY_URL = ssm_client.get_parameter(Name="/agentcore/iam-gateway-url")[
+IAM_GATEWAY_URL = ssm_client.get_parameter(Name=os.environ["IAM_GATEWAY_SSM_PATH"])[
     "Parameter"
 ]["Value"]
 
 # Fetch Cognito credentials from Secrets Manager
 gateway_cognito = json.loads(
-    sm_client.get_secret_value(SecretId="agentcore/jwt-gateway-cognito")["SecretString"]
+    sm_client.get_secret_value(SecretId=os.environ["GATEWAY_COGNITO_SECRET"])[
+        "SecretString"
+    ]
 )
 
 

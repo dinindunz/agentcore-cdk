@@ -9,9 +9,9 @@ REGION_NAME = "ap-southeast-2"
 SERVICE_NAME = "bedrock-agentcore"
 
 ssm_client = boto3.client("ssm", region_name=REGION_NAME)
-GATEWAY_URL = ssm_client.get_parameter(Name="/agentcore/iam-gateway-url")["Parameter"][
-    "Value"
-]
+GATEWAY_URL = ssm_client.get_parameter(Name="/agentcore-cdk-stack-dev/iam-gateway-url")[
+    "Parameter"
+]["Value"]
 
 print(f"Gateway URL: {GATEWAY_URL}")
 
@@ -64,7 +64,7 @@ call_tool_payload = json.dumps(
         "id": 2,
         "method": "tools/call",
         "params": {
-            "name": "mcp-calculator___add",
+            "name": "calculator___add",
             "arguments": {
                 "a": 10,
                 "b": 5,
