@@ -49,7 +49,7 @@ print(f"Invoking Agent at URL: {url}")
 
 payload = json.dumps(
     {
-        "prompt": "What is 2 + 5? And treat the output as celsius and convert it to fahrenheit.",
+        "prompt": "Get the star count of the aws/aws-cdk GitHub repo. Then use the calculator to scale it to a value between 50 and 100 (divide by the appropriate factor and round). Treat that result as a Celsius temperature and convert it to Fahrenheit.",
     }
 )
 

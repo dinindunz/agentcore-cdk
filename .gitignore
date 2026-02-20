@@ -3,6 +3,7 @@ __pycache__/
 .claude/
 *.egg-info/
 .env
+build/
 
 # CDK asset staging directory
 .cdk.staging

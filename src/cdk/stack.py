@@ -6,6 +6,7 @@ from aws_cdk import aws_lambda as lambda_
 from aws_cdk import aws_ecr_assets as ecr_assets
 from aws_cdk import custom_resources as cr
 from aws_cdk.aws_bedrock_agentcore_alpha import (
+    ApiSchema,
     ProtocolType,
     GatewayAuthorizer,
     GatewayCredentialProvider,
@@ -283,6 +284,19 @@ class AgentcoreCdkStack(cdk.Stack):
                     "schema.json",
                 )
             ),
+        )
+
+        # GitHub REST API Target to JWT Gateway
+        jwt_gw.gateway.add_open_api_target(
+            "GithubTarget",
+            gateway_target_name="github",
+            description="GitHub API tools (repos, issues, pull requests, search)",
+            api_schema=ApiSchema.from_local_asset(
+                os.path.join(
+                    os.path.dirname(__file__), "..", "mcp", "github", "schema.json"
+                )
+            ),
+            credential_provider_configurations=[github_credential_provider],
         )
 
         # ---------------------------------------------------------------

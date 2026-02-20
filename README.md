@@ -46,20 +46,36 @@ Invoke the Temperature Converter via the JWT gateway:
 python scripts/mcp/temperature_converter/invoke_via_jwt_gateway.py
 ```
 
+Invoke the GitHub API tools via the JWT gateway:
+
+```bash
+python scripts/mcp/github/invoke_via_jwt_gateway.py
+```
+
 Invoke the Agent runtime:
 
 ```bash
 python scripts/agent/invoke_agent.py
 ```
 
-## Gateway Tool Search
+## Gateway Tools
+
+List all available tools on a gateway:
+
+```bash
+# List via IAM gateway (SigV4 auth)
+python scripts/gateways/iam/list_tools.py
+
+# List via JWT gateway (Cognito auth)
+python scripts/gateways/jwt/list_tools.py
+```
 
 Semantically search for tools across all gateway targets using the `x_amz_bedrock_agentcore_search` built-in. Returns the most relevant tools ranked by semantic similarity. Accepts an optional query argument:
 
 ```bash
-# Search via JWT gateway (Cognito auth)
-python scripts/gateway/search_tools_jwt.py "find calculator tools"
-
 # Search via IAM gateway (SigV4 auth)
-python scripts/gateway/search_tools_iam.py "convert temperature"
+python scripts/gateways/iam/search_tools.py "convert temperature"
+
+# Search via JWT gateway (Cognito auth)
+python scripts/gateways/jwt/search_tools.py "find calculator tools"
 ```

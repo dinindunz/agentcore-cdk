@@ -44,31 +44,47 @@ headers = {
 
 session_id = str(uuid.uuid4())
 
-# Call celsius_to_fahrenheit: 100°C → 212°F
-celsius_to_fahrenheit_payload = json.dumps(
+# Get authenticated user
+get_user_payload = json.dumps(
     {
         "jsonrpc": "2.0",
         "id": 2,
         "method": "tools/call",
         "params": {
-            "name": "temperature-converter___celsius_to_fahrenheit",
-            "arguments": {
-                "celsius": 100,
-            },
+            "name": "github___getAuthenticatedUser",
+            "arguments": {},
         },
     }
 )
 
-# Call fahrenheit_to_celsius: 32°F → 0°C
-fahrenheit_to_celsius_payload = json.dumps(
+# List repos for the authenticated user
+list_repos_payload = json.dumps(
     {
         "jsonrpc": "2.0",
         "id": 3,
         "method": "tools/call",
         "params": {
-            "name": "temperature-converter___fahrenheit_to_celsius",
+            "name": "github___listAuthenticatedUserRepos",
             "arguments": {
-                "fahrenheit": 32,
+                "sort": "updated",
+                "per_page": 5,
+            },
+        },
+    }
+)
+
+# Search repositories
+search_repos_payload = json.dumps(
+    {
+        "jsonrpc": "2.0",
+        "id": 4,
+        "method": "tools/call",
+        "params": {
+            "name": "github___searchRepositories",
+            "arguments": {
+                "q": "amazon-bedrock-agentcore language:python",
+                "sort": "stars",
+                "per_page": 5,
             },
         },
     }
@@ -77,16 +93,17 @@ fahrenheit_to_celsius_payload = json.dumps(
 
 print(f"Invoking JWT Gateway at: {GATEWAY_URL}")
 
-print("\n=== Calling celsius_to_fahrenheit (100°C) ===")
-response = requests.post(
-    GATEWAY_URL, headers=headers, data=celsius_to_fahrenheit_payload
-)
+print("\n=== Get authenticated user ===")
+response = requests.post(GATEWAY_URL, headers=headers, data=get_user_payload)
 print(f"Status Code: {response.status_code}")
-print(f"Response: {response.content}")
+print(f"Response: {json.dumps(response.json(), indent=2)}")
 
-print("\n=== Calling fahrenheit_to_celsius (32°F) ===")
-response = requests.post(
-    GATEWAY_URL, headers=headers, data=fahrenheit_to_celsius_payload
-)
+print("\n=== List repos (latest 5) ===")
+response = requests.post(GATEWAY_URL, headers=headers, data=list_repos_payload)
 print(f"Status Code: {response.status_code}")
-print(f"Response: {response.content}")
+print(f"Response: {json.dumps(response.json(), indent=2)}")
+
+print("\n=== Search repositories (amazon-bedrock-agentcore) ===")
+response = requests.post(GATEWAY_URL, headers=headers, data=search_repos_payload)
+print(f"Status Code: {response.status_code}")
+print(f"Response: {json.dumps(response.json(), indent=2)}")

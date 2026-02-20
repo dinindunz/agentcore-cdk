@@ -51,16 +51,6 @@ def sigv4_request(url, data):
         return e.code, e.read()
 
 
-# List available tools
-list_tools_payload = json.dumps(
-    {
-        "jsonrpc": "2.0",
-        "id": 1,
-        "method": "tools/list",
-        "params": {},
-    }
-)
-
 # Call the add tool
 call_tool_payload = json.dumps(
     {
@@ -78,11 +68,6 @@ call_tool_payload = json.dumps(
 )
 
 print(f"\nInvoking IAM Gateway at: {GATEWAY_URL}")
-
-print("\n=== Listing tools ===")
-status, body = sigv4_request(GATEWAY_URL, list_tools_payload)
-print(f"Status Code: {status}")
-print(f"Response: {body}")
 
 print("\n=== Calling add tool ===")
 status, body = sigv4_request(GATEWAY_URL, call_tool_payload)

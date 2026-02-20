@@ -1,6 +1,5 @@
 import json
 import os
-import uuid
 
 import boto3
 import requests
@@ -42,51 +41,17 @@ headers = {
     "Authorization": f"Bearer {access_token}",
 }
 
-session_id = str(uuid.uuid4())
-
-# Call celsius_to_fahrenheit: 100°C → 212°F
-celsius_to_fahrenheit_payload = json.dumps(
+payload = json.dumps(
     {
         "jsonrpc": "2.0",
-        "id": 2,
-        "method": "tools/call",
-        "params": {
-            "name": "temperature-converter___celsius_to_fahrenheit",
-            "arguments": {
-                "celsius": 100,
-            },
-        },
+        "id": 1,
+        "method": "tools/list",
+        "params": {},
     }
 )
 
-# Call fahrenheit_to_celsius: 32°F → 0°C
-fahrenheit_to_celsius_payload = json.dumps(
-    {
-        "jsonrpc": "2.0",
-        "id": 3,
-        "method": "tools/call",
-        "params": {
-            "name": "temperature-converter___fahrenheit_to_celsius",
-            "arguments": {
-                "fahrenheit": 32,
-            },
-        },
-    }
-)
+print(f"JWT Gateway: {GATEWAY_URL}")
 
-
-print(f"Invoking JWT Gateway at: {GATEWAY_URL}")
-
-print("\n=== Calling celsius_to_fahrenheit (100°C) ===")
-response = requests.post(
-    GATEWAY_URL, headers=headers, data=celsius_to_fahrenheit_payload
-)
+response = requests.post(GATEWAY_URL, headers=headers, data=payload)
 print(f"Status Code: {response.status_code}")
-print(f"Response: {response.content}")
-
-print("\n=== Calling fahrenheit_to_celsius (32°F) ===")
-response = requests.post(
-    GATEWAY_URL, headers=headers, data=fahrenheit_to_celsius_payload
-)
-print(f"Status Code: {response.status_code}")
-print(f"Response: {response.content}")
+print(f"Response: {json.dumps(response.json(), indent=2)}")

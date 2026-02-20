@@ -66,7 +66,7 @@ class GatewayConstruct(Construct):
                     )
 
             if has_api_key:
-                actions.append("bedrock-agentcore:GetResourceApiKeyToken")
+                actions.append("bedrock-agentcore:GetResourceApiKey")
                 for name in api_key_provider_names:
                     resources.append(
                         f"{token_vault_base}/apikeycredentialprovider/{name}"

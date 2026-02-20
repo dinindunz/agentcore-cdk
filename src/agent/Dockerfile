@@ -7,7 +7,6 @@ RUN pip install --no-cache-dir .
 
 ENV DOCKER_CONTAINER=1
 ENV PYTHONUNBUFFERED=1
-ENV APP_VERSION=5
 
 RUN useradd -m -u 1000 bedrock_agentcore
 USER bedrock_agentcore
