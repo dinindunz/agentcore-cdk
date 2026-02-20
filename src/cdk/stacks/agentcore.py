@@ -9,13 +9,18 @@ from aws_cdk.aws_bedrock_agentcore_alpha import (
     ApiSchema,
     ProtocolType,
     GatewayAuthorizer,
-    GatewayCredentialProvider,
     ToolSchema,
 )
 from constructs import Construct
 
-from ..constructs import UserPoolConstruct, RuntimeConstruct, GatewayConstruct
-from ..utils import DestroyLogGroups, to_kebab_case
+from ..constructs import (
+    UserPoolConstruct,
+    RuntimeConstruct,
+    GatewayConstruct,
+    OAuth2CredentialProviderConstruct,
+    ApiKeyCredentialProviderConstruct,
+)
+from ..utils import DestroyLogGroups, to_kebab_case, to_snake_case
 
 
 class AgentCoreStack(cdk.Stack):
@@ -57,143 +62,24 @@ class AgentCoreStack(cdk.Stack):
         )
 
         # ---------------------------------------------------------------
-        # AgentCore Identity - OAuth2 Credential Provider — Stores MCP Cognito credentials
-        # Use this when you want to use a Cognito user pool as the identity source for authenticating to MCP AgentCore runtimes
+        # AgentCore Identity — Credential Providers
         # ---------------------------------------------------------------
-        token_vault_base = f"arn:aws:bedrock-agentcore:{self.region}:{self.account}:token-vault/default"
 
-        mcp_oauth_provider_name = f"{stack_prefix}-mcp-runtime-oauth-provider"
-        mcp_oauth_provider = cr.AwsCustomResource(
+        # OAuth2 Credential Provider — Stores MCP Cognito credentials for authenticating to MCP AgentCore runtimes
+        mcp_oauth = OAuth2CredentialProviderConstruct(
             self,
             "McpOAuthCredentialProvider",
-            install_latest_aws_sdk=True,
-            on_create=cr.AwsSdkCall(
-                service="@aws-sdk/client-bedrock-agentcore-control",
-                action="CreateOauth2CredentialProvider",
-                parameters={
-                    "name": mcp_oauth_provider_name,
-                    "credentialProviderVendor": "CustomOauth2",
-                    "oauth2ProviderConfigInput": {
-                        "customOauth2ProviderConfig": {
-                            "oauthDiscovery": {
-                                "discoveryUrl": f"https://cognito-idp.{self.region}.amazonaws.com/{mcp_auth.user_pool.user_pool_id}/.well-known/openid-configuration",
-                            },
-                            "clientId": mcp_auth.client.user_pool_client_id,
-                            "clientSecret": mcp_auth.client.user_pool_client_secret.unsafe_unwrap(),
-                        },
-                    },
-                },
-                physical_resource_id=cr.PhysicalResourceId.from_response(
-                    "credentialProviderArn"
-                ),
-            ),
-            on_delete=cr.AwsSdkCall(
-                service="@aws-sdk/client-bedrock-agentcore-control",
-                action="DeleteOauth2CredentialProvider",
-                parameters={
-                    "name": mcp_oauth_provider_name,
-                },
-            ),
-            policy=cr.AwsCustomResourcePolicy.from_statements(
-                [
-                    iam.PolicyStatement(
-                        actions=[
-                            "bedrock-agentcore:CreateTokenVault",
-                            "bedrock-agentcore:GetTokenVault",
-                            "bedrock-agentcore:CreateOauth2CredentialProvider",
-                            "bedrock-agentcore:DeleteOauth2CredentialProvider",
-                        ],
-                        resources=[
-                            f"{token_vault_base}*",
-                        ],
-                    ),
-                    iam.PolicyStatement(
-                        actions=[
-                            "secretsmanager:CreateSecret",
-                            "secretsmanager:DeleteSecret",
-                        ],
-                        resources=[
-                            f"arn:aws:secretsmanager:{self.region}:{self.account}:secret:bedrock-agentcore-identity!default/oauth2/{mcp_oauth_provider_name}*",
-                        ],
-                    ),
-                ]
-            ),
-        )
-
-        mcp_oauth_provider_arn = mcp_oauth_provider.get_response_field(
-            "credentialProviderArn"
-        )
-        mcp_oauth_secret_arn = mcp_oauth_provider.get_response_field(
-            "clientSecretArn.secretArn"
-        )
-        # Register the MCP OAuth2 credential provider with the CDK app so it can be referenced by the gateways when adding targets
-        mcp_credential_provider = GatewayCredentialProvider.from_oauth_identity_arn(
-            provider_arn=mcp_oauth_provider_arn,
-            secret_arn=mcp_oauth_secret_arn,
+            provider_name="mcp-runtime-oauth-provider",
+            user_pool=mcp_auth,
             scopes=["mcp/invoke"],
         )
 
-        # ---------------------------------------------------------------
-        # AgentCore Identity - API Key Credential Provider — Stores GitHub PAT
-        # ---------------------------------------------------------------
-        github_api_key_provider_name = f"{stack_prefix}-github-api-key-provider"
-        github_api_key_provider = cr.AwsCustomResource(
+        # API Key Credential Provider — Stores GitHub PAT
+        github_api_key = ApiKeyCredentialProviderConstruct(
             self,
             "GithubApiKeyCredentialProvider",
-            install_latest_aws_sdk=True,
-            on_create=cr.AwsSdkCall(
-                service="@aws-sdk/client-bedrock-agentcore-control",
-                action="CreateApiKeyCredentialProvider",
-                parameters={
-                    "name": github_api_key_provider_name,
-                    "apiKey": os.environ["GITHUB_TOKEN"],
-                },
-                physical_resource_id=cr.PhysicalResourceId.from_response(
-                    "credentialProviderArn"
-                ),
-            ),
-            on_delete=cr.AwsSdkCall(
-                service="@aws-sdk/client-bedrock-agentcore-control",
-                action="DeleteApiKeyCredentialProvider",
-                parameters={"name": github_api_key_provider_name},
-            ),
-            policy=cr.AwsCustomResourcePolicy.from_statements(
-                [
-                    iam.PolicyStatement(
-                        actions=[
-                            "bedrock-agentcore:CreateTokenVault",
-                            "bedrock-agentcore:GetTokenVault",
-                            "bedrock-agentcore:CreateApiKeyCredentialProvider",
-                            "bedrock-agentcore:DeleteApiKeyCredentialProvider",
-                        ],
-                        resources=[
-                            f"{token_vault_base}*",
-                        ],
-                    ),
-                    iam.PolicyStatement(
-                        actions=[
-                            "secretsmanager:CreateSecret",
-                            "secretsmanager:DeleteSecret",
-                        ],
-                        resources=[
-                            f"arn:aws:secretsmanager:{self.region}:{self.account}:secret:bedrock-agentcore-identity!default/apikey/{github_api_key_provider_name}*",
-                        ],
-                    ),
-                ]
-            ),
-        )
-
-        github_provider_arn = github_api_key_provider.get_response_field(
-            "credentialProviderArn"
-        )
-        github_secret_arn = github_api_key_provider.get_response_field(
-            "apiKeySecretArn.secretArn"
-        )
-        github_credential_provider = (
-            GatewayCredentialProvider.from_api_key_identity_arn(
-                provider_arn=github_provider_arn,
-                secret_arn=github_secret_arn,
-            )
+            provider_name="github-api-key-provider",
+            api_key=os.environ["GITHUB_TOKEN"],
         )
 
         # ---------------------------------------------------------------
@@ -210,7 +96,7 @@ class AgentCoreStack(cdk.Stack):
                 user_pool=gateway_auth.user_pool,
                 allowed_clients=[gateway_auth.client],
             ),
-            api_key_provider_names=[github_api_key_provider_name],
+            api_key_provider_names=[github_api_key.name],
         )
 
         # IAM Gateway — SigV4-authenticated MCP gateway
@@ -219,7 +105,7 @@ class AgentCoreStack(cdk.Stack):
             "IamGateway",
             gateway_name="iam-gateway",
             authorizer_configuration=GatewayAuthorizer.using_aws_iam(),
-            oauth2_provider_names=[mcp_oauth_provider_name],
+            oauth2_provider_names=[mcp_oauth.name],
         )
 
         # ---------------------------------------------------------------
@@ -299,7 +185,7 @@ class AgentCoreStack(cdk.Stack):
             gateway_target_name="calculator",
             description="Calculator tools (add, subtract, multiply, divide)",
             endpoint=mcp_calculator_rt.endpoint,
-            credential_provider_configurations=[mcp_credential_provider],
+            credential_provider_configurations=[mcp_oauth.credential_provider],
         )
 
         # Temperature Converter Lambda Target to JWT Gateway
@@ -341,7 +227,53 @@ class AgentCoreStack(cdk.Stack):
                     "schema.json",
                 )
             ),
-            credential_provider_configurations=[github_credential_provider],
+            credential_provider_configurations=[github_api_key.credential_provider],
+        )
+
+        # ---------------------------------------------------------------
+        # Log group cleanup — delete service-managed log groups on stack deletion
+        # (AgentCore runtimes and ECR deployment Lambda create log groups outside CFN)
+        # ---------------------------------------------------------------
+        log_group_prefixes = [
+            f"/aws/bedrock-agentcore/runtimes/{to_snake_case(self.stack_name)}_",
+            f"/aws/lambda/{self.stack_name}-",
+        ]
+        cleanup_fn = lambda_.Function(
+            self,
+            "LogGroupCleanupFn",
+            runtime=lambda_.Runtime.PYTHON_3_13,
+            handler="index.handler",
+            code=lambda_.Code.from_inline(
+                "import boto3\n"
+                "def handler(event, context):\n"
+                "    if event['RequestType'] != 'Delete':\n"
+                "        return {'Status': 'SUCCESS'}\n"
+                "    client = boto3.client('logs')\n"
+                "    for prefix in event['ResourceProperties']['Prefixes']:\n"
+                "        paginator = client.get_paginator('describe_log_groups')\n"
+                "        for page in paginator.paginate(logGroupNamePrefix=prefix):\n"
+                "            for lg in page['logGroups']:\n"
+                "                client.delete_log_group(logGroupName=lg['logGroupName'])\n"
+                "    return {'Status': 'SUCCESS'}\n"
+            ),
+            timeout=cdk.Duration.minutes(5),
+        )
+        cleanup_fn.add_to_role_policy(
+            iam.PolicyStatement(
+                actions=["logs:DescribeLogGroups", "logs:DeleteLogGroup"],
+                resources=["*"],
+            )
+        )
+        cleanup_provider = cr.Provider(
+            self,
+            "LogGroupCleanupProvider",
+            on_event_handler=cleanup_fn,
+        )
+        cdk.CustomResource(
+            self,
+            "LogGroupCleanup",
+            service_token=cleanup_provider.service_token,
+            properties={"Prefixes": log_group_prefixes},
         )
 
         # ---------------------------------------------------------------
@@ -384,7 +316,3 @@ class AgentCoreStack(cdk.Stack):
             "McpCalculatorRuntimeArn",
             value=mcp_calculator_rt.runtime.agent_runtime_arn,
         )
-        cdk.CfnOutput(self, "McpOAuthProviderArn", value=mcp_oauth_provider_arn)
-        cdk.CfnOutput(self, "McpOAuthSecretArn", value=mcp_oauth_secret_arn)
-        cdk.CfnOutput(self, "GithubApiKeyProviderArn", value=github_provider_arn)
-        cdk.CfnOutput(self, "GithubApiKeySecretArn", value=github_secret_arn)

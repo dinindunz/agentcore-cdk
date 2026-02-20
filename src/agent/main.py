@@ -80,16 +80,17 @@ class SigV4Auth(httpx.Auth):
         yield request
 
 
-access_token = get_access_token()
 sigv4_auth = SigV4Auth(region=REGION_NAME)
 
 app = BedrockAgentCoreApp()
 
 
 def create_jwt_transport():
+    # Fetch a fresh token on each connection to handle expiry in long-running containers
+    token = get_access_token()
     return streamablehttp_client(
         JWT_GATEWAY_URL,
-        headers={"Authorization": f"Bearer {access_token}"},
+        headers={"Authorization": f"Bearer {token}"},
     )
 
 
