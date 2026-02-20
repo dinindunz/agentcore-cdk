@@ -12,13 +12,13 @@ REGION_NAME = os.environ["REGION_NAME"]
 ssm_client = boto3.client("ssm", region_name=REGION_NAME)
 sm_client = boto3.client("secretsmanager", region_name=REGION_NAME)
 
-GATEWAY_URL = ssm_client.get_parameter(Name="/agentcore-cdk-stack-dev/jwt-gateway-url")[
+GATEWAY_URL = ssm_client.get_parameter(Name="/agent-core-stack-dev/jwt-gateway-url")[
     "Parameter"
 ]["Value"]
 
 # Fetch Cognito credentials from Secrets Manager
 gateway_cognito = json.loads(
-    sm_client.get_secret_value(SecretId="agentcore-cdk-stack-dev/gateway-cognito")[
+    sm_client.get_secret_value(SecretId="agent-core-stack-dev/gateway-cognito")[
         "SecretString"
     ]
 )

@@ -1,5 +1,19 @@
 import re
 
+import jsii
+import aws_cdk as cdk
+from aws_cdk import aws_logs as logs
+from constructs import IConstruct
+
+
+@jsii.implements(cdk.IAspect)
+class DestroyLogGroups:
+    """Set removal policy to DESTROY on all LogGroup resources within a scope."""
+
+    def visit(self, node: IConstruct) -> None:
+        if isinstance(node, logs.LogGroup):
+            node.apply_removal_policy(cdk.RemovalPolicy.DESTROY)
+
 
 def to_kebab_case(s: str) -> str:
     """Convert PascalCase, camelCase, or snake_case to kebab-case.

@@ -12,7 +12,7 @@ REGION_NAME = os.environ["REGION_NAME"]
 SERVICE_NAME = "bedrock-agentcore"
 
 ssm_client = boto3.client("ssm", region_name=REGION_NAME)
-GATEWAY_URL = ssm_client.get_parameter(Name="/agentcore-cdk-stack-dev/iam-gateway-url")[
+GATEWAY_URL = ssm_client.get_parameter(Name="/agent-core-stack-dev/iam-gateway-url")[
     "Parameter"
 ]["Value"]
 

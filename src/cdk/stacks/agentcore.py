@@ -14,14 +14,17 @@ from aws_cdk.aws_bedrock_agentcore_alpha import (
 )
 from constructs import Construct
 
-from .constructs import UserPoolConstruct, RuntimeConstruct, GatewayConstruct
-from .utils import to_kebab_case
+from ..constructs import UserPoolConstruct, RuntimeConstruct, GatewayConstruct
+from ..utils import DestroyLogGroups, to_kebab_case
 
 
-class AgentcoreCdkStack(cdk.Stack):
+class AgentCoreStack(cdk.Stack):
 
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
+
+        # Ensure all log groups in this stack are cleaned up on deletion
+        cdk.Aspects.of(self).add(DestroyLogGroups())
 
         stack_prefix = to_kebab_case(self.stack_name)
 
@@ -57,6 +60,8 @@ class AgentcoreCdkStack(cdk.Stack):
         # AgentCore Identity - OAuth2 Credential Provider — Stores MCP Cognito credentials
         # Use this when you want to use a Cognito user pool as the identity source for authenticating to MCP AgentCore runtimes
         # ---------------------------------------------------------------
+        token_vault_base = f"arn:aws:bedrock-agentcore:{self.region}:{self.account}:token-vault/default"
+
         mcp_oauth_provider_name = f"{stack_prefix}-mcp-runtime-oauth-provider"
         mcp_oauth_provider = cr.AwsCustomResource(
             self,
@@ -97,10 +102,19 @@ class AgentcoreCdkStack(cdk.Stack):
                             "bedrock-agentcore:GetTokenVault",
                             "bedrock-agentcore:CreateOauth2CredentialProvider",
                             "bedrock-agentcore:DeleteOauth2CredentialProvider",
+                        ],
+                        resources=[
+                            f"{token_vault_base}*",
+                        ],
+                    ),
+                    iam.PolicyStatement(
+                        actions=[
                             "secretsmanager:CreateSecret",
                             "secretsmanager:DeleteSecret",
                         ],
-                        resources=["*"],
+                        resources=[
+                            f"arn:aws:secretsmanager:{self.region}:{self.account}:secret:bedrock-agentcore-identity!default/oauth2/{mcp_oauth_provider_name}*",
+                        ],
                     ),
                 ]
             ),
@@ -152,7 +166,18 @@ class AgentcoreCdkStack(cdk.Stack):
                             "bedrock-agentcore:CreateApiKeyCredentialProvider",
                             "bedrock-agentcore:DeleteApiKeyCredentialProvider",
                         ],
-                        resources=["*"],
+                        resources=[
+                            f"{token_vault_base}*",
+                        ],
+                    ),
+                    iam.PolicyStatement(
+                        actions=[
+                            "secretsmanager:CreateSecret",
+                            "secretsmanager:DeleteSecret",
+                        ],
+                        resources=[
+                            f"arn:aws:secretsmanager:{self.region}:{self.account}:secret:bedrock-agentcore-identity!default/apikey/{github_api_key_provider_name}*",
+                        ],
                     ),
                 ]
             ),
@@ -250,11 +275,19 @@ class AgentcoreCdkStack(cdk.Stack):
             architecture=lambda_.Architecture.ARM_64,
             code=lambda_.DockerImageCode.from_image_asset(
                 os.path.join(
-                    os.path.dirname(__file__), "..", "mcp", "temperature_converter"
+                    os.path.dirname(__file__),
+                    "..",
+                    "..",
+                    "mcp",
+                    "temperature_converter",
                 ),
                 platform=ecr_assets.Platform.LINUX_ARM64,
             ),
         )
+
+        # Grant the JWT gateway's service role permission to invoke the temperature converter Lambda
+        # (the L2 add_lambda_target does not auto-grant this)
+        temperature_lambda.grant_invoke(jwt_gw.gateway.role)
 
         # ---------------------------------------------------------------
         # Gateway Targets
@@ -270,7 +303,7 @@ class AgentcoreCdkStack(cdk.Stack):
         )
 
         # Temperature Converter Lambda Target to JWT Gateway
-        jwt_gw.gateway.add_lambda_target(
+        temp_target = jwt_gw.gateway.add_lambda_target(
             "TemperatureConverterTarget",
             gateway_target_name="temperature-converter",
             description="Temperature conversion tools (Celsius <> Fahrenheit)",
@@ -279,12 +312,19 @@ class AgentcoreCdkStack(cdk.Stack):
                 os.path.join(
                     os.path.dirname(__file__),
                     "..",
+                    "..",
                     "mcp",
                     "temperature_converter",
                     "schema.json",
                 )
             ),
         )
+        # Ensure the gateway's service role policy (with lambda:InvokeFunction) is created
+        # before the target — AgentCore validates this at CreateGatewayTarget time
+        if jwt_gw.gateway.role.node.try_find_child("DefaultPolicy"):
+            temp_target.node.add_dependency(
+                jwt_gw.gateway.role.node.find_child("DefaultPolicy")
+            )
 
         # GitHub REST API Target to JWT Gateway
         jwt_gw.gateway.add_open_api_target(
@@ -293,7 +333,12 @@ class AgentcoreCdkStack(cdk.Stack):
             description="GitHub API tools (repos, issues, pull requests, search)",
             api_schema=ApiSchema.from_local_asset(
                 os.path.join(
-                    os.path.dirname(__file__), "..", "mcp", "github", "schema.json"
+                    os.path.dirname(__file__),
+                    "..",
+                    "..",
+                    "mcp",
+                    "github",
+                    "schema.json",
                 )
             ),
             credential_provider_configurations=[github_credential_provider],

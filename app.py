@@ -2,7 +2,7 @@ from dotenv import load_dotenv
 
 import aws_cdk as cdk
 
-from src.cdk import AgentcoreCdkStack
+from src.cdk import AgentCoreStack
 
 load_dotenv()
 
@@ -13,9 +13,9 @@ app = cdk.App()
 # Defaults to "dev" if not specified
 env = app.node.try_get_context("env") or "dev"
 
-AgentcoreCdkStack(
+AgentCoreStack(
     app,
-    f"AgentcoreCdkStack-{env}",
+    f"AgentCoreStack-{env}",
 )
 
 app.synth()

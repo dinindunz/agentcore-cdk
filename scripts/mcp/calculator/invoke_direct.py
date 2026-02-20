@@ -26,16 +26,14 @@ def get_secret(name):
 
 
 # Fetch MCP Cognito credentials from Secrets Manager
-mcp_cognito = get_secret("agentcore-cdk-stack-dev/mcp-cognito")
+mcp_cognito = get_secret("agent-core-stack-dev/mcp-cognito")
 CLIENT_ID = mcp_cognito["client_id"]
 CLIENT_SECRET = mcp_cognito["client_secret"]
 TOKEN_ENDPOINT = mcp_cognito["token_endpoint"]
 USER_POOL_ID = mcp_cognito["user_pool_id"]
 
 # Fetch MCP Calculator runtime ARN from SSM
-mcp_calculator_arn = get_ssm_param(
-    "/agentcore-cdk-stack-dev/mcp-calculator-runtime-arn"
-)
+mcp_calculator_arn = get_ssm_param("/agent-core-stack-dev/mcp-calculator-runtime-arn")
 
 session_id = str(uuid.uuid4())
 

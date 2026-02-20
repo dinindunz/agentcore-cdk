@@ -1,1 +1,1 @@
-from .stack import AgentcoreCdkStack
+from .stacks import AgentCoreStack
