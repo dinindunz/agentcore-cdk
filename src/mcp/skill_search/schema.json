@@ -1,0 +1,16 @@
+[
+  {
+    "name": "search_skills",
+    "description": "Search available agent skills by keyword. Returns matching skills with descriptions and step-by-step instructions. Use this when the user's request matches a known skill to retrieve the full workflow.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string",
+          "description": "Search query to find relevant skills (e.g., 'github stars', 'compare repos', 'temperature hotness')"
+        }
+      },
+      "required": ["query"]
+    }
+  }
+]

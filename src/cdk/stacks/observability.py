@@ -243,7 +243,9 @@ class ObservabilityStack(cdk.Stack):
         otel_container.add_port_mappings(
             ecs.PortMapping(container_port=4317, protocol=ecs.Protocol.TCP),  # gRPC
             ecs.PortMapping(container_port=4318, protocol=ecs.Protocol.TCP),  # HTTP
-            ecs.PortMapping(container_port=13133, protocol=ecs.Protocol.TCP),  # health check
+            ecs.PortMapping(
+                container_port=13133, protocol=ecs.Protocol.TCP
+            ),  # health check
         )
 
         # ---------------------------------------------------------------

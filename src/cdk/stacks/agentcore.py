@@ -2,17 +2,15 @@ import os
 
 import aws_cdk as cdk
 from aws_cdk import aws_iam as iam
-from aws_cdk import aws_lambda as lambda_
-from aws_cdk import aws_ecr_assets as ecr_assets
 from aws_cdk.aws_bedrock_agentcore_alpha import (
     ApiSchema,
     ProtocolType,
     GatewayAuthorizer,
-    ToolSchema,
 )
 from constructs import Construct
 
 from ..constructs import (
+    BucketDeploymentConstruct,
     UserPoolConstruct,
     RuntimeConstruct,
     GatewayConstruct,
@@ -82,6 +80,17 @@ class AgentCoreStack(cdk.Stack):
         )
 
         # ---------------------------------------------------------------
+        # Skills — deployed to S3 for agent to search skills
+        # ---------------------------------------------------------------
+
+        skills_bucket = BucketDeploymentConstruct(
+            self,
+            "SkillsBucket",
+            bucket_name="skills",
+            source_path="skills",
+        )
+
+        # ---------------------------------------------------------------
         # Gateways — created before the agent runtime so their SSM paths
         # can be injected as environment variables into the agent container
         # ---------------------------------------------------------------
@@ -124,8 +133,12 @@ class AgentCoreStack(cdk.Stack):
                 "JWT_GATEWAY_SSM_PATH": jwt_gw.ssm_url_param_name,
                 "IAM_GATEWAY_SSM_PATH": iam_gw.ssm_url_param_name,
                 "GATEWAY_COGNITO_SECRET": gateway_auth.secret_name,
+                "SKILLS_BUCKET": skills_bucket.bucket_name_value,
             },
         )
+
+        # Grant the agent runtime's execution role permission to read skills from S3
+        skills_bucket.bucket.grant_read(agent_rt.role)
 
         # Grant the agent runtime's execution role permission to invoke the IAM gateway
         # The JWT gateway uses Cognito auth — access is determined by token validity alone
@@ -174,6 +187,31 @@ class AgentCoreStack(cdk.Stack):
         # (the L2 add_lambda_target does not auto-grant this)
         temperature_lambda.grant_invoke(jwt_gw.gateway.role)
 
+        # Skill Search Lambda — searches skill definitions stored in S3 by keyword
+        skill_search_lambda = lambda_.DockerImageFunction(
+            self,
+            "SkillSearchLambda",
+            function_name=f"{stack_prefix}-skill-search",
+            architecture=lambda_.Architecture.ARM_64,
+            code=lambda_.DockerImageCode.from_image_asset(
+                os.path.join(
+                    os.path.dirname(__file__),
+                    "..",
+                    "..",
+                    "mcp",
+                    "skill_search",
+                ),
+                platform=ecr_assets.Platform.LINUX_ARM64,
+            ),
+            environment={"SKILLS_BUCKET": skills_bucket.bucket_name_value},
+        )
+
+        # Grant the skill search Lambda permission to read skills from S3
+        skills_bucket.bucket.grant_read(skill_search_lambda)
+
+        # Grant the IAM gateway's service role permission to invoke the skill search Lambda
+        skill_search_lambda.grant_invoke(iam_gw.gateway.role)
+
         # ---------------------------------------------------------------
         # Gateway Targets
         # ---------------------------------------------------------------
@@ -186,6 +224,30 @@ class AgentCoreStack(cdk.Stack):
             endpoint=mcp_calculator_rt.endpoint,
             credential_provider_configurations=[mcp_oauth.credential_provider],
         )
+
+        # Skill Search Lambda Target to IAM Gateway
+        skill_search_target = iam_gw.gateway.add_lambda_target(
+            "SkillSearchTarget",
+            gateway_target_name="skill-search",
+            description="Search available agent skills by keyword",
+            lambda_function=skill_search_lambda,
+            tool_schema=ToolSchema.from_local_asset(
+                os.path.join(
+                    os.path.dirname(__file__),
+                    "..",
+                    "..",
+                    "mcp",
+                    "skill_search",
+                    "schema.json",
+                )
+            ),
+        )
+        # Ensure the gateway's service role policy (with lambda:InvokeFunction) is created
+        # before the target — AgentCore validates this at CreateGatewayTarget time
+        if iam_gw.gateway.role.node.try_find_child("DefaultPolicy"):
+            skill_search_target.node.add_dependency(
+                iam_gw.gateway.role.node.find_child("DefaultPolicy")
+            )
 
         # Temperature Converter Lambda Target to JWT Gateway
         temp_target = jwt_gw.gateway.add_lambda_target(

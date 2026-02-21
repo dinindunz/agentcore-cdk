@@ -12,9 +12,11 @@ from strands.tools.mcp import MCPClient
 
 
 REGION_NAME = os.environ["REGION_NAME"]
+SKILLS_BUCKET = os.environ.get("SKILLS_BUCKET")
 
 ssm_client = boto3.client("ssm", region_name=REGION_NAME)
 sm_client = boto3.client("secretsmanager", region_name=REGION_NAME)
+s3_client = boto3.client("s3", region_name=REGION_NAME)
 
 JWT_GATEWAY_URL = ssm_client.get_parameter(Name=os.environ["JWT_GATEWAY_SSM_PATH"])[
     "Parameter"
@@ -101,6 +103,41 @@ def create_iam_transport():
     )
 
 
+def load_skills_summary() -> str:
+    """Load skill markdown files from S3 and build a summary for the system prompt."""
+    if not SKILLS_BUCKET:
+        return ""
+    resp = s3_client.list_objects_v2(Bucket=SKILLS_BUCKET)
+    lines = []
+    for obj in resp.get("Contents", []):
+        key = obj["Key"]
+        if not key.endswith(".md"):
+            continue
+        body = (
+            s3_client.get_object(Bucket=SKILLS_BUCKET, Key=key)["Body"].read().decode()
+        )
+        # Extract title (first H1) and description (first non-empty line after title)
+        title = ""
+        description = ""
+        for line in body.strip().split("\n"):
+            stripped = line.strip()
+            if stripped.startswith("# ") and not title:
+                title = stripped[2:].strip()
+            elif title and stripped and not stripped.startswith("#"):
+                description = stripped
+                break
+        if title:
+            lines.append(f"- **{title}**: {description}")
+
+    if not lines:
+        return ""
+    return (
+        "\n\n## Available Skills\n"
+        "When a user's request matches a skill, use the search_skills tool to retrieve "
+        "the full step-by-step instructions, then follow them.\n\n" + "\n".join(lines)
+    )
+
+
 jwt_client = MCPClient(lambda: create_jwt_transport())
 jwt_client.__enter__()
 
@@ -115,9 +152,14 @@ for tool in jwt_client.list_tools_sync() + iam_client.list_tools_sync():
     if tool.tool_name not in _seen_tool_names:
         _seen_tool_names.add(tool.tool_name)
         tools.append(tool)
+
+skills_section = load_skills_summary()
 agent = Agent(
     tools=tools,
-    system_prompt="You are a helpful assistant. Provide friendly, conversational responses. Always use tools provided.",
+    system_prompt=(
+        "You are a helpful assistant. Provide friendly, conversational responses. "
+        "Always use tools provided." + skills_section
+    ),
 )
 
 

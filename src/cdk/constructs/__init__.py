@@ -1,4 +1,6 @@
+from .bucket import BucketDeploymentConstruct
 from .cognito import UserPoolConstruct
+from .lambda_target import LambdaTargetConstruct
 from .runtime import RuntimeConstruct
 from .gateway import GatewayConstruct
 from .identity import (
@@ -7,6 +9,8 @@ from .identity import (
 )
 
 __all__ = [
+    "BucketDeploymentConstruct",
+    "LambdaTargetConstruct",
     "UserPoolConstruct",
     "RuntimeConstruct",
     "GatewayConstruct",
