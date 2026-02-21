@@ -7,7 +7,7 @@ from aws_cdk import aws_secretsmanager as secretsmanager
 from aws_cdk import aws_iam as iam
 from constructs import Construct
 
-from ..utils import to_kebab_case, to_snake_case
+from ..utils import DestroyLogGroups, LogGroupCleanup, to_kebab_case
 
 
 class ObservabilityStack(cdk.Stack):
@@ -17,6 +17,7 @@ class ObservabilityStack(cdk.Stack):
         super().__init__(scope, construct_id, **kwargs)
 
         stack_prefix = to_kebab_case(self.stack_name)
+        cdk.Aspects.of(self).add(DestroyLogGroups())
 
         # ---------------------------------------------------------------
         # VPC — Single AZ, public subnet only (simplified for observability)
@@ -24,7 +25,7 @@ class ObservabilityStack(cdk.Stack):
         self._vpc = ec2.Vpc(
             self,
             "Vpc",
-            max_azs=1,
+            max_azs=2,
             nat_gateways=0,  # No NAT gateways needed for public-only setup
             subnet_configuration=[
                 ec2.SubnetConfiguration(
@@ -41,7 +42,7 @@ class ObservabilityStack(cdk.Stack):
         cluster = ecs.Cluster(
             self,
             "Cluster",
-            cluster_name=f"{stack_prefix}-observability",
+            cluster_name=stack_prefix,
             vpc=self._vpc,
             container_insights=True,  # Enable CloudWatch Container Insights
         )
@@ -166,6 +167,11 @@ class ObservabilityStack(cdk.Stack):
             connection=ec2.Port.tcp(4318),
             description="OTLP HTTP",
         )
+        otel_sg.add_ingress_rule(
+            peer=ec2.Peer.any_ipv4(),
+            connection=ec2.Port.tcp(13133),
+            description="OTel health check",
+        )
 
         # ---------------------------------------------------------------
         # Fargate Task Definition for OpenTelemetry Collector
@@ -191,6 +197,31 @@ class ObservabilityStack(cdk.Stack):
         )
 
         # OpenTelemetry Collector container
+        phoenix_endpoint = (
+            f"http://{phoenix_service.load_balancer.load_balancer_dns_name}:80"
+        )
+        otel_config = (
+            "receivers:\n"
+            "  otlp:\n"
+            "    protocols:\n"
+            "      grpc:\n"
+            "        endpoint: 0.0.0.0:4317\n"
+            "      http:\n"
+            "        endpoint: 0.0.0.0:4318\n"
+            "exporters:\n"
+            "  otlphttp:\n"
+            f"    endpoint: {phoenix_endpoint}\n"
+            "extensions:\n"
+            "  health_check:\n"
+            "    endpoint: 0.0.0.0:13133\n"
+            "service:\n"
+            "  extensions: [health_check]\n"
+            "  pipelines:\n"
+            "    traces:\n"
+            "      receivers: [otlp]\n"
+            "      exporters: [otlphttp]\n"
+        )
+
         otel_container = otel_task_def.add_container(
             "OtelCollector",
             image=ecs.ContainerImage.from_registry(
@@ -201,17 +232,18 @@ class ObservabilityStack(cdk.Stack):
                 log_retention=logs.RetentionDays.ONE_WEEK,
             ),
             environment={
-                "PHOENIX_ENDPOINT": f"http://{phoenix_service.load_balancer.load_balancer_dns_name}:80",
+                "OTEL_CONFIG": otel_config,
             },
             command=[
-                "--config=/etc/otel-collector-config.yaml",
+                "--config=env:OTEL_CONFIG",
             ],
         )
 
-        # Add port mappings for OTLP
+        # Add port mappings for OTLP and health check
         otel_container.add_port_mappings(
             ecs.PortMapping(container_port=4317, protocol=ecs.Protocol.TCP),  # gRPC
             ecs.PortMapping(container_port=4318, protocol=ecs.Protocol.TCP),  # HTTP
+            ecs.PortMapping(container_port=13133, protocol=ecs.Protocol.TCP),  # health check
         )
 
         # ---------------------------------------------------------------
@@ -231,14 +263,24 @@ class ObservabilityStack(cdk.Stack):
             open_listener=True,
         )
 
-        # Configure health check
+        # Configure health check (OTel health_check extension on port 13133)
         otel_service.target_group.configure_health_check(
             path="/",
-            port="4318",
+            port="13133",
             healthy_threshold_count=2,
             unhealthy_threshold_count=3,
             timeout=cdk.Duration.seconds(5),
             interval=cdk.Duration.seconds(30),
+        )
+
+        # Log group cleanup — deletes orphaned log groups on stack destruction
+        LogGroupCleanup(
+            self,
+            "LogGroupCleanup",
+            log_group_prefixes=[
+                f"/aws/ecs/containerinsights/{stack_prefix}/",
+                f"/aws/lambda/{self.stack_name}-",
+            ],
         )
 
         # ---------------------------------------------------------------
@@ -276,4 +318,4 @@ class ObservabilityStack(cdk.Stack):
     @property
     def cluster_name(self) -> str:
         """ECS cluster name for observability services."""
-        return f"{to_kebab_case(self.stack_name)}-observability"
+        return to_kebab_case(self.stack_name)
