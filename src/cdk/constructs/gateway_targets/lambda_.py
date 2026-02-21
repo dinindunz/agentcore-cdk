@@ -1,13 +1,12 @@
 import os
 
-import aws_cdk as cdk
 from aws_cdk import aws_lambda as lambda_
 from aws_cdk import aws_ecr_assets as ecr_assets
 from aws_cdk.aws_bedrock_agentcore_alpha import ToolSchema
 from constructs import Construct
 
-from .gateway import GatewayConstruct
-from ..utils import to_kebab_case
+from ..gateway import GatewayConstruct
+from ...utils import to_pascal_case
 
 
 class LambdaTargetConstruct(Construct):
@@ -18,7 +17,6 @@ class LambdaTargetConstruct(Construct):
         scope: Construct,
         id: str,
         *,
-        function_name: str,
         asset_path: str,
         gateway: GatewayConstruct,
         target_name: str,
@@ -27,16 +25,14 @@ class LambdaTargetConstruct(Construct):
     ) -> None:
         super().__init__(scope, id)
 
-        stack = cdk.Stack.of(self)
-        stack_prefix = to_kebab_case(stack.stack_name)
-
-        # __file__ is src/cdk/constructs/lambda_target.py — ../.. resolves to src/
-        asset_dir = os.path.join(os.path.dirname(__file__), "..", "..", asset_path)
+        # __file__ is src/cdk/constructs/gateway_targets/lambda_target.py — ../../.. resolves to src/
+        asset_dir = os.path.join(
+            os.path.dirname(__file__), "..", "..", "..", asset_path
+        )
 
         self._function = lambda_.DockerImageFunction(
             self,
             "Function",
-            function_name=f"{stack_prefix}-{to_kebab_case(function_name)}",
             architecture=lambda_.Architecture.ARM_64,
             code=lambda_.DockerImageCode.from_image_asset(
                 asset_dir,
@@ -51,7 +47,7 @@ class LambdaTargetConstruct(Construct):
 
         # Register as a Lambda target on the gateway
         target = gateway.gateway.add_lambda_target(
-            "Target",
+            f"{to_pascal_case(target_name)}Target",
             gateway_target_name=target_name,
             description=description,
             lambda_function=self._function,

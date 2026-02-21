@@ -1,16 +1,22 @@
 from .bucket import BucketDeploymentConstruct
 from .cognito import UserPoolConstruct
-from .lambda_target import LambdaTargetConstruct
-from .runtime import RuntimeConstruct
 from .gateway import GatewayConstruct
+from .gateway_targets import (
+    LambdaTargetConstruct,
+    McpServerTargetConstruct,
+    OpenApiTargetConstruct,
+)
 from .identity import (
     OAuth2CredentialProviderConstruct,
     ApiKeyCredentialProviderConstruct,
 )
+from .runtime import RuntimeConstruct
 
 __all__ = [
     "BucketDeploymentConstruct",
     "LambdaTargetConstruct",
+    "McpServerTargetConstruct",
+    "OpenApiTargetConstruct",
     "UserPoolConstruct",
     "RuntimeConstruct",
     "GatewayConstruct",

@@ -2,15 +2,14 @@ import os
 
 import aws_cdk as cdk
 from aws_cdk import aws_iam as iam
-from aws_cdk.aws_bedrock_agentcore_alpha import (
-    ApiSchema,
-    ProtocolType,
-    GatewayAuthorizer,
-)
+from aws_cdk.aws_bedrock_agentcore_alpha import ProtocolType, GatewayAuthorizer
 from constructs import Construct
 
 from ..constructs import (
     BucketDeploymentConstruct,
+    LambdaTargetConstruct,
+    McpServerTargetConstruct,
+    OpenApiTargetConstruct,
     UserPoolConstruct,
     RuntimeConstruct,
     GatewayConstruct,
@@ -162,132 +161,50 @@ class AgentCoreStack(cdk.Stack):
         )
 
         # ---------------------------------------------------------------
-        # MCP Lambdas
-        # ---------------------------------------------------------------
-
-        # Temperature Converter Lambda — a simple Lambda function that performs temperature conversions (Celsius <> Fahrenheit)
-        temperature_lambda = lambda_.DockerImageFunction(
-            self,
-            "McpTemperatureConverter",
-            function_name=f"{stack_prefix}-mcp-temperature-converter",
-            architecture=lambda_.Architecture.ARM_64,
-            code=lambda_.DockerImageCode.from_image_asset(
-                os.path.join(
-                    os.path.dirname(__file__),
-                    "..",
-                    "..",
-                    "mcp",
-                    "temperature_converter",
-                ),
-                platform=ecr_assets.Platform.LINUX_ARM64,
-            ),
-        )
-
-        # Grant the JWT gateway's service role permission to invoke the temperature converter Lambda
-        # (the L2 add_lambda_target does not auto-grant this)
-        temperature_lambda.grant_invoke(jwt_gw.gateway.role)
-
-        # Skill Search Lambda — searches skill definitions stored in S3 by keyword
-        skill_search_lambda = lambda_.DockerImageFunction(
-            self,
-            "SkillSearchLambda",
-            function_name=f"{stack_prefix}-skill-search",
-            architecture=lambda_.Architecture.ARM_64,
-            code=lambda_.DockerImageCode.from_image_asset(
-                os.path.join(
-                    os.path.dirname(__file__),
-                    "..",
-                    "..",
-                    "mcp",
-                    "skill_search",
-                ),
-                platform=ecr_assets.Platform.LINUX_ARM64,
-            ),
-            environment={"SKILLS_BUCKET": skills_bucket.bucket_name_value},
-        )
-
-        # Grant the skill search Lambda permission to read skills from S3
-        skills_bucket.bucket.grant_read(skill_search_lambda)
-
-        # Grant the IAM gateway's service role permission to invoke the skill search Lambda
-        skill_search_lambda.grant_invoke(iam_gw.gateway.role)
-
-        # ---------------------------------------------------------------
         # Gateway Targets
         # ---------------------------------------------------------------
 
-        # MCP Calculator Runtime Target to IAM Gateway
-        iam_gw.gateway.add_mcp_server_target(
+        # Skill Search — keyword search over skill definitions stored in S3, on IAM Gateway
+        skill_search = LambdaTargetConstruct(
+            self,
+            "SkillSearchLambda",
+            asset_path="mcp/skill_search",
+            gateway=iam_gw,
+            target_name="skill-search",
+            description="Search available agent skills by keyword",
+            environment={"SKILLS_BUCKET": skills_bucket.bucket_name_value},
+        )
+        skills_bucket.bucket.grant_read(skill_search.function)
+
+        # MCP Calculator Runtime Target on IAM Gateway
+        McpServerTargetConstruct(
+            self,
             "CalculatorTarget",
-            gateway_target_name="calculator",
+            gateway=iam_gw,
+            target_name="calculator",
             description="Calculator tools (add, subtract, multiply, divide)",
             endpoint=mcp_calculator_rt.endpoint,
             credential_provider_configurations=[mcp_oauth.credential_provider],
         )
 
-        # Skill Search Lambda Target to IAM Gateway
-        skill_search_target = iam_gw.gateway.add_lambda_target(
-            "SkillSearchTarget",
-            gateway_target_name="skill-search",
-            description="Search available agent skills by keyword",
-            lambda_function=skill_search_lambda,
-            tool_schema=ToolSchema.from_local_asset(
-                os.path.join(
-                    os.path.dirname(__file__),
-                    "..",
-                    "..",
-                    "mcp",
-                    "skill_search",
-                    "schema.json",
-                )
-            ),
-        )
-        # Ensure the gateway's service role policy (with lambda:InvokeFunction) is created
-        # before the target — AgentCore validates this at CreateGatewayTarget time
-        if iam_gw.gateway.role.node.try_find_child("DefaultPolicy"):
-            skill_search_target.node.add_dependency(
-                iam_gw.gateway.role.node.find_child("DefaultPolicy")
-            )
-
-        # Temperature Converter Lambda Target to JWT Gateway
-        temp_target = jwt_gw.gateway.add_lambda_target(
-            "TemperatureConverterTarget",
-            gateway_target_name="temperature-converter",
+        # Temperature Converter — Celsius <> Fahrenheit conversion tools on JWT Gateway
+        LambdaTargetConstruct(
+            self,
+            "McpTemperatureConverter",
+            asset_path="mcp/temperature_converter",
+            gateway=jwt_gw,
+            target_name="temperature-converter",
             description="Temperature conversion tools (Celsius <> Fahrenheit)",
-            lambda_function=temperature_lambda,
-            tool_schema=ToolSchema.from_local_asset(
-                os.path.join(
-                    os.path.dirname(__file__),
-                    "..",
-                    "..",
-                    "mcp",
-                    "temperature_converter",
-                    "schema.json",
-                )
-            ),
         )
-        # Ensure the gateway's service role policy (with lambda:InvokeFunction) is created
-        # before the target — AgentCore validates this at CreateGatewayTarget time
-        if jwt_gw.gateway.role.node.try_find_child("DefaultPolicy"):
-            temp_target.node.add_dependency(
-                jwt_gw.gateway.role.node.find_child("DefaultPolicy")
-            )
 
-        # GitHub REST API Target to JWT Gateway
-        jwt_gw.gateway.add_open_api_target(
+        # GitHub Open API Target on JWT Gateway
+        OpenApiTargetConstruct(
+            self,
             "GithubTarget",
-            gateway_target_name="github",
+            gateway=jwt_gw,
+            target_name="github",
             description="GitHub API tools (repos, issues, pull requests, search)",
-            api_schema=ApiSchema.from_local_asset(
-                os.path.join(
-                    os.path.dirname(__file__),
-                    "..",
-                    "..",
-                    "mcp",
-                    "github",
-                    "schema.json",
-                )
-            ),
+            schema_path="mcp/github/schema.json",
             credential_provider_configurations=[github_api_key.credential_provider],
         )
 

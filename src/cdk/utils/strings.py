@@ -14,6 +14,18 @@ def to_kebab_case(s: str) -> str:
     return s.lower().replace("_", "-")
 
 
+def to_pascal_case(s: str) -> str:
+    """Convert kebab-case, snake_case, or camelCase to PascalCase.
+
+    Examples:
+        skill-search       -> SkillSearch
+        mcp_calculator     -> McpCalculator
+        temperature-converter -> TemperatureConverter
+    """
+    parts = re.split(r"[-_]", s)
+    return "".join(part.capitalize() for part in parts)
+
+
 def to_snake_case(s: str) -> str:
     """Convert PascalCase, camelCase, or kebab-case to snake_case.
 
