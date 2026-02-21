@@ -1,4 +1,4 @@
 from .agentcore import AgentCoreStack
-from .vpc import AgentCoreVpcStack
+from .observability import ObservabilityStack
 
-__all__ = ["AgentCoreStack", "AgentCoreVpcStack"]
+__all__ = ["AgentCoreStack", "ObservabilityStack"]
