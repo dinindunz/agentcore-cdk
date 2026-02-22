@@ -275,6 +275,14 @@ class ObservabilityStack(cdk.Stack):
             interval=cdk.Duration.seconds(30),
         )
 
+        # Allow ALB to reach health check port on tasks
+        # The L2 construct only creates egress for the main service port, not health check port
+        otel_service.load_balancer.connections.allow_to(
+            otel_sg,
+            ec2.Port.tcp(13133),
+            "ALB to health check port",
+        )
+
         # Log group cleanup — deletes orphaned log groups on stack destruction
         LogGroupCleanup(
             self,
