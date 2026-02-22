@@ -1,0 +1,357 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "GitHub REST API",
+    "version": "1.0.0",
+    "description": "Subset of GitHub REST API for repository and issue management"
+  },
+  "servers": [
+    {
+      "url": "https://api.github.com"
+    }
+  ],
+  "paths": {
+    "/user": {
+      "get": {
+        "operationId": "getAuthenticatedUser",
+        "summary": "Get the authenticated user",
+        "responses": {
+          "200": {
+            "description": "The authenticated user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "login": { "type": "string" },
+                    "name": { "type": "string" },
+                    "email": { "type": "string" },
+                    "public_repos": { "type": "integer" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/user/repos": {
+      "get": {
+        "operationId": "listAuthenticatedUserRepos",
+        "summary": "List repositories for the authenticated user",
+        "parameters": [
+          {
+            "name": "sort",
+            "in": "query",
+            "schema": { "type": "string", "enum": ["created", "updated", "pushed", "full_name"] },
+            "description": "Sort by field"
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "schema": { "type": "integer", "default": 30 },
+            "description": "Results per page (max 100)"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": { "type": "integer", "default": 1 },
+            "description": "Page number"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of repositories",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "full_name": { "type": "string" },
+                      "description": { "type": "string" },
+                      "html_url": { "type": "string" },
+                      "private": { "type": "boolean" },
+                      "language": { "type": "string" },
+                      "stargazers_count": { "type": "integer" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/repos/{owner}/{repo}": {
+      "get": {
+        "operationId": "getRepository",
+        "summary": "Get a repository by owner and name",
+        "parameters": [
+          {
+            "name": "owner",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Repository owner"
+          },
+          {
+            "name": "repo",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Repository name"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Repository details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "full_name": { "type": "string" },
+                    "description": { "type": "string" },
+                    "html_url": { "type": "string" },
+                    "private": { "type": "boolean" },
+                    "language": { "type": "string" },
+                    "default_branch": { "type": "string" },
+                    "stargazers_count": { "type": "integer" },
+                    "forks_count": { "type": "integer" },
+                    "open_issues_count": { "type": "integer" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/repos/{owner}/{repo}/issues": {
+      "get": {
+        "operationId": "listIssues",
+        "summary": "List issues for a repository",
+        "parameters": [
+          {
+            "name": "owner",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "repo",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "schema": { "type": "string", "enum": ["open", "closed", "all"], "default": "open" },
+            "description": "Filter by state"
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "schema": { "type": "integer", "default": 30 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of issues",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "number": { "type": "integer" },
+                      "title": { "type": "string" },
+                      "state": { "type": "string" },
+                      "html_url": { "type": "string" },
+                      "body": { "type": "string" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createIssue",
+        "summary": "Create an issue in a repository",
+        "parameters": [
+          {
+            "name": "owner",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "repo",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["title"],
+                "properties": {
+                  "title": { "type": "string", "description": "Issue title" },
+                  "body": { "type": "string", "description": "Issue body" },
+                  "labels": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": "Labels to add"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created issue",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "number": { "type": "integer" },
+                    "title": { "type": "string" },
+                    "html_url": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/repos/{owner}/{repo}/pulls": {
+      "get": {
+        "operationId": "listPullRequests",
+        "summary": "List pull requests for a repository",
+        "parameters": [
+          {
+            "name": "owner",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "repo",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "schema": { "type": "string", "enum": ["open", "closed", "all"], "default": "open" }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "schema": { "type": "integer", "default": 30 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of pull requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "number": { "type": "integer" },
+                      "title": { "type": "string" },
+                      "state": { "type": "string" },
+                      "html_url": { "type": "string" },
+                      "head": {
+                        "type": "object",
+                        "properties": {
+                          "ref": { "type": "string" }
+                        }
+                      },
+                      "base": {
+                        "type": "object",
+                        "properties": {
+                          "ref": { "type": "string" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/search/repositories": {
+      "get": {
+        "operationId": "searchRepositories",
+        "summary": "Search for repositories on GitHub",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Search query (e.g. 'language:python stars:>100')"
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "schema": { "type": "string", "enum": ["stars", "forks", "help-wanted-issues", "updated"] }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "schema": { "type": "integer", "default": 30 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Search results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "total_count": { "type": "integer" },
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "full_name": { "type": "string" },
+                          "description": { "type": "string" },
+                          "html_url": { "type": "string" },
+                          "stargazers_count": { "type": "integer" },
+                          "language": { "type": "string" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
