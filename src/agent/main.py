@@ -10,14 +10,6 @@ from mcp.client.streamable_http import streamablehttp_client # TODO: Refactor to
 from strands import Agent
 from strands.tools.mcp import MCPClient
 
-# OpenInference auto-instrumentation - just import and it instruments everything
-from openinference.instrumentation.bedrock import BedrockInstrumentor
-
-# Auto-instrument Bedrock
-# BedrockInstrumentor().instrument()
-
-print(f"[OpenInference] Auto-instrumentation enabled for Bedrock")
-
 REGION_NAME = os.environ["REGION_NAME"]
 SKILLS_BUCKET = os.environ.get("SKILLS_BUCKET")
 
