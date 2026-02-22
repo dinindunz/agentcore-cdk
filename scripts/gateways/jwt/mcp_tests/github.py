@@ -1,8 +1,12 @@
 """Test script to invoke GitHub MCP server via JWT Gateway."""
 
 import json
+import sys
+from pathlib import Path
 
-from .. import auth
+# Add parent directory to path to import auth module
+sys.path.insert(0, str(Path(__file__).parent.parent))
+import auth
 
 # Get authenticated user
 get_user_payload = {

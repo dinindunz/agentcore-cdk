@@ -51,11 +51,11 @@ python list_tools.py
 # Search for tools
 python search_tools.py "convert temperature"
 
-# Invoke a tool (generic)
+# Invoke a tool (generic - single operation)
 python invoke_tool.py temperature-converter___celsius_to_fahrenheit '{"celsius": 25}'
 python invoke_tool.py github___getAuthenticatedUser '{}'
 
-# Test MCP servers
+# Run comprehensive MCP server tests (multiple operations)
 python -m mcp_tests.temperature_converter
 python -m mcp_tests.github
 ```

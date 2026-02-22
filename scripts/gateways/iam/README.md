@@ -54,11 +54,10 @@ python list_tools.py
 # Search for tools
 python search_tools.py "add numbers"
 
-# Invoke a tool (generic)
-python invoke_tool.py add '{"a": 5, "b": 3}'
-python invoke_tool.py temperature-converter___celsius_to_fahrenheit '{"celsius": 25}'
+# Invoke a tool (generic - single operation)
+python invoke_tool.py calculator___add '{"a": 5, "b": 3}'
 
-# Test MCP servers
+# Run comprehensive MCP server tests (multiple operations)
 python -m mcp_tests.calculator
 python -m mcp_tests.skill_search
 ```
