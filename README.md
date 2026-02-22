@@ -10,21 +10,15 @@ pip install .
 
 ## Deployment
 
-Deploy from the project root, specifying the `env` context parameter:
-
 ```bash
-# Deploy to dev environment (default)
+# Deploy to dev (default)
 cdk deploy
 
-# Or explicitly specify dev
-cdk deploy -c env=dev
-
-# Deploy to test environment
-cdk deploy -c env=test
-
-# Deploy to prod environment
+# Deploy to specific environment
 cdk deploy -c env=prod
 ```
+
+For detailed deployment options and infrastructure documentation, see **[CDK Infrastructure](src/cdk/README.md)**.
 
 ## Scripts
 
