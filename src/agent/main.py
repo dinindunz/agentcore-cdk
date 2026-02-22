@@ -10,6 +10,14 @@ from mcp.client.streamable_http import streamablehttp_client
 from strands import Agent
 from strands.tools.mcp import MCPClient
 
+# OpenInference auto-instrumentation - just import and it instruments everything
+from openinference.instrumentation import using_attributes
+from openinference.instrumentation.bedrock import BedrockInstrumentor
+
+# Auto-instrument Bedrock
+BedrockInstrumentor().instrument()
+
+print(f"[OpenInference] Auto-instrumentation enabled for Bedrock")
 
 REGION_NAME = os.environ["REGION_NAME"]
 SKILLS_BUCKET = os.environ.get("SKILLS_BUCKET")
@@ -173,9 +181,12 @@ agent = Agent(
 def invoke(payload):
     """Process user input and return a response"""
     user_message = payload.get("prompt", "Hello")
+    
     result = agent(user_message)
     text = "".join(
-        block["text"] for block in result.message.get("content", []) if "text" in block
+        block["text"]
+        for block in result.message.get("content", [])
+        if "text" in block
     )
     return {"result": text}
 

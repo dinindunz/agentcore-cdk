@@ -1,4 +1,5 @@
 import os
+from typing import Optional
 
 import aws_cdk as cdk
 from aws_cdk import aws_iam as iam
@@ -21,7 +22,13 @@ from ..utils import DestroyLogGroups, LogGroupCleanup, to_kebab_case, to_snake_c
 
 class AgentCoreStack(cdk.Stack):
 
-    def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
+    def __init__(
+        self,
+        scope: Construct,
+        construct_id: str,
+        observability_stack: Optional[cdk.Stack] = None,
+        **kwargs,
+    ) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
         # Ensure all log groups in this stack are cleaned up on deletion
@@ -119,6 +126,25 @@ class AgentCoreStack(cdk.Stack):
         # AgentCore Runtimes
         # ---------------------------------------------------------------
 
+        # Build agent runtime environment variables
+        agent_env_vars = {
+            "REGION_NAME": self.region,
+            "JWT_GATEWAY_SSM_PATH": jwt_gw.ssm_url_param_name,
+            "IAM_GATEWAY_SSM_PATH": iam_gw.ssm_url_param_name,
+            "GATEWAY_COGNITO_SECRET": gateway_auth.secret_name,
+            "SKILLS_BUCKET": skills_bucket.bucket_name_value,
+        }
+
+        # Add observability configuration if observability stack is provided
+        if observability_stack:
+            agent_env_vars.update(
+                {
+                    "OTEL_EXPORTER_OTLP_ENDPOINT": observability_stack.phoenix_endpoint,
+                    "OTEL_SERVICE_NAME": f"{stack_prefix}-agent",
+                    "OTEL_RESOURCE_ATTRIBUTES": f"project.name={stack_prefix}",
+                }
+            )
+
         # Agent Runtime — the "agent" runtime that will orchestrate calls to the gateways and execute tools
         agent_rt = RuntimeConstruct(
             self,
@@ -127,13 +153,7 @@ class AgentCoreStack(cdk.Stack):
             asset_path="agent",
             protocol=ProtocolType.HTTP,
             auth_pool=agent_auth,
-            environment_variables={
-                "REGION_NAME": self.region,
-                "JWT_GATEWAY_SSM_PATH": jwt_gw.ssm_url_param_name,
-                "IAM_GATEWAY_SSM_PATH": iam_gw.ssm_url_param_name,
-                "GATEWAY_COGNITO_SECRET": gateway_auth.secret_name,
-                "SKILLS_BUCKET": skills_bucket.bucket_name_value,
-            },
+            environment_variables=agent_env_vars,
         )
 
         # Grant the agent runtime's execution role permission to read skills from S3
@@ -149,6 +169,10 @@ class AgentCoreStack(cdk.Stack):
                 ],
             )
         )
+
+        # Grant agent runtime permission to read Phoenix API key if observability is enabled
+        if observability_stack:
+            observability_stack.phoenix_api_key_secret.grant_read(agent_rt.role)
 
         # MCP Calculator Runtime — a simple MCP runtime that exposes calculator tools (add, subtract, multiply, divide) for demonstration purposes
         mcp_calculator_rt = RuntimeConstruct(

@@ -50,7 +50,7 @@ class ObservabilityStack(cdk.Stack):
         # ---------------------------------------------------------------
         # Phoenix API Key Secret
         # ---------------------------------------------------------------
-        phoenix_api_key_secret = secretsmanager.Secret(
+        self._phoenix_api_key_secret = secretsmanager.Secret(
             self,
             "PhoenixApiKey",
             secret_name=f"{stack_prefix}/phoenix-api-key",
@@ -61,6 +61,7 @@ class ObservabilityStack(cdk.Stack):
                 password_length=32,
             ),
         )
+        phoenix_api_key_secret = self._phoenix_api_key_secret
 
         # ---------------------------------------------------------------
         # Security Group for Phoenix service
@@ -121,7 +122,7 @@ class ObservabilityStack(cdk.Stack):
         # ---------------------------------------------------------------
         # Fargate Service for Phoenix
         # ---------------------------------------------------------------
-        phoenix_service = ecs_patterns.ApplicationLoadBalancedFargateService(
+        self._phoenix_service = ecs_patterns.ApplicationLoadBalancedFargateService(
             self,
             "PhoenixService",
             cluster=cluster,
@@ -134,6 +135,7 @@ class ObservabilityStack(cdk.Stack):
             listener_port=80,
             open_listener=True,
         )
+        phoenix_service = self._phoenix_service
 
         # Configure health check
         phoenix_service.target_group.configure_health_check(
@@ -198,7 +200,7 @@ class ObservabilityStack(cdk.Stack):
 
         # OpenTelemetry Collector container
         phoenix_endpoint = (
-            f"http://{phoenix_service.load_balancer.load_balancer_dns_name}:80"
+            f"http://{phoenix_service.load_balancer.load_balancer_dns_name}"
         )
         otel_config = (
             "receivers:\n"
@@ -210,7 +212,7 @@ class ObservabilityStack(cdk.Stack):
             "        endpoint: 0.0.0.0:4318\n"
             "exporters:\n"
             "  otlphttp:\n"
-            f"    endpoint: {phoenix_endpoint}\n"
+            f"    endpoint: {phoenix_endpoint}:80\n"
             "extensions:\n"
             "  health_check:\n"
             "    endpoint: 0.0.0.0:13133\n"
@@ -251,7 +253,7 @@ class ObservabilityStack(cdk.Stack):
         # ---------------------------------------------------------------
         # Fargate Service for OpenTelemetry Collector
         # ---------------------------------------------------------------
-        otel_service = ecs_patterns.ApplicationLoadBalancedFargateService(
+        self.otel_service = ecs_patterns.ApplicationLoadBalancedFargateService(
             self,
             "OtelService",
             cluster=cluster,
@@ -266,7 +268,7 @@ class ObservabilityStack(cdk.Stack):
         )
 
         # Configure health check (OTel health_check extension on port 13133)
-        otel_service.target_group.configure_health_check(
+        self.otel_service.target_group.configure_health_check(
             path="/",
             port="13133",
             healthy_threshold_count=2,
@@ -277,7 +279,7 @@ class ObservabilityStack(cdk.Stack):
 
         # Allow ALB to reach health check port on tasks
         # The L2 construct only creates egress for the main service port, not health check port
-        otel_service.load_balancer.connections.allow_to(
+        self.otel_service.load_balancer.connections.allow_to(
             otel_sg,
             ec2.Port.tcp(13133),
             "ALB to health check port",
@@ -311,7 +313,7 @@ class ObservabilityStack(cdk.Stack):
         cdk.CfnOutput(
             self,
             "OtelCollectorEndpointHttp",
-            value=f"http://{otel_service.load_balancer.load_balancer_dns_name}:4318",
+            value=f"http://{self.otel_service.load_balancer.load_balancer_dns_name}:4318",
             description="OpenTelemetry Collector HTTP endpoint",
         )
         cdk.CfnOutput(
@@ -329,3 +331,18 @@ class ObservabilityStack(cdk.Stack):
     def cluster_name(self) -> str:
         """ECS cluster name for observability services."""
         return to_kebab_case(self.stack_name)
+
+    @property
+    def otel_endpoint(self) -> str:
+        """OpenTelemetry Collector HTTP endpoint for agent instrumentation."""
+        return f"http://{self.otel_service.load_balancer.load_balancer_dns_name}:4318"
+
+    @property
+    def phoenix_endpoint(self) -> str:
+        """Phoenix collector endpoint for direct OTLP ingestion."""
+        return f"http://{self._phoenix_service.load_balancer.load_balancer_dns_name}"
+
+    @property
+    def phoenix_api_key_secret(self) -> secretsmanager.ISecret:
+        """Phoenix API key secret for agent authentication."""
+        return self._phoenix_api_key_secret
