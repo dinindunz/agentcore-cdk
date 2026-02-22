@@ -133,7 +133,7 @@ def load_skills_summary() -> str:
         return ""
     return (
         "\n\n## Available Skills\n"
-        "When a user's request matches a skill, use the search_skills tool to retrieve "
+        "When a user's request matches a skill, use the skill-search___search_skills tool to retrieve "
         "the full step-by-step instructions, then follow them.\n\n" + "\n".join(lines)
     )
 
@@ -157,8 +157,15 @@ skills_section = load_skills_summary()
 agent = Agent(
     tools=tools,
     system_prompt=(
-        "You are a helpful assistant. Provide friendly, conversational responses. "
-        "Always use tools provided." + skills_section
+        "You are a helpful assistant with access to specialized skills for complex workflows.\n\n"
+        "## IMPORTANT: Skill-First Workflow\n"
+        "Before attempting any task that involves multiple tools or complex logic:\n"
+        "1. **ALWAYS use skill-search___search_skills first** to search for relevant skills using keywords from the user's request\n"
+        "2. **If a matching skill is found**: Follow its step-by-step instructions exactly\n"
+        "3. **If no skill is found**: Proceed with available tools directly\n\n"
+        "This ensures you follow established workflows and produce consistent results.\n\n"
+        "Always provide friendly, conversational responses."
+        + skills_section
     ),
 )
 

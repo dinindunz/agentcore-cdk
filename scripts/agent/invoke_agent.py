@@ -10,59 +10,52 @@ from dotenv import load_dotenv
 load_dotenv()
 
 REGION_NAME = os.environ["REGION_NAME"]
-ssm_client = boto3.client("ssm", region_name=REGION_NAME)
-sm_client = boto3.client("secretsmanager", region_name=REGION_NAME)
+_ssm = boto3.client("ssm", region_name=REGION_NAME)
+_sm = boto3.client("secretsmanager", region_name=REGION_NAME)
 
 # Fetch Cognito credentials from Secrets Manager
-agent_cognito = json.loads(
-    sm_client.get_secret_value(SecretId="agent-core-stack-dev/agent-cognito")[
-        "SecretString"
-    ]
+_agent_cognito = json.loads(
+    _sm.get_secret_value(SecretId="agent-core-stack-dev/agent-cognito")["SecretString"]
 )
-CLIENT_ID = agent_cognito["client_id"]
-CLIENT_SECRET = agent_cognito["client_secret"]
-TOKEN_ENDPOINT = agent_cognito["token_endpoint"]
+_CLIENT_ID = _agent_cognito["client_id"]
+_CLIENT_SECRET = _agent_cognito["client_secret"]
+_TOKEN_ENDPOINT = _agent_cognito["token_endpoint"]
 
-agent_arn = ssm_client.get_parameter(Name="/agent-core-stack-dev/agent-runtime-arn")[
+_agent_arn = _ssm.get_parameter(Name="/agent-core-stack-dev/agent-runtime-arn")[
     "Parameter"
 ]["Value"]
 
-session_id = str(uuid.uuid4())
+_escaped_arn = urllib.parse.quote(_agent_arn, safe="")
+_URL = f"https://bedrock-agentcore.{REGION_NAME}.amazonaws.com/runtimes/{_escaped_arn}/invocations?qualifier=DEFAULT"
 
-# === Authenticate with Cognito (client credentials) ===
-token_response = requests.post(
-    TOKEN_ENDPOINT,
-    data={
-        "grant_type": "client_credentials",
-        "scope": "agent/invoke",
-    },
-    auth=(CLIENT_ID, CLIENT_SECRET),
-)
-token_response.raise_for_status()
-access_token = token_response.json()["access_token"]
-print("Cognito authentication successful")
 
-# === Invoke Agent with NL prompt ===
-escaped_agent_arn = urllib.parse.quote(agent_arn, safe="")
-url = f"https://bedrock-agentcore.{REGION_NAME}.amazonaws.com/runtimes/{escaped_agent_arn}/invocations?qualifier=DEFAULT"
-print(f"Invoking Agent at URL: {url}")
+def _get_access_token() -> str:
+    resp = requests.post(
+        _TOKEN_ENDPOINT,
+        data={"grant_type": "client_credentials", "scope": "agent/invoke"},
+        auth=(_CLIENT_ID, _CLIENT_SECRET),
+    )
+    resp.raise_for_status()
+    return resp.json()["access_token"]
 
-payload = json.dumps(
-    {
-        "prompt": "Get the star count of the aws/aws-cdk GitHub repo. Then use the calculator to scale it to a value between 50 and 100 (divide by the appropriate factor and round). Treat that result as a Celsius temperature and convert it to Fahrenheit.",
-    }
-)
 
-invoke_response = requests.post(
-    url,
-    headers={
-        "Content-Type": "application/json",
-        "Accept": "application/json, text/event-stream",
-        "Authorization": f"Bearer {access_token}",
-        "X-Amzn-Bedrock-AgentCore-Runtime-Session-Id": session_id,
-    },
-    data=payload,
-)
+def invoke_agent(prompt: str) -> None:
+    """Authenticate and invoke the agent with the given prompt, printing the response."""
+    access_token = _get_access_token()
+    session_id = str(uuid.uuid4())
 
-print(f"Status Code: {invoke_response.status_code}")
-print(f"Response: {invoke_response.content}")
+    print(f"Prompt: {prompt}\n")
+
+    response = requests.post(
+        _URL,
+        headers={
+            "Content-Type": "application/json",
+            "Accept": "application/json, text/event-stream",
+            "Authorization": f"Bearer {access_token}",
+            "X-Amzn-Bedrock-AgentCore-Runtime-Session-Id": session_id,
+        },
+        data=json.dumps({"prompt": prompt}),
+    )
+
+    print(f"Status: {response.status_code}")
+    print(f"Response: {response.content.decode()}")
