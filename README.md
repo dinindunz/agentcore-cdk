@@ -61,7 +61,7 @@
 └── scripts/                      # Testing and invocation scripts
     ├── runtimes/
     │   ├── agent/                # Agent runtime testing
-    │   │   ├── invoke_agent.py   - Invoke agent with SigV4 auth
+    │   │   ├── invoke_agent.py   - Invoke agent with Oauth2 authentication
     │   │   └── skill_tests/      - Test scripts for each agent skill
     │   └── mcp/                  # MCP runtime testing
     │       └── invoke_calculator.py
@@ -71,13 +71,17 @@
         │   ├── list_tools.py     - List available tools
         │   ├── search_tools.py   - Search tools by keyword
         │   ├── invoke_tool.py    - Invoke a specific tool
-        │   └── mcp_tests/        - MCP protocol tests
+        │   └── mcp_tests/        - MCP tools tests
+        │       ├── calculator.py - Test calculator tools
+        │       └── skill_search.py - Test skill search tool
         └── jwt/                  # JWT-authenticated gateway testing
             ├── auth.py           - Cognito authentication helper
-            ├── list_tools.py
-            ├── search_tools.py
-            ├── invoke_tool.py
-            └── mcp_tests/
+            ├── list_tools.py     - List available tools
+            ├── search_tools.py   - Search tools by keyword
+            ├── invoke_tool.py    - Invoke a specific tool
+            └── mcp_tests/        - MCP tools tests
+                ├── github.py     - Test GitHub tools
+                └── temperature_converter.py - Test temperature converter tools
 ```
 
 ## Prerequisites
@@ -159,5 +163,3 @@ make help
 ```
 
 For the complete list of commands and detailed usage, run `make help` or see the **[Makefile](Makefile)**.
-
-For infrastructure documentation, see **[CDK Infrastructure](src/cdk/README.md)**.

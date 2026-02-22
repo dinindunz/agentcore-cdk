@@ -6,16 +6,15 @@ import botocore.auth
 import botocore.awsrequest
 import httpx
 from bedrock_agentcore.runtime import BedrockAgentCoreApp
-from mcp.client.streamable_http import streamablehttp_client
+from mcp.client.streamable_http import streamablehttp_client # TODO: Refactor to streamable_http_client
 from strands import Agent
 from strands.tools.mcp import MCPClient
 
 # OpenInference auto-instrumentation - just import and it instruments everything
-from openinference.instrumentation import using_attributes
 from openinference.instrumentation.bedrock import BedrockInstrumentor
 
 # Auto-instrument Bedrock
-BedrockInstrumentor().instrument()
+# BedrockInstrumentor().instrument()
 
 print(f"[OpenInference] Auto-instrumentation enabled for Bedrock")
 
