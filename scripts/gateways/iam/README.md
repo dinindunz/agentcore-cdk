@@ -38,7 +38,7 @@ else:
 
 ### Gateway Operations
 - **`list_tools.py`** - List all available tools
-- **`search_tools.py`** - Search for tools by query
+- **`search_tools.py`** - Semantically search for tools across all gateway targets using the `x_amz_bedrock_agentcore_search` built-in. Returns the most relevant tools ranked by semantic similarity.
 - **`invoke_tool.py`** - Invoke a specific tool (generic)
 
 ### MCP Server Tests

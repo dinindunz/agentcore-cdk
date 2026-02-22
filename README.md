@@ -26,56 +26,14 @@ cdk deploy -c env=test
 cdk deploy -c env=prod
 ```
 
-## Invoking
+## Scripts
 
-Invoke the MCP Calculator runtime directly:
+Detailed documentation for each script category:
 
-```bash
-python scripts/mcp/calculator/invoke_direct.py
-```
+### Gateways
+- **[IAM Gateway](scripts/gateways/iam/README.md)** - SigV4-authenticated gateway scripts (list, search, invoke tools)
+- **[JWT Gateway](scripts/gateways/jwt/README.md)** - Cognito JWT-authenticated gateway scripts (list, search, invoke tools)
 
-Invoke the MCP Calculator via the IAM gateway:
-
-```bash
-python scripts/mcp/calculator/invoke_via_iam_gateway.py
-```
-
-Invoke the Temperature Converter via the JWT gateway:
-
-```bash
-python scripts/mcp/temperature_converter/invoke_via_jwt_gateway.py
-```
-
-Invoke the GitHub API tools via the JWT gateway:
-
-```bash
-python scripts/mcp/github/invoke_via_jwt_gateway.py
-```
-
-Invoke the Agent runtime:
-
-```bash
-python scripts/agent/invoke_agent.py
-```
-
-## Gateway Tools
-
-List all available tools on a gateway:
-
-```bash
-# List via IAM gateway (SigV4 auth)
-python scripts/gateways/iam/list_tools.py
-
-# List via JWT gateway (Cognito auth)
-python scripts/gateways/jwt/list_tools.py
-```
-
-Semantically search for tools across all gateway targets using the `x_amz_bedrock_agentcore_search` built-in. Returns the most relevant tools ranked by semantic similarity. Accepts an optional query argument:
-
-```bash
-# Search via IAM gateway (SigV4 auth)
-python scripts/gateways/iam/search_tools.py "convert temperature"
-
-# Search via JWT gateway (Cognito auth)
-python scripts/gateways/jwt/search_tools.py "find calculator tools"
-```
+### Runtimes
+- **[Agent Runtime](scripts/runtimes/agent/README.md)** - Agent orchestration scripts and skill tests
+- **[MCP Runtime](scripts/runtimes/mcp/README.md)** - Direct MCP runtime invocation scripts
