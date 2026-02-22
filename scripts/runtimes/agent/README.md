@@ -33,17 +33,6 @@ invoke_agent("List my GitHub repositories and calculate total stars")
 - **`skill_tests/repo_hotness_rating.py`** - Rate repository activity/popularity
 - **`skill_tests/trending_topic_scout.py`** - Discover trending topics in repositories
 
-### Examples
-
-```bash
-# Run skill tests (multi-tool agent orchestration)
-python -m skill_tests.issue_heat_map
-python -m skill_tests.portfolio_summary
-python -m skill_tests.repo_comparison
-python -m skill_tests.repo_hotness_rating
-python -m skill_tests.trending_topic_scout
-```
-
 ## Configuration
 
 Requires the following environment variables (via `.env`):

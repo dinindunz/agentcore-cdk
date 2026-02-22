@@ -181,12 +181,10 @@ agent = Agent(
 def invoke(payload):
     """Process user input and return a response"""
     user_message = payload.get("prompt", "Hello")
-    
+
     result = agent(user_message)
     text = "".join(
-        block["text"]
-        for block in result.message.get("content", [])
-        if "text" in block
+        block["text"] for block in result.message.get("content", []) if "text" in block
     )
     return {"result": text}
 

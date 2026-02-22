@@ -36,29 +36,11 @@ print(response.json())
 ### Gateway Operations
 - **`list_tools.py`** - List all available tools
 - **`search_tools.py`** - Semantically search for tools across all gateway targets using the `x_amz_bedrock_agentcore_search` built-in. Returns the most relevant tools ranked by semantic similarity.
-- **`invoke_tool.py`** - Invoke a specific tool (generic)
+- **`invoke_tool.py`** - Invoke a specific tool (generic): `python invoke_tool.py temperature-converter___celsius_to_fahrenheit '{"celsius": 25}'`
 
-### MCP Server Tests
+### Run comprehensive MCP server tests (multiple operations)
 - **`mcp_tests/temperature_converter.py`** - Test temperature converter MCP server
 - **`mcp_tests/github.py`** - Test GitHub MCP server
-
-### Examples
-
-```bash
-# List all tools
-python list_tools.py
-
-# Search for tools
-python search_tools.py "convert temperature"
-
-# Invoke a tool (generic - single operation)
-python invoke_tool.py temperature-converter___celsius_to_fahrenheit '{"celsius": 25}'
-python invoke_tool.py github___getAuthenticatedUser '{}'
-
-# Run comprehensive MCP server tests (multiple operations)
-python -m mcp_tests.temperature_converter
-python -m mcp_tests.github
-```
 
 ## Configuration
 

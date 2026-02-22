@@ -3,14 +3,13 @@ from dotenv import load_dotenv
 import aws_cdk as cdk
 
 from src.cdk import AgentCoreStack, ObservabilityStack
-from src.cdk.utils import to_kebab_case
 
 load_dotenv()
 
 app = cdk.App()
 
 # Environment: dev, test, or prod
-env = app.node.try_get_context("env") or "dev"
+env = app.node.try_get_context("env")
 
 # Observability Stack: Arize Phoenix + OpenTelemetry
 observability_stack = ObservabilityStack(

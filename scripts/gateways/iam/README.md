@@ -39,28 +39,11 @@ else:
 ### Gateway Operations
 - **`list_tools.py`** - List all available tools
 - **`search_tools.py`** - Semantically search for tools across all gateway targets using the `x_amz_bedrock_agentcore_search` built-in. Returns the most relevant tools ranked by semantic similarity.
-- **`invoke_tool.py`** - Invoke a specific tool (generic)
+- **`invoke_tool.py`** - Invoke a specific tool (generic): `python invoke_tool.py calculator___add '{"a": 5, "b": 3}'`
 
-### MCP Server Tests
+### Run comprehensive MCP server tests (multiple operations)
 - **`mcp_tests/calculator.py`** - Test calculator MCP server (add tool)
 - **`mcp_tests/skill_search.py`** - Test skill search MCP server
-
-### Examples
-
-```bash
-# List all tools
-python list_tools.py
-
-# Search for tools
-python search_tools.py "add numbers"
-
-# Invoke a tool (generic - single operation)
-python invoke_tool.py calculator___add '{"a": 5, "b": 3}'
-
-# Run comprehensive MCP server tests (multiple operations)
-python -m mcp_tests.calculator
-python -m mcp_tests.skill_search
-```
 
 ## Configuration
 

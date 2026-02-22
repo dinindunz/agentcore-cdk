@@ -64,6 +64,11 @@ def create_project(phoenix_url: str, api_key: str, project_name: str) -> None:
 
     result = response.json()
     if "errors" in result:
+        # Check if the error is about project already existing
+        errors = result['errors']
+        if any("already exists" in str(error.get('message', '')).lower() for error in errors):
+            print(f"✓ Phoenix project '{project_name}' already exists - skipping creation")
+            return
         raise Exception(f"GraphQL errors: {result['errors']}")
 
     project_id = result["data"]["createProject"]["project"]["id"]
