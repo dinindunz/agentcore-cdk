@@ -80,32 +80,82 @@
             └── mcp_tests/
 ```
 
-## Usage
+## Prerequisites
+
+- Python 3.12 or higher
+- AWS CLI configured with appropriate credentials
+- AWS CDK CLI installed (`npm install -g aws-cdk`)
+
+## Quick Start
+
+### 1. Install Dependencies
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install .
+make install
 ```
 
-## Commands
+This will:
+- Check that Python 3.12+ is installed (works with both `python` and `python3` commands)
+- Create a virtual environment in `.venv`
+- Install all project dependencies
 
-All deployment, testing, and invocation commands are available through the Makefile:
+### 2. Activate Virtual Environment
 
 ```bash
-# View all available commands
-make help
+source .venv/bin/activate
+```
 
-# Deploy stacks
-make deploy-observability      # Deploy Observability stack (ENV=dev by default)
-make create-phoenix-project    # Create Phoenix project in Observability stack (run after deploying Observability stack)
-make deploy-agentcore          # Deploy AgentCore (ENV=dev by default)
-make deploy-all                # Deploy all stacks
+### 3. Deploy Infrastructure
 
-# Run tests
+Deploy all stacks in the correct order with a single command:
+
+```bash
+make deploy-all
+```
+
+This will sequentially:
+1. Deploy the Observability stack (Arize Phoenix, OpenTelemetry)
+2. Create the Phoenix project (or skip if it already exists)
+3. Deploy the AgentCore stack (gateways, runtimes, MCP servers)
+
+You can also deploy stacks individually:
+
+```bash
+make deploy-observability      # Deploy Observability stack only
+make deploy-agentcore          # Deploy AgentCore stack only
+```
+
+### 4. Run Tests
+
+```bash
 make skill-tests               # Run all agent skill tests
 make iam-tests                 # Run all IAM gateway tests
 make jwt-tests                 # Run all JWT gateway tests
+```
+
+## Cleanup
+
+To destroy the deployed infrastructure:
+
+```bash
+make destroy-all               # Destroy all stacks
+```
+
+Or destroy stacks individually:
+
+```bash
+make destroy-agentcore         # Destroy AgentCore stack only
+make destroy-observability     # Destroy Observability stack only
+```
+
+**Note**: Destroying stacks will permanently delete all resources. Make sure you have backed up any important data before running destroy commands.
+
+## Available Commands
+
+All deployment, testing, and invocation commands are available through the Makefile. For the complete list:
+
+```bash
+make help
 ```
 
 For the complete list of commands and detailed usage, run `make help` or see the **[Makefile](Makefile)**.

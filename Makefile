@@ -9,6 +9,9 @@ help:
 	@echo "AgentCore CDK - Make Commands"
 	@echo "=============================="
 	@echo ""
+	@echo "Setup:"
+	@echo "  make install                       - Set up virtual environment and install dependencies"
+	@echo ""
 	@echo "CDK Deployment:"
 	@echo "  make deploy-agentcore              - Deploy AgentCore stack (ENV=dev by default)"
 	@echo "  make deploy-observability          - Deploy Observability stack (ENV=dev by default)"
@@ -57,6 +60,51 @@ help:
 	@echo "  make create-phoenix-project ENV=prod REGION=us-west-2 PROJECT_NAME=my-project"
 	@echo "  make iam-invoke-tool TOOL=add ARGS='{\"a\": 5, \"b\": 3}'"
 	@echo "  make jwt-invoke-tool TOOL=temperature-converter___celsius_to_fahrenheit ARGS='{\"celsius\": 25}'"
+
+# ==============================================================================
+# Setup Commands
+# ==============================================================================
+
+install:
+	@echo "Setting up virtual environment and installing dependencies..."
+	@PYTHON_CMD=""; \
+	if command -v python >/dev/null 2>&1; then \
+		python_version=$$(python --version 2>&1 | awk '{print $$2}'); \
+		major=$$(echo $$python_version | cut -d. -f1); \
+		minor=$$(echo $$python_version | cut -d. -f2); \
+		if [ $$major -gt 3 ] || ([ $$major -eq 3 ] && [ $$minor -ge 12 ]); then \
+			PYTHON_CMD="python"; \
+		fi; \
+	fi; \
+	if [ -z "$$PYTHON_CMD" ] && command -v python3 >/dev/null 2>&1; then \
+		python_version=$$(python3 --version 2>&1 | awk '{print $$2}'); \
+		major=$$(echo $$python_version | cut -d. -f1); \
+		minor=$$(echo $$python_version | cut -d. -f2); \
+		if [ $$major -gt 3 ] || ([ $$major -eq 3 ] && [ $$minor -ge 12 ]); then \
+			PYTHON_CMD="python3"; \
+		fi; \
+	fi; \
+	if [ -z "$$PYTHON_CMD" ]; then \
+		echo "✗ Error: Python 3.12 or higher is required"; \
+		echo "  Please install Python 3.12+ and ensure it's available as 'python' or 'python3'"; \
+		exit 1; \
+	fi; \
+	python_version=$$($$PYTHON_CMD --version 2>&1 | awk '{print $$2}'); \
+	echo "✓ Python version $$python_version detected (using $$PYTHON_CMD)"; \
+	if [ ! -d .venv ]; then \
+		echo "Creating virtual environment..."; \
+		$$PYTHON_CMD -m venv .venv; \
+	else \
+		echo "✓ Virtual environment already exists"; \
+	fi; \
+	echo "Installing dependencies into virtual environment..."; \
+	.venv/bin/pip install --upgrade pip; \
+	.venv/bin/pip install .
+	@echo ""
+	@echo "✓ Installation complete!"
+	@echo ""
+	@echo "Next step: Activate the virtual environment by running:"
+	@echo "  source .venv/bin/activate"
 
 # ==============================================================================
 # CDK Deployment Commands
