@@ -2,7 +2,7 @@
 
 import json
 
-import auth
+from .. import auth
 
 # Get authenticated user
 get_user_payload = {

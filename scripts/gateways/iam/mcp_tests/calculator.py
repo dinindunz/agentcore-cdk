@@ -2,7 +2,7 @@
 
 import json
 
-import auth
+from .. import auth
 
 # Call the add tool
 call_tool_payload = {

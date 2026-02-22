@@ -39,8 +39,8 @@ print(response.json())
 - **`invoke_tool.py`** - Invoke a specific tool (generic)
 
 ### MCP Server Tests
-- **`mcp_test_temperature_converter.py`** - Test temperature converter MCP server
-- **`mcp_test_github.py`** - Test GitHub MCP server
+- **`mcp_tests/temperature_converter.py`** - Test temperature converter MCP server
+- **`mcp_tests/github.py`** - Test GitHub MCP server
 
 ### Examples
 
@@ -56,8 +56,8 @@ python invoke_tool.py temperature-converter___celsius_to_fahrenheit '{"celsius":
 python invoke_tool.py github___getAuthenticatedUser '{}'
 
 # Test MCP servers
-python mcp_test_temperature_converter.py
-python mcp_test_github.py
+python -m mcp_tests.temperature_converter
+python -m mcp_tests.github
 ```
 
 ## Configuration

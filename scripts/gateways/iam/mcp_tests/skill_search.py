@@ -2,7 +2,7 @@
 
 import json
 
-import auth
+from .. import auth
 
 # Search for "issue" related skills
 search_payload_1 = {

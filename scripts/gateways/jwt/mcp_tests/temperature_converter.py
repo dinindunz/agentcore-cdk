@@ -2,7 +2,7 @@
 
 import json
 
-import auth
+from .. import auth
 
 # Call celsius_to_fahrenheit: 100°C → 212°F
 celsius_to_fahrenheit_payload = {

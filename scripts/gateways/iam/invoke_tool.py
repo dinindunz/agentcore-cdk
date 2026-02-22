@@ -18,7 +18,9 @@ if len(sys.argv) < 3:
     print()
     print("Examples:")
     print('  python invoke_tool.py add \'{"a": 5, "b": 3}\'')
-    print('  python invoke_tool.py temperature-converter___celsius_to_fahrenheit \'{"celsius": 25}\'')
+    print(
+        "  python invoke_tool.py temperature-converter___celsius_to_fahrenheit '{\"celsius\": 25}'"
+    )
     sys.exit(1)
 
 tool_name = sys.argv[1]

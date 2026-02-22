@@ -42,8 +42,8 @@ else:
 - **`invoke_tool.py`** - Invoke a specific tool (generic)
 
 ### MCP Server Tests
-- **`mcp_test_calculator.py`** - Test calculator MCP server (add tool)
-- **`mcp_test_skill_search.py`** - Test skill search MCP server
+- **`mcp_tests/calculator.py`** - Test calculator MCP server (add tool)
+- **`mcp_tests/skill_search.py`** - Test skill search MCP server
 
 ### Examples
 
@@ -59,8 +59,8 @@ python invoke_tool.py add '{"a": 5, "b": 3}'
 python invoke_tool.py temperature-converter___celsius_to_fahrenheit '{"celsius": 25}'
 
 # Test MCP servers
-python mcp_test_calculator.py
-python mcp_test_skill_search.py
+python -m mcp_tests.calculator
+python -m mcp_tests.skill_search
 ```
 
 ## Configuration

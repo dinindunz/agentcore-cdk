@@ -164,8 +164,7 @@ agent = Agent(
         "2. **If a matching skill is found**: Follow its step-by-step instructions exactly\n"
         "3. **If no skill is found**: Proceed with available tools directly\n\n"
         "This ensures you follow established workflows and produce consistent results.\n\n"
-        "Always provide friendly, conversational responses."
-        + skills_section
+        "Always provide friendly, conversational responses." + skills_section
     ),
 )
 

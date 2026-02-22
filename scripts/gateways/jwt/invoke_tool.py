@@ -17,7 +17,9 @@ if len(sys.argv) < 3:
     print("Usage: python invoke_tool.py <tool_name> <arguments_json>")
     print()
     print("Examples:")
-    print('  python invoke_tool.py temperature-converter___celsius_to_fahrenheit \'{"celsius": 25}\'')
+    print(
+        "  python invoke_tool.py temperature-converter___celsius_to_fahrenheit '{\"celsius\": 25}'"
+    )
     print("  python invoke_tool.py github___getAuthenticatedUser '{}'")
     sys.exit(1)
 
