@@ -11,8 +11,7 @@
 ├── src/
 │   ├── cdk/                      # CDK infrastructure code
 │   │   ├── stacks/               # CloudFormation stacks
-│   │   │   ├── agentcore.py      - Main AgentCore stack (gateways, runtimes, MCP servers)
-│   │   │   └── observability.py  - Observability stack (Arize Phoenix, OpenTelemetry)
+│   │   │   └── agentcore.py      - Main AgentCore stack (gateways, runtimes, MCP targets)
 │   │   ├── constructs/           # Reusable L3 constructs
 │   │   │   ├── cognito.py        - Cognito user pools and app clients
 │   │   │   ├── gateway.py        - AgentCore gateways
@@ -48,15 +47,12 @@
 │   │   └── github/               - GitHub API MCP server (OpenAPI Target)
 │   │       └── schema.json       - GitHub OpenAPI schema for Gateway target
 │   │
-│   ├── skills/                   # Agent skill definitions
-│   │   ├── issue_heat_map.md
-│   │   ├── portfolio_summary.md
-│   │   ├── repo_comparison.md
-│   │   ├── repo_hotness_rating.md
-│   │   └── trending_topic_scout.md
-│   │
-│   └── observability/            # Observability setup utilities
-│       └── create_phoenix_project.py
+│   └── skills/                   # Agent skill definitions
+│       ├── issue_heat_map.md
+│       ├── portfolio_summary.md
+│       ├── repo_comparison.md
+│       ├── repo_hotness_rating.md
+│       └── trending_topic_scout.md
 │
 └── scripts/                      # Testing and invocation scripts
     ├── runtimes/
@@ -111,23 +107,13 @@ source .venv/bin/activate
 
 ### 3. Deploy Infrastructure
 
-Deploy all stacks in the correct order with a single command:
+Deploy the AgentCore stack:
 
 ```bash
-make deploy-all
+make deploy
 ```
 
-This will sequentially:
-1. Deploy the Observability stack (Arize Phoenix, OpenTelemetry)
-2. Create the Phoenix project (or skip if it already exists)
-3. Deploy the AgentCore stack (gateways, runtimes, MCP servers)
-
-You can also deploy stacks individually:
-
-```bash
-make deploy-observability      # Deploy Observability stack only
-make deploy-agentcore          # Deploy AgentCore stack only
-```
+This will deploy the AgentCore stack with all gateways, runtimes, and MCP servers.
 
 ### 4. Run Tests
 
@@ -142,17 +128,10 @@ make jwt-tests                 # Run all JWT gateway tests
 To destroy the deployed infrastructure:
 
 ```bash
-make destroy-all               # Destroy all stacks
+make destroy
 ```
 
-Or destroy stacks individually:
-
-```bash
-make destroy-agentcore         # Destroy AgentCore stack only
-make destroy-observability     # Destroy Observability stack only
-```
-
-**Note**: Destroying stacks will permanently delete all resources. Make sure you have backed up any important data before running destroy commands.
+**Note**: Destroying the stack will permanently delete all resources. Make sure you have backed up any important data before running the destroy command.
 
 ## Available Commands
 

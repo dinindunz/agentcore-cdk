@@ -1,4 +1,3 @@
-from .config import config, AgentCoreConfig
-from .stacks import AgentCoreStack, ObservabilityStack
+from .stacks import AgentCoreStack
 
-__all__ = ["AgentCoreStack", "ObservabilityStack", "config", "AgentCoreConfig"]
+__all__ = ["AgentCoreStack"]

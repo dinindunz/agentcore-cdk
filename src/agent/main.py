@@ -12,32 +12,7 @@ from mcp.client.streamable_http import (
 from strands import Agent
 from strands.tools.mcp import MCPClient
 
-# Phoenix/OpenInference instrumentation for Bedrock
-from openinference.instrumentation.bedrock import BedrockInstrumentor
-
 REGION_NAME = os.environ["REGION_NAME"]
-
-# Configure Phoenix OTEL if endpoint is set
-if os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT"):
-    # Read Phoenix API key from Secrets Manager if configured
-    if os.environ.get("PHOENIX_API_KEY_SECRET_ARN"):
-        sm_client = boto3.client("secretsmanager", region_name=REGION_NAME)
-        try:
-            secret_arn = os.environ["PHOENIX_API_KEY_SECRET_ARN"]
-            response = sm_client.get_secret_value(SecretId=secret_arn)
-            secret_data = json.loads(response["SecretString"])
-            phoenix_api_key = secret_data.get("api_key", "")
-
-            # Set Phoenix API key in OTEL headers
-            if phoenix_api_key:
-                os.environ["OTEL_EXPORTER_OTLP_HEADERS"] = f"api_key={phoenix_api_key}"
-                print("[Phoenix] API key configured for OTEL exporter")
-        except Exception as e:
-            print(f"[Phoenix] Warning: Failed to read API key: {e}")
-
-    # Enable Bedrock instrumentation
-    BedrockInstrumentor().instrument()
-    print("[OpenInference] Bedrock instrumentation enabled")
 SKILLS_BUCKET = os.environ.get("SKILLS_BUCKET")
 
 ssm_client = boto3.client("ssm", region_name=REGION_NAME)

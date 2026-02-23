@@ -5,7 +5,6 @@ from aws_cdk import aws_iam as iam
 from aws_cdk.aws_bedrock_agentcore_alpha import ProtocolType, GatewayAuthorizer
 from constructs import Construct
 
-from ..config import config
 from ..constructs import (
     BucketDeploymentConstruct,
     LambdaTargetConstruct,
@@ -134,40 +133,6 @@ class AgentCoreStack(cdk.Stack):
             "SKILLS_BUCKET": skills_bucket.bucket_name_value,
         }
 
-        # Add observability configuration if enabled
-        if config.enable_observability:
-            # Get observability stack prefix
-            obs_stack_prefix = self._get_observability_stack_prefix()
-
-            # Lookup observability endpoints/secrets from SSM (no cross-stack dependency)
-            from aws_cdk import aws_ssm as ssm
-
-            otel_endpoint = ssm.StringParameter.value_from_lookup(
-                self, f"/{obs_stack_prefix}/otel-endpoint"
-            )
-            phoenix_secret_arn = ssm.StringParameter.value_from_lookup(
-                self, f"/{obs_stack_prefix}/phoenix-api-key-secret-arn"
-            )
-
-            agent_env_vars.update(
-                {
-                    # OTEL endpoint (read from SSM at synthesis time)
-                    "OTEL_EXPORTER_OTLP_ENDPOINT": otel_endpoint,
-                    # OTLP configuration
-                    "OTEL_EXPORTER_OTLP_PROTOCOL": "http/protobuf",
-                    "OTEL_TRACES_EXPORTER": "otlp",
-                    "OTEL_METRICS_EXPORTER": "none",
-                    "OTEL_LOGS_EXPORTER": "none",
-                    # Service identification
-                    "OTEL_SERVICE_NAME": f"{stack_prefix}-agent",
-                    "OTEL_RESOURCE_ATTRIBUTES": f"project.name={stack_prefix}",
-                    # Disable AWS configurator to allow standard OTLP
-                    "OTEL_PYTHON_CONFIGURATOR": "default_configurator",
-                    # Phoenix API key secret ARN (read from SSM at synthesis time)
-                    "PHOENIX_API_KEY_SECRET_ARN": phoenix_secret_arn,
-                }
-            )
-
         # Agent Runtime — the "agent" runtime that will orchestrate calls to the gateways and execute tools
         agent_rt = RuntimeConstruct(
             self,
@@ -192,23 +157,6 @@ class AgentCoreStack(cdk.Stack):
                 ],
             )
         )
-
-        # Grant agent runtime permission to read Phoenix API key if observability is enabled
-        if config.enable_observability:
-            # Grant access to Phoenix secret using ARN pattern (no cross-stack reference)
-            from aws_cdk import aws_ssm as ssm
-
-            obs_stack_prefix = self._get_observability_stack_prefix()
-            phoenix_secret_arn = ssm.StringParameter.value_from_lookup(
-                self, f"/{obs_stack_prefix}/phoenix-api-key-secret-arn"
-            )
-
-            agent_rt.role.add_to_policy(
-                iam.PolicyStatement(
-                    actions=["secretsmanager:GetSecretValue"],
-                    resources=[phoenix_secret_arn],
-                )
-            )
 
         # MCP Calculator Runtime — a simple MCP runtime that exposes calculator tools (add, subtract, multiply, divide) for demonstration purposes
         mcp_calculator_rt = RuntimeConstruct(
@@ -323,9 +271,3 @@ class AgentCoreStack(cdk.Stack):
             "McpCalculatorRuntimeArn",
             value=mcp_calculator_rt.runtime.agent_runtime_arn,
         )
-
-    def _get_observability_stack_prefix(self) -> str:
-        """Get the observability stack prefix based on environment."""
-        env_suffix = self.stack_name.split("-")[-1]  # Extract 'dev', 'test', etc
-        obs_stack_name = f"ObservabilityStack-{env_suffix}"
-        return to_kebab_case(obs_stack_name)

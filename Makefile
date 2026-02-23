@@ -13,18 +13,9 @@ help:
 	@echo "  make install                       - Set up virtual environment and install dependencies"
 	@echo ""
 	@echo "CDK Deployment:"
-	@echo "  make deploy-agentcore              - Deploy AgentCore stack (ENV=dev by default)"
-	@echo "  make deploy-observability          - Deploy Observability stack (ENV=dev by default)"
-	@echo "  make deploy-all                    - Deploy all stacks (ENV=dev by default)"
-	@echo "  make diff-agentcore                - Show AgentCore stack changes"
-	@echo "  make diff-observability            - Show Observability stack changes"
-	@echo "  make diff-all                      - Show changes for all stacks"
-	@echo "  make destroy-agentcore             - Destroy AgentCore stack"
-	@echo "  make destroy-observability         - Destroy Observability stack"
-	@echo "  make destroy-all                   - Destroy all stacks"
-	@echo ""
-	@echo "Observability:"
-	@echo "  make create-phoenix-project        - Create Phoenix project"
+	@echo "  make deploy                        - Deploy AgentCore stack (ENV=dev by default)"
+	@echo "  make diff                          - Show AgentCore stack changes"
+	@echo "  make destroy                       - Destroy AgentCore stack"
 	@echo ""
 	@echo "Skill Tests (Agent Runtime):"
 	@echo "  make skill-issue-heat-map          - Test Issue Heat Map skill"
@@ -55,9 +46,8 @@ help:
 	@echo "  make mcp-invoke-calculator         - Directly invoke calculator MCP runtime"
 	@echo ""
 	@echo "Examples:"
-	@echo "  make deploy-agentcore ENV=prod     - Deploy AgentCore to production"
-	@echo "  make diff-agentcore ENV=test       - Show changes for test environment"
-	@echo "  make create-phoenix-project ENV=prod REGION=us-west-2 PROJECT_NAME=my-project"
+	@echo "  make deploy ENV=prod               - Deploy AgentCore to production"
+	@echo "  make diff ENV=test                 - Show changes for test environment"
 	@echo "  make iam-invoke-tool TOOL=add ARGS='{\"a\": 5, \"b\": 3}'"
 	@echo "  make jwt-invoke-tool TOOL=temperature-converter___celsius_to_fahrenheit ARGS='{\"celsius\": 25}'"
 
@@ -110,54 +100,17 @@ install:
 # CDK Deployment Commands
 # ==============================================================================
 
-deploy-agentcore:
+deploy:
 	@echo "Deploying AgentCore stack (ENV=$(ENV))..."
 	cdk deploy --context env=$(ENV) --require-approval never --exclusively AgentCoreStack-$(ENV)
 
-deploy-observability:
-	@echo "Deploying Observability stack (ENV=$(ENV))..."
-	cdk deploy --context env=$(ENV) --require-approval never --exclusively ObservabilityStack-$(ENV)
-
-deploy-all:
-	@echo "Deploying all stacks in sequence (ENV=$(ENV))..."
-	@$(MAKE) deploy-observability ENV=$(ENV)
-	@$(MAKE) create-phoenix-project ENV=$(ENV) REGION=$(REGION)
-	@$(MAKE) deploy-agentcore ENV=$(ENV)
-
-diff-agentcore:
+diff:
 	@echo "Showing changes for AgentCore stack (ENV=$(ENV))..."
 	cdk diff --context env=$(ENV) --exclusively AgentCoreStack-$(ENV)
 
-diff-observability:
-	@echo "Showing changes for Observability stack (ENV=$(ENV))..."
-	cdk diff --context env=$(ENV) --exclusively ObservabilityStack-$(ENV)
-
-diff-all:
-	@echo "Showing changes for all stacks (ENV=$(ENV))..."
-	cdk diff --context env=$(ENV) --all
-
-destroy-agentcore:
+destroy:
 	@echo "Destroying AgentCore stack (ENV=$(ENV))..."
 	cdk destroy --context env=$(ENV) --exclusively AgentCoreStack-$(ENV)
-
-destroy-observability:
-	@echo "Destroying Observability stack (ENV=$(ENV))..."
-	cdk destroy --context env=$(ENV) --exclusively ObservabilityStack-$(ENV)
-
-destroy-all:
-	@echo "Destroying all stacks (ENV=$(ENV))..."
-	cdk destroy --context env=$(ENV) --all
-
-# ==============================================================================
-# Observability Commands
-# ==============================================================================
-
-create-phoenix-project:
-	@echo "Creating Phoenix project agentcore-stack-$(ENV)..."
-	python src/observability/create_phoenix_project.py \
-		--stack-name ObservabilityStack-$(ENV) \
-		--project-name agentcore-stack-$(ENV) \
-		--region $(REGION)
 
 # ==============================================================================
 # Skill Tests (Agent Runtime)
