@@ -158,7 +158,7 @@ skills_section = load_skills_summary()
 agent = Agent(
     tools=tools,
     system_prompt=(
-        "You are a helpful assistant with access to specialized skills for complex workflows.\n\n"
+        "You are a helpful assistant with access to specialised skills for complex workflows.\n\n"
         "## IMPORTANT: Skill-First Workflow\n"
         "Before attempting any task that involves multiple tools or complex logic:\n"
         "1. **ALWAYS use skill-search___search_skills first** to search for relevant skills using keywords from the user's request\n"

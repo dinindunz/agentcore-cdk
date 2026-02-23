@@ -7,8 +7,4 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from invoke_agent import invoke_agent
 
-invoke_agent(
-    "Compare the GitHub repos facebook/react and vuejs/vue. "
-    "Get their star counts, calculate the difference, the ratio, "
-    "and each repo's percentage share of the combined total."
-)
+invoke_agent("Compare facebook/react and vuejs/vue - which one is more popular?")

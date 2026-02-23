@@ -8,6 +8,7 @@ from ..utils import to_kebab_case
 from .cognito import UserPoolConstruct
 
 
+# TODO: Refactor to use L2 constructs once they are available.
 class OAuth2CredentialProviderConstruct(Construct):
     """AgentCore OAuth2 credential provider backed by a Cognito user pool."""
 
@@ -118,7 +119,6 @@ class ApiKeyCredentialProviderConstruct(Construct):
 
         self._name = f"{stack_prefix}-{to_kebab_case(provider_name)}"
 
-        # TODO: Refactor to use L2 constructs once they are available.
         provider = cr.AwsCustomResource(
             self,
             "Provider",

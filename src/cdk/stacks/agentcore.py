@@ -17,6 +17,7 @@ from ..constructs import (
     GatewayConstruct,
     OAuth2CredentialProviderConstruct,
     ApiKeyCredentialProviderConstruct,
+    OnlineEvaluationConstruct,
 )
 from ..utils import DestroyLogGroups, LogGroupCleanup, to_kebab_case, to_snake_case
 
@@ -161,6 +162,27 @@ class AgentCoreStack(cdk.Stack):
             )
         )
 
+        # ---------------------------------------------------------------
+        # Online Evaluation — continuous monitoring of agent performance
+        # ---------------------------------------------------------------
+
+        agent_eval = OnlineEvaluationConstruct(
+            self,
+            "AgentOnlineEvaluation",
+            config_name=f"{agent_rt.runtime.agent_runtime_name}",
+            runtime=agent_rt,
+            evaluators=[
+                "Builtin.Helpfulness",
+                "Builtin.ToolSelectionAccuracy",
+                "Builtin.ToolParameterAccuracy",
+                "Builtin.ResponseRelevance",
+                "Builtin.InstructionFollowing",
+            ],
+            sampling_rate=100.0,  # Evaluate 100% of interactions
+            description="Continuous evaluation of agent quality and tool usage",
+            enable_on_create=True,
+        )
+
         # MCP Calculator Runtime — a simple MCP runtime that exposes calculator tools (add, subtract, multiply, divide) for demonstration purposes
         mcp_calculator_rt = RuntimeConstruct(
             self,
@@ -225,13 +247,20 @@ class AgentCoreStack(cdk.Stack):
             "LogGroupCleanup",
             log_group_prefixes=[
                 f"/aws/bedrock-agentcore/runtimes/{to_snake_case(self.stack_name)}_",
+                f"/aws/bedrock-agentcore/evaluations/",
                 f"/aws/lambda/{self.stack_name}-",
                 f"/aws/lambda/{stack_prefix}-",
             ],
         )
 
         # Ensure cleanup runs last during stack deletion (reverse dependency order)
-        for construct in [mcp_oauth, github_api_key, agent_rt, mcp_calculator_rt]:
+        for construct in [
+            mcp_oauth,
+            github_api_key,
+            agent_rt,
+            mcp_calculator_rt,
+            agent_eval,
+        ]:
             construct.node.add_dependency(cleanup.resource)
 
         # ---------------------------------------------------------------
@@ -273,4 +302,10 @@ class AgentCoreStack(cdk.Stack):
             self,
             "McpCalculatorRuntimeArn",
             value=mcp_calculator_rt.runtime.agent_runtime_arn,
+        )
+        cdk.CfnOutput(
+            self,
+            "AgentEvaluationConfigId",
+            value=agent_eval.config_id,
+            description="Online evaluation configuration ID",
         )

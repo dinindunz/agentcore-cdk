@@ -47,12 +47,18 @@
 │   │   └── github/               - GitHub API MCP server (OpenAPI Target)
 │   │       └── schema.json       - GitHub OpenAPI schema for Gateway target
 │   │
+│   ├── observability/            # Observability setup
+│   │   └── setup.sh               - One-time account setup for AgentCore observability (X-Ray tracing)
+│   │
 │   └── skills/                   # Agent skill definitions
 │       ├── issue_heat_map.md
 │       ├── portfolio_summary.md
 │       ├── repo_comparison.md
 │       ├── repo_hotness_rating.md
 │       └── trending_topic_scout.md
+│
+├── layers/                       # Lambda layer source directories
+│   └── agentcore_sdk/            - AgentCore Starter Toolkit SDK layer (bundled at deploy time)
 │
 └── scripts/                      # Testing and invocation scripts
     ├── runtimes/

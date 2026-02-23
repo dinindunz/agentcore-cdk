@@ -1,6 +1,6 @@
 # Issue Heat Map
 
-Analyze a repository's open issues and PRs to calculate a maintenance burden index as a temperature.
+Analyse a repository's open issues and PRs to calculate a maintenance burden index as a temperature.
 
 ## Parameters
 
