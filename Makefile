@@ -21,6 +21,9 @@ help:
 	@echo "  make diff                          - Show AgentCore stack changes"
 	@echo "  make destroy                       - Destroy AgentCore stack"
 	@echo ""
+	@echo "Agent Runtime:"
+	@echo "  make agent-hello                   - Send a hello message to the agent runtime"
+	@echo ""
 	@echo "Skill Tests (Agent Runtime):"
 	@echo "  make skill-issue-heat-map          - Test Issue Heat Map skill"
 	@echo "  make skill-portfolio-summary       - Test Portfolio Summary skill"
@@ -102,7 +105,7 @@ install:
 
 setup-observability:
 	@echo "Enabling CloudWatch Transaction Search for AgentCore observability..."
-	@AWS_ACCOUNT_ID=$(AWS_ACCOUNT_ID) REGION_NAME=$(REGION_NAME) ./bin/setup-observability.sh
+	@AWS_ACCOUNT_ID=$(AWS_ACCOUNT_ID) REGION_NAME=$(REGION_NAME) ./src/observability/setup.sh
 
 # ==============================================================================
 # CDK Deployment Commands
@@ -123,6 +126,10 @@ destroy:
 # ==============================================================================
 # Skill Tests (Agent Runtime)
 # ==============================================================================
+
+agent-hello:
+	@echo "Sending hello to agent runtime..."
+	@cd scripts/runtimes/agent && python hello.py
 
 skill-issue-heat-map:
 	@echo "Running Issue Heat Map skill test..."
@@ -146,6 +153,7 @@ skill-trending-topic:
 
 # Run all skill tests
 skill-tests: skill-issue-heat-map skill-portfolio-summary skill-repo-comparison skill-repo-hotness skill-trending-topic
+
 
 # ==============================================================================
 # IAM Gateway - Tool Invocation

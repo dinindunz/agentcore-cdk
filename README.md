@@ -8,9 +8,6 @@
 ├── pyproject.toml                # Python project dependencies
 ├── Makefile                      # Build, deploy, and test commands
 │
-├── bin/
-│   └── setup-observability.sh    # One-time account setup for AgentCore observability (X-Ray tracing)
-│
 ├── src/
 │   ├── cdk/                      # CDK infrastructure code
 │   │   ├── stacks/               # CloudFormation stacks

@@ -9,6 +9,22 @@ AWS_ACCOUNT_ID="${AWS_ACCOUNT_ID}"
 REGION_NAME="${REGION_NAME}"
 POLICY_NAME="AgentCoreXRayAccess"
 
+# Resolve AWS_ACCOUNT_ID from STS if not set
+if [ -z "$AWS_ACCOUNT_ID" ]; then
+  echo "⚠  AWS_ACCOUNT_ID not set — resolving from STS..."
+  AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text 2>/dev/null)
+  if [ -z "$AWS_ACCOUNT_ID" ]; then
+    echo "❌ ERROR: Could not determine AWS account ID. Make sure you are authenticated (e.g. aws sso login)."
+    exit 1
+  fi
+  echo "   Resolved account ID: $AWS_ACCOUNT_ID"
+fi
+
+if [ -z "$REGION_NAME" ]; then
+  echo "❌ ERROR: REGION_NAME is not set. Export it or add it to your .env file."
+  exit 1
+fi
+
 echo "🔍 Checking CloudWatch Transaction Search configuration..."
 echo "   Region: $REGION_NAME"
 echo "   Account: $AWS_ACCOUNT_ID"
