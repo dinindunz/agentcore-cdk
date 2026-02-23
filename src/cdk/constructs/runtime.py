@@ -58,7 +58,9 @@ class RuntimeConstruct(Construct):
                                 "bedrock:InvokeModel",
                                 "bedrock:InvokeModelWithResponseStream",
                             ],
-                            resources=["*"], # TODO: scope down permissions to specific Bedrock inference endpoints
+                            resources=[
+                                "*"
+                            ],  # TODO: scope down permissions to specific Bedrock inference endpoints
                         ),
                         iam.PolicyStatement(
                             actions=["ssm:GetParameter"],

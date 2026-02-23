@@ -4,6 +4,7 @@ from aws_cdk import aws_ecs as ecs
 from aws_cdk import aws_ecs_patterns as ecs_patterns
 from aws_cdk import aws_logs as logs
 from aws_cdk import aws_secretsmanager as secretsmanager
+from aws_cdk import aws_ssm as ssm
 from aws_cdk import aws_iam as iam
 from constructs import Construct
 
@@ -293,6 +294,28 @@ class ObservabilityStack(cdk.Stack):
                 f"/aws/ecs/containerinsights/{stack_prefix}/",
                 f"/aws/lambda/{self.stack_name}-",
             ],
+        )
+
+        # ---------------------------------------------------------------
+        # SSM Parameters — for cross-stack communication without hard dependencies
+        # ---------------------------------------------------------------
+
+        # Store OTEL collector endpoint in SSM for agent to read at runtime
+        ssm.StringParameter(
+            self,
+            "OtelEndpointParameter",
+            parameter_name=f"/{stack_prefix}/otel-endpoint",
+            string_value=f"http://{self.otel_service.load_balancer.load_balancer_dns_name}:4318",
+            description="OpenTelemetry Collector HTTP endpoint",
+        )
+
+        # Store Phoenix API key secret ARN in SSM
+        ssm.StringParameter(
+            self,
+            "PhoenixApiKeySecretArnParameter",
+            parameter_name=f"/{stack_prefix}/phoenix-api-key-secret-arn",
+            string_value=phoenix_api_key_secret.secret_arn,
+            description="Phoenix API key secret ARN",
         )
 
         # ---------------------------------------------------------------
