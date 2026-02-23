@@ -8,6 +8,9 @@
 ├── pyproject.toml                # Python project dependencies
 ├── Makefile                      # Build, deploy, and test commands
 │
+├── bin/
+│   └── setup-observability.sh    # One-time account setup for AgentCore observability (X-Ray tracing)
+│
 ├── src/
 │   ├── cdk/                      # CDK infrastructure code
 │   │   ├── stacks/               # CloudFormation stacks
@@ -83,12 +86,31 @@
 ## Prerequisites
 
 - Python 3.12 or higher
-- AWS CLI configured with appropriate credentials
+- AWS CLI configured with appropriate credentials and an active session
+  ```bash
+  # Verify your AWS session is active
+  aws sts get-caller-identity
+  ```
 - AWS CDK CLI installed (`npm install -g aws-cdk`)
 
 ## Quick Start
 
-### 1. Install Dependencies
+### 1. Configure Environment Variables
+
+Copy the example environment file and update it with your values:
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` and set:
+- `AWS_ACCOUNT_ID` - Your AWS account ID (e.g., `123456789012`)
+- `AWS_REGION` - AWS region where resources will be deployed (e.g., `ap-southeast-2`)
+- `GITHUB_TOKEN` - Your GitHub personal access token (for GitHub MCP server)
+
+> **Note**: The observability setup script and CDK deployment will use the account and region from your `.env` file.
+
+### 2. Install Dependencies
 
 ```bash
 make install
@@ -99,13 +121,28 @@ This will:
 - Create a virtual environment in `.venv`
 - Install all project dependencies
 
-### 2. Activate Virtual Environment
+### 3. Activate Virtual Environment
 
 ```bash
 source .venv/bin/activate
 ```
 
-### 3. Deploy Infrastructure
+### 4. Enable Observability (One-Time Account Setup)
+
+**Required once per AWS account** to enable X-Ray tracing and CloudWatch Transaction Search for AgentCore:
+
+```bash
+make setup-observability
+```
+
+This configures:
+- CloudWatch Logs resource policy for X-Ray
+- X-Ray trace segment destination
+- Sampling rules for trace collection
+
+> **Note**: This is a one-time setup per AWS account and region. The script is idempotent and safe to run multiple times.
+
+### 5. Deploy Infrastructure
 
 Deploy the AgentCore stack:
 
@@ -115,7 +152,7 @@ make deploy
 
 This will deploy the AgentCore stack with all gateways, runtimes, and MCP servers.
 
-### 4. Run Tests
+### 6. Run Tests
 
 ```bash
 make skill-tests               # Run all agent skill tests

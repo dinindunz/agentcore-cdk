@@ -118,6 +118,7 @@ class ApiKeyCredentialProviderConstruct(Construct):
 
         self._name = f"{stack_prefix}-{to_kebab_case(provider_name)}"
 
+        # TODO: Refactor to use L2 constructs once they are available.
         provider = cr.AwsCustomResource(
             self,
             "Provider",

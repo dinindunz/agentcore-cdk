@@ -2,6 +2,8 @@ import os
 
 import aws_cdk as cdk
 from aws_cdk import aws_iam as iam
+
+# TODO: Refactor to use aws_cdk once L2 constructs are available.
 from aws_cdk.aws_bedrock_agentcore_alpha import ProtocolType, GatewayAuthorizer
 from constructs import Construct
 
@@ -142,6 +144,7 @@ class AgentCoreStack(cdk.Stack):
             protocol=ProtocolType.HTTP,
             auth_pool=agent_auth,
             environment_variables=agent_env_vars,
+            enable_observability=True,
         )
 
         # Grant the agent runtime's execution role permission to read skills from S3

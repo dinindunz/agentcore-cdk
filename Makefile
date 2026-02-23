@@ -1,8 +1,11 @@
 .PHONY: help
 
-# Environment variable (default: dev)
+# Load environment variables from .env file (if it exists)
+-include .env
+export
+
+# Environment variables
 ENV ?= dev
-REGION ?= ap-southeast-2
 
 # Default target - show help
 help:
@@ -11,6 +14,7 @@ help:
 	@echo ""
 	@echo "Setup:"
 	@echo "  make install                       - Set up virtual environment and install dependencies"
+	@echo "  make setup-observability           - Enable CloudWatch Transaction Search (one-time account setup)"
 	@echo ""
 	@echo "CDK Deployment:"
 	@echo "  make deploy                        - Deploy AgentCore stack (ENV=dev by default)"
@@ -95,6 +99,10 @@ install:
 	@echo ""
 	@echo "Next step: Activate the virtual environment by running:"
 	@echo "  source .venv/bin/activate"
+
+setup-observability:
+	@echo "Enabling CloudWatch Transaction Search for AgentCore observability..."
+	@AWS_ACCOUNT_ID=$(AWS_ACCOUNT_ID) AWS_REGION=$(AWS_REGION) ./bin/setup-observability.sh
 
 # ==============================================================================
 # CDK Deployment Commands
