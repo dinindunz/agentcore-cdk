@@ -15,7 +15,7 @@ env = app.node.try_get_context("env")
 # AWS environment configuration (required for SSM lookups if needed)
 aws_env = cdk.Environment(
     account=os.environ.get("AWS_ACCOUNT_ID"),
-    region=os.environ.get("AWS_REGION"),
+    region=os.environ.get("REGION_NAME"),
 )
 
 # AgentCore Stack: Gateways, Runtimes, MCP Servers

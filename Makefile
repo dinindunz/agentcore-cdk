@@ -102,7 +102,7 @@ install:
 
 setup-observability:
 	@echo "Enabling CloudWatch Transaction Search for AgentCore observability..."
-	@AWS_ACCOUNT_ID=$(AWS_ACCOUNT_ID) AWS_REGION=$(AWS_REGION) ./bin/setup-observability.sh
+	@AWS_ACCOUNT_ID=$(AWS_ACCOUNT_ID) REGION_NAME=$(REGION_NAME) ./bin/setup-observability.sh
 
 # ==============================================================================
 # CDK Deployment Commands

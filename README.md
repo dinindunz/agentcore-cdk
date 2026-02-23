@@ -92,6 +92,11 @@
   aws sts get-caller-identity
   ```
 - AWS CDK CLI installed (`npm install -g aws-cdk`)
+- AWS account bootstrapped for CDK
+  ```bash
+  # Bootstrap your AWS account (one-time per account/region)
+  cdk bootstrap aws://AWS_ACCOUNT_ID/REGION_NAME
+  ```
 
 ## Quick Start
 
@@ -105,7 +110,7 @@ cp .env.example .env
 
 Edit `.env` and set:
 - `AWS_ACCOUNT_ID` - Your AWS account ID (e.g., `123456789012`)
-- `AWS_REGION` - AWS region where resources will be deployed (e.g., `ap-southeast-2`)
+- `REGION_NAME` - AWS region where resources will be deployed (e.g., `ap-southeast-2`)
 - `GITHUB_TOKEN` - Your GitHub personal access token (for GitHub MCP server)
 
 > **Note**: The observability setup script and CDK deployment will use the account and region from your `.env` file.
