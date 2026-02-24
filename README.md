@@ -2,13 +2,17 @@
 
 ## Architecture
 
-See [architecture.excalidraw](./architecture.excalidraw) for a visual diagram of the complete authentication flow, showing:
+![AgentCore Architecture](./architecture.png)
+
+The diagram shows the complete authentication and data flow, including:
 - Cognito UserPools for authentication (Agent Runtimes, Gateways, MCP Runtimes)
 - AgentCore MCP Gateways (IAM and JWT authentication)
 - AgentCore Identity with OAuth2 and API Key credential providers
 - MCP targets (Calculator Runtime, Skill Search Lambda, Temperature Converter Lambda, GitHub OpenAPI)
 - Observability components (Traces, Evaluations, CloudWatch Logs)
 - Skills S3 bucket
+
+[View editable diagram](./architecture.excalidraw)
 
 ## Project Structure
 
