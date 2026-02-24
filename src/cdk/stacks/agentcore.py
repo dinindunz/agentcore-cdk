@@ -18,6 +18,7 @@ from ..constructs import (
     OAuth2CredentialProviderConstruct,
     ApiKeyCredentialProviderConstruct,
     OnlineEvaluationConstruct,
+    MemoryConstruct,
 )
 from ..utils import DestroyLogGroups, LogGroupCleanup, to_kebab_case, to_snake_case
 
@@ -124,6 +125,20 @@ class AgentCoreStack(cdk.Stack):
         )
 
         # ---------------------------------------------------------------
+        # Create Memory
+        # ---------------------------------------------------------------
+        self.memory = MemoryConstruct(
+            self,
+            "AgentMemory",
+            memory_name="agent-memory",
+            event_expiry_days=90,
+            enable_summary_strategy=True,
+            enable_preference_strategy=True,
+            enable_semantic_strategy=True,
+            enable_episodic_strategy=True,
+        )
+
+        # ---------------------------------------------------------------
         # AgentCore Runtimes
         # ---------------------------------------------------------------
 
@@ -134,6 +149,7 @@ class AgentCoreStack(cdk.Stack):
             "IAM_GATEWAY_SSM_PATH": iam_gw.ssm_url_param_name,
             "GATEWAY_COGNITO_SECRET": gateway_auth.secret_name,
             "SKILLS_BUCKET": skills_bucket.bucket_name_value,
+            "MEMORY_ID": self.memory.memory_id,
         }
 
         # Agent Runtime — the "agent" runtime that will orchestrate calls to the gateways and execute tools
@@ -158,6 +174,25 @@ class AgentCoreStack(cdk.Stack):
                 actions=["bedrock-agentcore:InvokeGateway"],
                 resources=[
                     f"arn:aws:bedrock-agentcore:{self.region}:{self.account}:gateway/{iam_gw.gateway.gateway_id}"
+                ],
+            )
+        )
+
+        # Grant agent runtime permissions to use memory
+        agent_rt.role.add_to_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "bedrock-agentcore:CreateEvent",
+                    "bedrock-agentcore:ListEvents",
+                    "bedrock-agentcore:GetEvent",
+                    "bedrock-agentcore:ListSessions",
+                    "bedrock-agentcore:RetrieveMemoryRecords",
+                    "bedrock-agentcore:GetMemoryRecord",
+                    "bedrock-agentcore:ListMemoryRecords",
+                ],
+                resources=[
+                    f"arn:aws:bedrock-agentcore:{self.region}:{self.account}:memory/{self.memory.memory_id}",
+                    f"arn:aws:bedrock-agentcore:{self.region}:{self.account}:memory/{self.memory.memory_id}/*",
                 ],
             )
         )

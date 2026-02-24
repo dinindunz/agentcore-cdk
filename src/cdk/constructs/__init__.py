@@ -11,6 +11,7 @@ from .identity import (
     OAuth2CredentialProviderConstruct,
     ApiKeyCredentialProviderConstruct,
 )
+from .memory import MemoryConstruct
 from .runtime import RuntimeConstruct
 
 __all__ = [
@@ -24,4 +25,5 @@ __all__ = [
     "OAuth2CredentialProviderConstruct",
     "ApiKeyCredentialProviderConstruct",
     "OnlineEvaluationConstruct",
+    "MemoryConstruct",
 ]
