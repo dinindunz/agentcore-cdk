@@ -1,5 +1,15 @@
 # AgentCore CDK
 
+## Architecture
+
+See [architecture.excalidraw](./architecture.excalidraw) for a visual diagram of the complete authentication flow, showing:
+- Cognito UserPools for authentication (Agent Runtimes, Gateways, MCP Runtimes)
+- AgentCore MCP Gateways (IAM and JWT authentication)
+- AgentCore Identity with OAuth2 and API Key credential providers
+- MCP targets (Calculator Runtime, Skill Search Lambda, Temperature Converter Lambda, GitHub OpenAPI)
+- Observability components (Traces, Evaluations, CloudWatch Logs)
+- Skills S3 bucket
+
 ## Project Structure
 
 ```
@@ -14,9 +24,10 @@
 │   │   │   └── agentcore.py      - Main AgentCore stack (gateways, runtimes, MCP targets)
 │   │   ├── constructs/           # Reusable L3 constructs
 │   │   │   ├── cognito.py        - Cognito user pools and app clients
-│   │   │   ├── gateway.py        - AgentCore gateways
-│   │   │   ├── runtime.py        - AgentCore runtimes
-│   │   │   ├── identity.py       - Credential providers (OAuth2, API keys)
+│   │   │   ├── gateway.py        - AgentCore Gateways
+│   │   │   ├── runtime.py        - AgentCore Runtimes
+│   │   │   ├── identity.py       - Credential providers (OAuth2, API keys) in AgentCore Identity
+│   │   │   ├── evaluation.py     - Online evaluation configurations for runtime monitoring
 │   │   │   ├── bucket.py         - S3 buckets with lifecycle policies (store skills)
 │   │   │   └── gateway_targets/  - Gateway target configurations
 │   │   │       ├── lambda_.py    - Lambda function targets
@@ -176,7 +187,7 @@ To destroy the deployed infrastructure:
 make destroy
 ```
 
-**Note**: Destroying the stack will permanently delete all resources. Make sure you have backed up any important data before running the destroy command.
+**Note**: Destroying the stack will permanently delete all resources.
 
 ## Available Commands
 
