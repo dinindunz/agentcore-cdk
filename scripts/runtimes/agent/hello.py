@@ -1,5 +1,3 @@
-"""Skill: Repo Comparison — compare two repos by stars with calculated metrics."""
-
 import sys
 from pathlib import Path
 
@@ -7,4 +5,4 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from invoke_agent import invoke_agent
 
-invoke_agent("Compare facebook/react and vuejs/vue - which one is more popular?")
+invoke_agent("Hello AgentCore!")

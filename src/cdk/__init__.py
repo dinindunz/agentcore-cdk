@@ -1,3 +1,3 @@
-from .stacks import AgentCoreStack, ObservabilityStack
+from .stacks import AgentCoreStack
 
-__all__ = ["AgentCoreStack", "ObservabilityStack"]
+__all__ = ["AgentCoreStack"]

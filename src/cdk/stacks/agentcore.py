@@ -1,8 +1,9 @@
 import os
-from typing import Optional
 
 import aws_cdk as cdk
 from aws_cdk import aws_iam as iam
+
+# TODO: Refactor to use aws_cdk once L2 constructs are available.
 from aws_cdk.aws_bedrock_agentcore_alpha import ProtocolType, GatewayAuthorizer
 from constructs import Construct
 
@@ -16,6 +17,7 @@ from ..constructs import (
     GatewayConstruct,
     OAuth2CredentialProviderConstruct,
     ApiKeyCredentialProviderConstruct,
+    OnlineEvaluationConstruct,
 )
 from ..utils import DestroyLogGroups, LogGroupCleanup, to_kebab_case, to_snake_case
 
@@ -26,7 +28,6 @@ class AgentCoreStack(cdk.Stack):
         self,
         scope: Construct,
         construct_id: str,
-        observability_stack: Optional[cdk.Stack] = None,
         **kwargs,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
@@ -135,16 +136,6 @@ class AgentCoreStack(cdk.Stack):
             "SKILLS_BUCKET": skills_bucket.bucket_name_value,
         }
 
-        # Add observability configuration if observability stack is provided
-        if observability_stack:
-            agent_env_vars.update(
-                {
-                    "OTEL_EXPORTER_OTLP_ENDPOINT": observability_stack.phoenix_endpoint,
-                    "OTEL_SERVICE_NAME": f"{stack_prefix}-agent",
-                    "OTEL_RESOURCE_ATTRIBUTES": f"project.name={stack_prefix}",
-                }
-            )
-
         # Agent Runtime — the "agent" runtime that will orchestrate calls to the gateways and execute tools
         agent_rt = RuntimeConstruct(
             self,
@@ -154,6 +145,7 @@ class AgentCoreStack(cdk.Stack):
             protocol=ProtocolType.HTTP,
             auth_pool=agent_auth,
             environment_variables=agent_env_vars,
+            enable_observability=True,
         )
 
         # Grant the agent runtime's execution role permission to read skills from S3
@@ -170,9 +162,26 @@ class AgentCoreStack(cdk.Stack):
             )
         )
 
-        # Grant agent runtime permission to read Phoenix API key if observability is enabled
-        if observability_stack:
-            observability_stack.phoenix_api_key_secret.grant_read(agent_rt.role)
+        # ---------------------------------------------------------------
+        # Online Evaluation — continuous monitoring of agent performance
+        # ---------------------------------------------------------------
+
+        agent_eval = OnlineEvaluationConstruct(
+            self,
+            "AgentOnlineEvaluation",
+            config_name=f"{agent_rt.runtime.agent_runtime_name}",
+            runtime=agent_rt,
+            evaluators=[
+                "Builtin.Helpfulness",
+                "Builtin.ToolSelectionAccuracy",
+                "Builtin.ToolParameterAccuracy",
+                "Builtin.ResponseRelevance",
+                "Builtin.InstructionFollowing",
+            ],
+            sampling_rate=100.0,  # Evaluate 100% of interactions
+            description="Continuous evaluation of agent quality and tool usage",
+            enable_on_create=True,
+        )
 
         # MCP Calculator Runtime — a simple MCP runtime that exposes calculator tools (add, subtract, multiply, divide) for demonstration purposes
         mcp_calculator_rt = RuntimeConstruct(
@@ -238,13 +247,20 @@ class AgentCoreStack(cdk.Stack):
             "LogGroupCleanup",
             log_group_prefixes=[
                 f"/aws/bedrock-agentcore/runtimes/{to_snake_case(self.stack_name)}_",
+                f"/aws/bedrock-agentcore/evaluations/",
                 f"/aws/lambda/{self.stack_name}-",
                 f"/aws/lambda/{stack_prefix}-",
             ],
         )
 
         # Ensure cleanup runs last during stack deletion (reverse dependency order)
-        for construct in [mcp_oauth, github_api_key, agent_rt, mcp_calculator_rt]:
+        for construct in [
+            mcp_oauth,
+            github_api_key,
+            agent_rt,
+            mcp_calculator_rt,
+            agent_eval,
+        ]:
             construct.node.add_dependency(cleanup.resource)
 
         # ---------------------------------------------------------------
@@ -286,4 +302,10 @@ class AgentCoreStack(cdk.Stack):
             self,
             "McpCalculatorRuntimeArn",
             value=mcp_calculator_rt.runtime.agent_runtime_arn,
+        )
+        cdk.CfnOutput(
+            self,
+            "AgentEvaluationConfigId",
+            value=agent_eval.config_id,
+            description="Online evaluation configuration ID",
         )

@@ -6,7 +6,9 @@ import botocore.auth
 import botocore.awsrequest
 import httpx
 from bedrock_agentcore.runtime import BedrockAgentCoreApp
-from mcp.client.streamable_http import streamablehttp_client # TODO: Refactor to streamable_http_client
+from mcp.client.streamable_http import (
+    streamablehttp_client,
+)  # TODO: Refactor to streamable_http_client
 from strands import Agent
 from strands.tools.mcp import MCPClient
 
@@ -156,7 +158,7 @@ skills_section = load_skills_summary()
 agent = Agent(
     tools=tools,
     system_prompt=(
-        "You are a helpful assistant with access to specialized skills for complex workflows.\n\n"
+        "You are a helpful assistant with access to specialised skills for complex workflows.\n\n"
         "## IMPORTANT: Skill-First Workflow\n"
         "Before attempting any task that involves multiple tools or complex logic:\n"
         "1. **ALWAYS use skill-search___search_skills first** to search for relevant skills using keywords from the user's request\n"

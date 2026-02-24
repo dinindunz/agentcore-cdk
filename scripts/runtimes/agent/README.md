@@ -27,7 +27,7 @@ invoke_agent("List my GitHub repositories and calculate total stars")
 ## Available Scripts
 
 ### Skill Tests
-- **`skill_tests/issue_heat_map.py`** - Analyze repo issues/PRs, calculate maintenance burden index
+- **`skill_tests/issue_heat_map.py`** - Analyse repo issues/PRs, calculate maintenance burden index
 - **`skill_tests/portfolio_summary.py`** - List user repos, calculate total/average stars
 - **`skill_tests/repo_comparison.py`** - Compare multiple repositories
 - **`skill_tests/repo_hotness_rating.py`** - Rate repository activity/popularity

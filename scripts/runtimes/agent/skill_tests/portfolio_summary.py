@@ -8,7 +8,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from invoke_agent import invoke_agent
 
 invoke_agent(
-    "List my GitHub repositories, calculate the total star count across all repos, "
-    "the average stars per repo, and convert the average from Celsius to Fahrenheit "
-    "as a portfolio temperature."
+    "What's my GitHub portfolio temperature?"
+    # "How's my GitHub portfolio doing?"
 )

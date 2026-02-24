@@ -1,5 +1,6 @@
 from .bucket import BucketDeploymentConstruct
 from .cognito import UserPoolConstruct
+from .evaluation import OnlineEvaluationConstruct
 from .gateway import GatewayConstruct
 from .gateway_targets import (
     LambdaTargetConstruct,
@@ -22,4 +23,5 @@ __all__ = [
     "GatewayConstruct",
     "OAuth2CredentialProviderConstruct",
     "ApiKeyCredentialProviderConstruct",
+    "OnlineEvaluationConstruct",
 ]

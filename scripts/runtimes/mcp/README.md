@@ -4,7 +4,7 @@ Scripts for directly invoking MCP runtimes on AgentCore using Cognito JWT authen
 
 ## Overview
 
-MCP runtimes are containerized MCP servers deployed on AgentCore. These scripts invoke them directly using:
+MCP runtimes are containerised MCP servers deployed on AgentCore. These scripts invoke them directly using:
 - **Authentication**: Cognito OAuth2 client_credentials flow
 - **Endpoint**: `https://bedrock-agentcore.{region}.amazonaws.com/runtimes/{runtime_arn}/invocations`
 

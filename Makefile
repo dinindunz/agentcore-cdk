@@ -1,8 +1,11 @@
 .PHONY: help
 
-# Environment variable (default: dev)
+# Load environment variables from .env file (if it exists)
+-include .env
+export
+
+# Environment variables
 ENV ?= dev
-REGION ?= ap-southeast-2
 
 # Default target - show help
 help:
@@ -11,20 +14,15 @@ help:
 	@echo ""
 	@echo "Setup:"
 	@echo "  make install                       - Set up virtual environment and install dependencies"
+	@echo "  make setup-observability           - Enable CloudWatch Transaction Search (one-time account setup)"
 	@echo ""
 	@echo "CDK Deployment:"
-	@echo "  make deploy-agentcore              - Deploy AgentCore stack (ENV=dev by default)"
-	@echo "  make deploy-observability          - Deploy Observability stack (ENV=dev by default)"
-	@echo "  make deploy-all                    - Deploy all stacks (ENV=dev by default)"
-	@echo "  make diff-agentcore                - Show AgentCore stack changes"
-	@echo "  make diff-observability            - Show Observability stack changes"
-	@echo "  make diff-all                      - Show changes for all stacks"
-	@echo "  make destroy-agentcore             - Destroy AgentCore stack"
-	@echo "  make destroy-observability         - Destroy Observability stack"
-	@echo "  make destroy-all                   - Destroy all stacks"
+	@echo "  make deploy                        - Deploy AgentCore stack (ENV=dev by default)"
+	@echo "  make diff                          - Show AgentCore stack changes"
+	@echo "  make destroy                       - Destroy AgentCore stack"
 	@echo ""
-	@echo "Observability:"
-	@echo "  make create-phoenix-project        - Create Phoenix project"
+	@echo "Agent Runtime:"
+	@echo "  make agent-hello                   - Send a hello message to the agent runtime"
 	@echo ""
 	@echo "Skill Tests (Agent Runtime):"
 	@echo "  make skill-issue-heat-map          - Test Issue Heat Map skill"
@@ -55,9 +53,8 @@ help:
 	@echo "  make mcp-invoke-calculator         - Directly invoke calculator MCP runtime"
 	@echo ""
 	@echo "Examples:"
-	@echo "  make deploy-agentcore ENV=prod     - Deploy AgentCore to production"
-	@echo "  make diff-agentcore ENV=test       - Show changes for test environment"
-	@echo "  make create-phoenix-project ENV=prod REGION=us-west-2 PROJECT_NAME=my-project"
+	@echo "  make deploy ENV=prod               - Deploy AgentCore to production"
+	@echo "  make diff ENV=test                 - Show changes for test environment"
 	@echo "  make iam-invoke-tool TOOL=add ARGS='{\"a\": 5, \"b\": 3}'"
 	@echo "  make jwt-invoke-tool TOOL=temperature-converter___celsius_to_fahrenheit ARGS='{\"celsius\": 25}'"
 
@@ -106,62 +103,33 @@ install:
 	@echo "Next step: Activate the virtual environment by running:"
 	@echo "  source .venv/bin/activate"
 
+setup-observability:
+	@echo "Enabling CloudWatch Transaction Search for AgentCore observability..."
+	@AWS_ACCOUNT_ID=$(AWS_ACCOUNT_ID) REGION_NAME=$(REGION_NAME) ./src/observability/setup.sh
+
 # ==============================================================================
 # CDK Deployment Commands
 # ==============================================================================
 
-deploy-agentcore:
+deploy:
 	@echo "Deploying AgentCore stack (ENV=$(ENV))..."
 	cdk deploy --context env=$(ENV) --require-approval never --exclusively AgentCoreStack-$(ENV)
 
-deploy-observability:
-	@echo "Deploying Observability stack (ENV=$(ENV))..."
-	cdk deploy --context env=$(ENV) --require-approval never --exclusively ObservabilityStack-$(ENV)
-
-deploy-all:
-	@echo "Deploying all stacks in sequence (ENV=$(ENV))..."
-	@$(MAKE) deploy-observability ENV=$(ENV)
-	@$(MAKE) create-phoenix-project ENV=$(ENV) REGION=$(REGION)
-	@$(MAKE) deploy-agentcore ENV=$(ENV)
-
-diff-agentcore:
+diff:
 	@echo "Showing changes for AgentCore stack (ENV=$(ENV))..."
 	cdk diff --context env=$(ENV) --exclusively AgentCoreStack-$(ENV)
 
-diff-observability:
-	@echo "Showing changes for Observability stack (ENV=$(ENV))..."
-	cdk diff --context env=$(ENV) --exclusively ObservabilityStack-$(ENV)
-
-diff-all:
-	@echo "Showing changes for all stacks (ENV=$(ENV))..."
-	cdk diff --context env=$(ENV) --all
-
-destroy-agentcore:
+destroy:
 	@echo "Destroying AgentCore stack (ENV=$(ENV))..."
 	cdk destroy --context env=$(ENV) --exclusively AgentCoreStack-$(ENV)
-
-destroy-observability:
-	@echo "Destroying Observability stack (ENV=$(ENV))..."
-	cdk destroy --context env=$(ENV) --exclusively ObservabilityStack-$(ENV)
-
-destroy-all:
-	@echo "Destroying all stacks (ENV=$(ENV))..."
-	cdk destroy --context env=$(ENV) --all
-
-# ==============================================================================
-# Observability Commands
-# ==============================================================================
-
-create-phoenix-project:
-	@echo "Creating Phoenix project agentcore-stack-$(ENV)..."
-	python src/observability/create_phoenix_project.py \
-		--stack-name ObservabilityStack-$(ENV) \
-		--project-name agentcore-stack-$(ENV) \
-		--region $(REGION)
 
 # ==============================================================================
 # Skill Tests (Agent Runtime)
 # ==============================================================================
+
+agent-hello:
+	@echo "Sending hello to agent runtime..."
+	@cd scripts/runtimes/agent && python hello.py
 
 skill-issue-heat-map:
 	@echo "Running Issue Heat Map skill test..."
@@ -185,6 +153,7 @@ skill-trending-topic:
 
 # Run all skill tests
 skill-tests: skill-issue-heat-map skill-portfolio-summary skill-repo-comparison skill-repo-hotness skill-trending-topic
+
 
 # ==============================================================================
 # IAM Gateway - Tool Invocation

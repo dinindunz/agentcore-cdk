@@ -4,6 +4,7 @@ import aws_cdk as cdk
 from aws_cdk import aws_ecr as ecr
 from aws_cdk import aws_ecr_assets as ecr_assets
 from aws_cdk import aws_iam as iam
+from aws_cdk import aws_logs as logs
 from aws_cdk import aws_ssm as ssm
 from aws_cdk.aws_bedrock_agentcore_alpha import (
     AgentRuntimeArtifact,
@@ -19,7 +20,9 @@ from ..utils import to_kebab_case, to_snake_case
 
 
 class RuntimeConstruct(Construct):
-    """AgentCore runtime with execution role, ECR repository, container artifact, and SSM ARN parameter."""
+    """AgentCore runtime with execution role, ECR repository, container artifact, and SSM ARN parameter.
+
+    Optionally configures X-Ray observability using CloudWatch Logs delivery."""
 
     def __init__(
         self,
@@ -31,6 +34,7 @@ class RuntimeConstruct(Construct):
         protocol: ProtocolType,
         auth_pool: UserPoolConstruct,
         environment_variables: dict[str, str] | None = None,
+        enable_observability: bool = False,
     ) -> None:
         super().__init__(scope, id)
 
@@ -58,7 +62,9 @@ class RuntimeConstruct(Construct):
                                 "bedrock:InvokeModel",
                                 "bedrock:InvokeModelWithResponseStream",
                             ],
-                            resources=["*"], # TODO: scope down permissions to specific Bedrock inference endpoints
+                            resources=[
+                                "*"
+                            ],  # TODO: scope down permissions to specific Bedrock inference endpoints
                         ),
                         iam.PolicyStatement(
                             actions=["ssm:GetParameter"],
@@ -132,6 +138,33 @@ class RuntimeConstruct(Construct):
 
         # Ensure the image is copied into our ECR repo before the Runtime is created
         self._runtime.node.add_dependency(image_deployment)
+
+        # TODO: Refactor to use L2 constructs once they are available.
+        # Configure X-Ray observability if enabled
+        if enable_observability:
+            delivery_source = logs.CfnDeliverySource(
+                self,
+                "ObservabilitySource",
+                name=f"{prefixed_runtime_name}_traces",
+                log_type="TRACES",
+                resource_arn=self._runtime.agent_runtime_arn,
+            )
+
+            delivery_destination = logs.CfnDeliveryDestination(
+                self,
+                "ObservabilityDestination",
+                name=f"{prefixed_runtime_name}_xray",
+                delivery_destination_type="XRAY",
+            )
+
+            delivery = logs.CfnDelivery(
+                self,
+                "ObservabilityDelivery",
+                delivery_source_name=delivery_source.name,
+                delivery_destination_arn=delivery_destination.attr_arn,
+            )
+            delivery.add_dependency(delivery_source)
+            delivery.add_dependency(delivery_destination)
 
         ssm.StringParameter(
             self,

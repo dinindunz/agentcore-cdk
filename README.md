@@ -1,5 +1,19 @@
 # AgentCore CDK
 
+## Architecture
+
+![AgentCore Architecture](./architecture.png)
+
+The diagram shows the complete authentication and data flow, including:
+- Cognito UserPools for authentication (Agent Runtimes, Gateways, MCP Runtimes)
+- AgentCore MCP Gateways (IAM and JWT authentication)
+- AgentCore Identity with OAuth2 and API Key credential providers
+- MCP targets (Calculator Runtime, Skill Search Lambda, Temperature Converter Lambda, GitHub OpenAPI)
+- Observability components (Traces, Evaluations, CloudWatch Logs)
+- Skills S3 bucket
+
+[View editable diagram](./architecture.excalidraw)
+
 ## Project Structure
 
 ```
@@ -11,13 +25,13 @@
 ├── src/
 │   ├── cdk/                      # CDK infrastructure code
 │   │   ├── stacks/               # CloudFormation stacks
-│   │   │   ├── agentcore.py      - Main AgentCore stack (gateways, runtimes, MCP servers)
-│   │   │   └── observability.py  - Observability stack (Arize Phoenix, OpenTelemetry)
+│   │   │   └── agentcore.py      - Main AgentCore stack (gateways, runtimes, MCP targets)
 │   │   ├── constructs/           # Reusable L3 constructs
 │   │   │   ├── cognito.py        - Cognito user pools and app clients
-│   │   │   ├── gateway.py        - AgentCore gateways
-│   │   │   ├── runtime.py        - AgentCore runtimes
-│   │   │   ├── identity.py       - Credential providers (OAuth2, API keys)
+│   │   │   ├── gateway.py        - AgentCore Gateways
+│   │   │   ├── runtime.py        - AgentCore Runtimes
+│   │   │   ├── identity.py       - Credential providers (OAuth2, API keys) in AgentCore Identity
+│   │   │   ├── evaluation.py     - Online evaluation configurations for runtime monitoring
 │   │   │   ├── bucket.py         - S3 buckets with lifecycle policies (store skills)
 │   │   │   └── gateway_targets/  - Gateway target configurations
 │   │   │       ├── lambda_.py    - Lambda function targets
@@ -48,15 +62,18 @@
 │   │   └── github/               - GitHub API MCP server (OpenAPI Target)
 │   │       └── schema.json       - GitHub OpenAPI schema for Gateway target
 │   │
-│   ├── skills/                   # Agent skill definitions
-│   │   ├── issue_heat_map.md
-│   │   ├── portfolio_summary.md
-│   │   ├── repo_comparison.md
-│   │   ├── repo_hotness_rating.md
-│   │   └── trending_topic_scout.md
+│   ├── observability/            # Observability setup
+│   │   └── setup.sh               - One-time account setup for AgentCore observability (X-Ray tracing)
 │   │
-│   └── observability/            # Observability setup utilities
-│       └── create_phoenix_project.py
+│   └── skills/                   # Agent skill definitions
+│       ├── issue_heat_map.md
+│       ├── portfolio_summary.md
+│       ├── repo_comparison.md
+│       ├── repo_hotness_rating.md
+│       └── trending_topic_scout.md
+│
+├── layers/                       # Lambda layer source directories
+│   └── agentcore_sdk/            - AgentCore Starter Toolkit SDK layer (bundled at deploy time)
 │
 └── scripts/                      # Testing and invocation scripts
     ├── runtimes/
@@ -87,12 +104,36 @@
 ## Prerequisites
 
 - Python 3.12 or higher
-- AWS CLI configured with appropriate credentials
+- AWS CLI configured with appropriate credentials and an active session
+  ```bash
+  # Verify your AWS session is active
+  aws sts get-caller-identity
+  ```
 - AWS CDK CLI installed (`npm install -g aws-cdk`)
+- AWS account bootstrapped for CDK
+  ```bash
+  # Bootstrap your AWS account (one-time per account/region)
+  cdk bootstrap aws://AWS_ACCOUNT_ID/REGION_NAME
+  ```
 
 ## Quick Start
 
-### 1. Install Dependencies
+### 1. Configure Environment Variables
+
+Copy the example environment file and update it with your values:
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` and set:
+- `AWS_ACCOUNT_ID` - Your AWS account ID (e.g., `123456789012`)
+- `REGION_NAME` - AWS region where resources will be deployed (e.g., `ap-southeast-2`)
+- `GITHUB_TOKEN` - Your GitHub personal access token (for GitHub MCP server)
+
+> **Note**: The observability setup script and CDK deployment will use the account and region from your `.env` file.
+
+### 2. Install Dependencies
 
 ```bash
 make install
@@ -103,33 +144,38 @@ This will:
 - Create a virtual environment in `.venv`
 - Install all project dependencies
 
-### 2. Activate Virtual Environment
+### 3. Activate Virtual Environment
 
 ```bash
 source .venv/bin/activate
 ```
 
-### 3. Deploy Infrastructure
+### 4. Enable Observability (One-Time Account Setup)
 
-Deploy all stacks in the correct order with a single command:
-
-```bash
-make deploy-all
-```
-
-This will sequentially:
-1. Deploy the Observability stack (Arize Phoenix, OpenTelemetry)
-2. Create the Phoenix project (or skip if it already exists)
-3. Deploy the AgentCore stack (gateways, runtimes, MCP servers)
-
-You can also deploy stacks individually:
+**Required once per AWS account** to enable X-Ray tracing and CloudWatch Transaction Search for AgentCore:
 
 ```bash
-make deploy-observability      # Deploy Observability stack only
-make deploy-agentcore          # Deploy AgentCore stack only
+make setup-observability
 ```
 
-### 4. Run Tests
+This configures:
+- CloudWatch Logs resource policy for X-Ray
+- X-Ray trace segment destination
+- Sampling rules for trace collection
+
+> **Note**: This is a one-time setup per AWS account and region. The script is idempotent and safe to run multiple times.
+
+### 5. Deploy Infrastructure
+
+Deploy the AgentCore stack:
+
+```bash
+make deploy
+```
+
+This will deploy the AgentCore stack with all gateways, runtimes, and MCP servers.
+
+### 6. Run Tests
 
 ```bash
 make skill-tests               # Run all agent skill tests
@@ -142,17 +188,10 @@ make jwt-tests                 # Run all JWT gateway tests
 To destroy the deployed infrastructure:
 
 ```bash
-make destroy-all               # Destroy all stacks
+make destroy
 ```
 
-Or destroy stacks individually:
-
-```bash
-make destroy-agentcore         # Destroy AgentCore stack only
-make destroy-observability     # Destroy Observability stack only
-```
-
-**Note**: Destroying stacks will permanently delete all resources. Make sure you have backed up any important data before running destroy commands.
+**Note**: Destroying the stack will permanently delete all resources.
 
 ## Available Commands
 

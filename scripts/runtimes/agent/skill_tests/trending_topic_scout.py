@@ -8,8 +8,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from invoke_agent import invoke_agent
 
 invoke_agent(
-    "Search GitHub for repositories about 'rust web framework'. "
-    "Take the top result's star count and the lowest result's star count. "
-    "Calculate the spread and midpoint, then convert the midpoint "
-    "from Celsius to Fahrenheit to gauge topic momentum."
+    "How's the momentum on rust web frameworks?"
+    # "Is rust web framework trending?"
 )
