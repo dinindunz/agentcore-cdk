@@ -78,7 +78,8 @@ The diagram shows the complete authentication and data flow, including:
 └── scripts/                      # Testing and invocation scripts
     ├── runtimes/
     │   ├── agent/                # Agent runtime testing
-    │   │   ├── invoke_agent.py   - Invoke agent with Oauth2 authentication
+    │   │   ├── invoke_agent.py   - Invoke agent with OAuth2 authentication (single prompt)
+    │   │   ├── chat_client.py    - Interactive chat client for continuous conversation
     │   │   └── skill_tests/      - Test scripts for each agent skill
     │   └── mcp/                  # MCP runtime testing
     │       └── invoke_calculator.py
@@ -175,12 +176,45 @@ make deploy
 
 This will deploy the AgentCore stack with all gateways, runtimes, and MCP servers.
 
-### 6. Run Tests
+### 6. Chat with the Agent
+
+Start an interactive chat session with the agent:
 
 ```bash
+make agent-chat
+```
+
+This launches an interactive chat client where you can have continuous conversations with the agent. Type `exit`, `quit`, or `q` to end the session.
+
+### 7. Run Tests
+
+Test the deployed infrastructure with different test suites:
+
+```bash
+# Run all tests
+make all-tests
+
+# Agent skill tests (GitHub analysis skills)
 make skill-tests               # Run all agent skill tests
+make skill-issue-heat-map      # Test Issue Heat Map skill
+make skill-portfolio-summary   # Test Portfolio Summary skill
+make skill-repo-comparison     # Test Repo Comparison skill
+make skill-repo-hotness        # Test Repo Hotness Rating skill
+make skill-trending-topic      # Test Trending Topic Scout skill
+
+# IAM Gateway tests
 make iam-tests                 # Run all IAM gateway tests
+make iam-list-tools            # List available tools
+make iam-search-tools          # Search for tools
+make iam-test-calculator       # Test calculator MCP server
+make iam-test-skill-search     # Test skill search MCP server
+
+# JWT Gateway tests
 make jwt-tests                 # Run all JWT gateway tests
+make jwt-list-tools            # List available tools
+make jwt-search-tools          # Search for tools
+make jwt-test-github           # Test GitHub MCP server
+make jwt-test-temperature      # Test temperature converter MCP server
 ```
 
 ## Cleanup

@@ -23,6 +23,7 @@ help:
 	@echo ""
 	@echo "Agent Runtime:"
 	@echo "  make agent-hello                   - Send a hello message to the agent runtime"
+	@echo "  make agent-chat                    - Start interactive chat with the agent"
 	@echo ""
 	@echo "Skill Tests (Agent Runtime):"
 	@echo "  make skill-issue-heat-map          - Test Issue Heat Map skill"
@@ -130,6 +131,10 @@ destroy:
 agent-hello:
 	@echo "Sending hello to agent runtime..."
 	@cd scripts/runtimes/agent && python hello.py
+
+agent-chat:
+	@echo "Starting interactive chat with agent..."
+	@cd scripts/runtimes/agent && python chat_client.py
 
 skill-issue-heat-map:
 	@echo "Running Issue Heat Map skill test..."

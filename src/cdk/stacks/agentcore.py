@@ -135,7 +135,7 @@ class AgentCoreStack(cdk.Stack):
             enable_summary_strategy=True,
             enable_preference_strategy=True,
             enable_semantic_strategy=True,
-            enable_episodic_strategy=True,
+            enable_episodic_strategy=False,  # TODO: Disabled - Fix configuration issues
         )
 
         # ---------------------------------------------------------------

@@ -175,6 +175,8 @@ def invoke(payload):
 
 ## Namespace Patterns
 
+**Important**: Episodic memory uses the `/strategies/episodic/actors/` prefix pattern (matching the other strategies). Currently **DISABLED** in the stack due to reflection namespace validation issues - requires further investigation.
+
 ### Session-Level Episodes
 ```
 /strategies/episodic/actors/{actorId}/sessions/{sessionId}/
@@ -194,6 +196,8 @@ def invoke(payload):
 /strategies/episodic/actors/user-sarah-123/reflection-temperature-metaphor-preference
 /strategies/episodic/actors/user-sarah-123/reflection-calculator-accuracy-pattern
 ```
+
+**Status**: This strategy is currently disabled in the CDK stack (`enable_episodic_strategy=False`) pending resolution of AgentCore reflection namespace validation requirements.
 
 ## Skill Examples
 
