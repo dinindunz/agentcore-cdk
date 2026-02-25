@@ -8,60 +8,53 @@ The actual invocation logic is delegated to the agent_handler module for better
 testability and maintainability.
 """
 
-from agent_handler import invoke_agent
+from agent_handler import invoke_agent_with_session_manager
 from auth.sigv4 import SigV4Auth
 from bedrock_agentcore.runtime import BedrockAgentCoreApp
 from config import get_config
 from gateway.clients import load_all_tools, setup_mcp_clients
 from prompts.loader import load_system_prompt
-from strands import Agent
 
-from memory.short_term import ShortTermMemory
 from skills.loader import load_skills_summary
 
 # Initialise Bedrock AgentCore app
 app = BedrockAgentCoreApp()
 
-# Global state for lazy initialization
+# Global state for lazy initialization (MCP clients, tools, prompts only)
 _initialized = False
-_agent: Agent | None = None
-_memory: ShortTermMemory | None = None
+_config = None
+_tools = None
+_system_prompt = None
 
 
 def _initialize() -> None:
     """
-    Lazy initialization of agent and dependencies.
+    Lazy initialization of global dependencies.
 
-    Initialises the agent, MCP clients, tools, and memory on first invocation.
-    Subsequent calls are no-ops. Thread-safe for multiple workers in AgentCore.
+    Initialises MCP clients, tools, and system prompt on first invocation.
+    These are expensive to create, so we do them once per container.
+    Agent instances are created per request with session managers.
     """
-    global _initialized, _agent, _memory
+    global _initialized, _config, _tools, _system_prompt
 
     if _initialized:
         return
 
     # Load configuration
-    config = get_config()
+    _config = get_config()
 
     # Setup authentication
-    sigv4_auth = SigV4Auth(region=config.region_name)
+    sigv4_auth = SigV4Auth(region=_config.region_name)
 
-    # Setup MCP clients
-    jwt_client, iam_client = setup_mcp_clients(config, sigv4_auth)
+    # Setup MCP clients (heavy operation - do once)
+    jwt_client, iam_client = setup_mcp_clients(_config, sigv4_auth)
 
-    # Load tools from both gateways
-    tools = load_all_tools(jwt_client, iam_client)
+    # Load tools from both gateways (heavy operation - do once)
+    _tools = load_all_tools(jwt_client, iam_client)
 
-    # Load system prompt and skills summary
-    skills_section = load_skills_summary(config)
-    system_prompt = load_system_prompt(skills_section=skills_section)
-
-    # Create agent with tools and system prompt
-    _agent = Agent(tools=tools, system_prompt=system_prompt)
-
-    # Initialise memory (only if configured)
-    if config.memory_id:
-        _memory = ShortTermMemory(memory_id=config.memory_id, region_name=config.region_name)
+    # Load system prompt and skills summary (do once)
+    skills_section = load_skills_summary(_config)
+    _system_prompt = load_system_prompt(skills_section=skills_section)
 
     _initialized = True
 
@@ -69,10 +62,11 @@ def _initialize() -> None:
 @app.entrypoint
 def invoke(payload):
     """
-    AgentCore runtime entrypoint.
+    AgentCore runtime entrypoint with session manager.
 
-    Processes incoming requests with the agent invocation handler, which manages
-    conversation context, prompt enhancement, agent execution, and memory storage.
+    Processes incoming requests by creating an agent instance with session manager
+    for automatic memory handling. MCP clients, tools, and prompts are initialized
+    globally once per container for performance.
 
     Args:
         payload: Request payload from AgentCore runtime with fields:
@@ -90,10 +84,16 @@ def invoke(payload):
             "session_id": "sess456"
         }
     """
-    # Lazy initialize on first invocation
+    # Lazy initialize global dependencies (once per container)
     _initialize()
 
-    return invoke_agent(_agent, payload, _memory)
+    # Create agent with session manager (once per request)
+    return invoke_agent_with_session_manager(
+        config=_config,
+        tools=_tools,
+        system_prompt=_system_prompt,
+        payload=payload,
+    )
 
 
 # Start the runtime

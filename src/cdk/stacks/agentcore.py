@@ -135,18 +135,20 @@ class AgentCoreStack(cdk.Stack):
         )
 
         # ---------------------------------------------------------------
-        # Create Memory
+        # Create Memory (optional - controlled via context variable)
         # ---------------------------------------------------------------
-        self.memory = MemoryConstruct(
-            self,
-            "AgentMemory",
-            memory_name="agent-memory",
-            event_expiry_days=90,
-            enable_summary_strategy=True,
-            enable_preference_strategy=True,
-            enable_semantic_strategy=True,
-            enable_episodic_strategy=False,  # TODO: Disabled - Fix configuration issues
-        )
+        enable_memory = self.node.try_get_context("enable_memory") or False
+        self.memory = None
+        if enable_memory:
+            self.memory = MemoryConstruct(
+                self,
+                "AgentMemory",
+                memory_name="agent-memory",
+                event_expiry_days=90,
+                enable_summary_strategy=True,
+                enable_preference_strategy=True,
+                enable_semantic_strategy=True,
+            )
 
         # ---------------------------------------------------------------
         # AgentCore Runtimes
@@ -159,10 +161,12 @@ class AgentCoreStack(cdk.Stack):
             "IAM_GATEWAY_SSM_PATH": iam_gw.ssm_url_param_name,
             "GATEWAY_COGNITO_SECRET": gateway_auth.secret_name,
             "SKILLS_BUCKET": skills_bucket.bucket_name_value,
-            "MEMORY_ID": self.memory.memory_id,
             "LOG_LEVEL": "INFO",  # Configurable logging level (DEBUG, INFO, WARNING, ERROR)
             "OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED": "false",  # Disable OTEL log duplication
         }
+        # Add memory ID if memory is enabled
+        if self.memory:
+            agent_env_vars["MEMORY_ID"] = self.memory.memory_id
 
         # Agent Runtime — the "agent" runtime that will orchestrate calls to the gateways and execute tools
         agent_rt = RuntimeConstruct(
@@ -190,24 +194,25 @@ class AgentCoreStack(cdk.Stack):
             )
         )
 
-        # Grant agent runtime permissions to use memory
-        agent_rt.role.add_to_policy(
-            iam.PolicyStatement(
-                actions=[
-                    "bedrock-agentcore:CreateEvent",
-                    "bedrock-agentcore:ListEvents",
-                    "bedrock-agentcore:GetEvent",
-                    "bedrock-agentcore:ListSessions",
-                    "bedrock-agentcore:RetrieveMemoryRecords",
-                    "bedrock-agentcore:GetMemoryRecord",
-                    "bedrock-agentcore:ListMemoryRecords",
-                ],
-                resources=[
-                    f"arn:aws:bedrock-agentcore:{self.region}:{self.account}:memory/{self.memory.memory_id}",
-                    f"arn:aws:bedrock-agentcore:{self.region}:{self.account}:memory/{self.memory.memory_id}/*",
-                ],
+        # Grant agent runtime permissions to use memory (if enabled)
+        if self.memory:
+            agent_rt.role.add_to_policy(
+                iam.PolicyStatement(
+                    actions=[
+                        "bedrock-agentcore:CreateEvent",
+                        "bedrock-agentcore:ListEvents",
+                        "bedrock-agentcore:GetEvent",
+                        "bedrock-agentcore:ListSessions",
+                        "bedrock-agentcore:RetrieveMemoryRecords",
+                        "bedrock-agentcore:GetMemoryRecord",
+                        "bedrock-agentcore:ListMemoryRecords",
+                    ],
+                    resources=[
+                        f"arn:aws:bedrock-agentcore:{self.region}:{self.account}:memory/{self.memory.memory_id}",
+                        f"arn:aws:bedrock-agentcore:{self.region}:{self.account}:memory/{self.memory.memory_id}/*",
+                    ],
+                )
             )
-        )
 
         # ---------------------------------------------------------------
         # Custom Evaluators — domain-specific validation
