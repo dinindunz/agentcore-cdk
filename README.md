@@ -140,11 +140,10 @@ cp .env.example .env
 ```
 
 Edit `.env` and set:
+- `ENV` - Deployment environment (e.g., `dev`, `test`, `prod`) - defaults to `dev` if not set
 - `AWS_ACCOUNT_ID` - Your AWS account ID (e.g., `123456789012`)
 - `REGION_NAME` - AWS region where resources will be deployed (e.g., `ap-southeast-2`)
 - `GITHUB_TOKEN` - Your GitHub personal access token (for GitHub MCP server)
-
-> **Note**: The observability setup script and CDK deployment will use the account and region from your `.env` file.
 
 ### 2. Install Dependencies
 
