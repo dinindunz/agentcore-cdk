@@ -25,7 +25,9 @@ class OAuth2CredentialProviderConstruct(Construct):
 
         stack = cdk.Stack.of(self)
         stack_prefix = to_kebab_case(stack.stack_name)
-        token_vault_base = f"arn:aws:bedrock-agentcore:{stack.region}:{stack.account}:token-vault/default"
+        token_vault_base = (
+            f"arn:aws:bedrock-agentcore:{stack.region}:{stack.account}:token-vault/default"
+        )
 
         self._name = f"{stack_prefix}-{to_kebab_case(provider_name)}"
 
@@ -49,9 +51,7 @@ class OAuth2CredentialProviderConstruct(Construct):
                         },
                     },
                 },
-                physical_resource_id=cr.PhysicalResourceId.from_response(
-                    "credentialProviderArn"
-                ),
+                physical_resource_id=cr.PhysicalResourceId.from_response("credentialProviderArn"),
             ),
             on_delete=cr.AwsSdkCall(
                 service="@aws-sdk/client-bedrock-agentcore-control",
@@ -115,7 +115,9 @@ class ApiKeyCredentialProviderConstruct(Construct):
 
         stack = cdk.Stack.of(self)
         stack_prefix = to_kebab_case(stack.stack_name)
-        token_vault_base = f"arn:aws:bedrock-agentcore:{stack.region}:{stack.account}:token-vault/default"
+        token_vault_base = (
+            f"arn:aws:bedrock-agentcore:{stack.region}:{stack.account}:token-vault/default"
+        )
 
         self._name = f"{stack_prefix}-{to_kebab_case(provider_name)}"
 
@@ -130,9 +132,7 @@ class ApiKeyCredentialProviderConstruct(Construct):
                     "name": self._name,
                     "apiKey": api_key,
                 },
-                physical_resource_id=cr.PhysicalResourceId.from_response(
-                    "credentialProviderArn"
-                ),
+                physical_resource_id=cr.PhysicalResourceId.from_response("credentialProviderArn"),
             ),
             on_delete=cr.AwsSdkCall(
                 service="@aws-sdk/client-bedrock-agentcore-control",

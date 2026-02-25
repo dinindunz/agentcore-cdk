@@ -61,9 +61,7 @@ class UserPoolConstruct(Construct):
             generate_secret=True,
             o_auth=cognito.OAuthSettings(
                 flows=cognito.OAuthFlows(client_credentials=True),
-                scopes=[
-                    cognito.OAuthScope.resource_server(resource_server, invoke_scope)
-                ],
+                scopes=[cognito.OAuthScope.resource_server(resource_server, invoke_scope)],
             ),
         )
 
@@ -72,13 +70,9 @@ class UserPoolConstruct(Construct):
             "Secret",
             secret_name=self._secret_name,
             secret_object_value={
-                "client_id": cdk.SecretValue.unsafe_plain_text(
-                    self._client.user_pool_client_id
-                ),
+                "client_id": cdk.SecretValue.unsafe_plain_text(self._client.user_pool_client_id),
                 "client_secret": self._client.user_pool_client_secret,
-                "user_pool_id": cdk.SecretValue.unsafe_plain_text(
-                    self._user_pool.user_pool_id
-                ),
+                "user_pool_id": cdk.SecretValue.unsafe_plain_text(self._user_pool.user_pool_id),
                 "token_endpoint": cdk.SecretValue.unsafe_plain_text(
                     f"{self._domain.base_url()}/oauth2/token"
                 ),

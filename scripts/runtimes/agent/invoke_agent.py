@@ -21,9 +21,9 @@ _CLIENT_ID = _agent_cognito["client_id"]
 _CLIENT_SECRET = _agent_cognito["client_secret"]
 _TOKEN_ENDPOINT = _agent_cognito["token_endpoint"]
 
-_agent_arn = _ssm.get_parameter(Name="/agent-core-stack-dev/agent-runtime-arn")[
-    "Parameter"
-]["Value"]
+_agent_arn = _ssm.get_parameter(Name="/agent-core-stack-dev/agent-runtime-arn")["Parameter"][
+    "Value"
+]
 
 _escaped_arn = urllib.parse.quote(_agent_arn, safe="")
 _URL = f"https://bedrock-agentcore.{REGION_NAME}.amazonaws.com/runtimes/{_escaped_arn}/invocations?qualifier=DEFAULT"

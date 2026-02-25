@@ -1,7 +1,7 @@
-from typing import Sequence
+from collections.abc import Sequence
 
-import jsii
 import aws_cdk as cdk
+import jsii
 from aws_cdk import aws_iam as iam
 from aws_cdk import aws_lambda as lambda_
 from aws_cdk import aws_logs as logs

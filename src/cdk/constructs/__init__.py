@@ -13,8 +13,8 @@ from .gateway_targets import (
     OpenApiTargetConstruct,
 )
 from .identity import (
-    OAuth2CredentialProviderConstruct,
     ApiKeyCredentialProviderConstruct,
+    OAuth2CredentialProviderConstruct,
 )
 from .memory import MemoryConstruct
 from .runtime import RuntimeConstruct

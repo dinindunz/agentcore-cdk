@@ -16,6 +16,10 @@ help:
 	@echo "  make install                       - Set up virtual environment and install dependencies"
 	@echo "  make setup-observability           - Enable CloudWatch Transaction Search (one-time account setup)"
 	@echo ""
+	@echo "Code Quality:"
+	@echo "  make lint                          - Lint Python code with ruff"
+	@echo "  make format                        - Format Python code with ruff"
+	@echo ""
 	@echo "CDK Deployment:"
 	@echo "  make deploy                        - Deploy AgentCore stack (ENV=dev by default)"
 	@echo "  make diff                          - Show AgentCore stack changes"
@@ -115,10 +119,24 @@ setup-observability:
 	@AWS_ACCOUNT_ID=$(AWS_ACCOUNT_ID) REGION_NAME=$(REGION_NAME) ./src/observability/setup.sh
 
 # ==============================================================================
+# Code Quality Commands
+# ==============================================================================
+
+lint:
+	@echo "Linting Python code with ruff..."
+	@.venv/bin/ruff check src/ scripts/ app.py
+
+format:
+	@echo "Formatting Python code with ruff..."
+	@.venv/bin/ruff format src/ scripts/ app.py
+	@.venv/bin/ruff check --select I --fix src/ scripts/ app.py
+	@echo "✓ Code formatted successfully"
+
+# ==============================================================================
 # CDK Deployment Commands
 # ==============================================================================
 
-deploy:
+deploy: format lint
 	@echo "Deploying AgentCore stack (ENV=$(ENV))..."
 	cdk deploy --context env=$(ENV) --require-approval never --exclusively AgentCoreStack-$(ENV)
 

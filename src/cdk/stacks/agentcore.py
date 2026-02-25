@@ -4,39 +4,37 @@ import aws_cdk as cdk
 from aws_cdk import aws_iam as iam
 
 # TODO: Refactor to use aws_cdk once L2 constructs are available.
-from aws_cdk.aws_bedrock_agentcore_alpha import ProtocolType, GatewayAuthorizer
+from aws_cdk.aws_bedrock_agentcore_alpha import GatewayAuthorizer, ProtocolType
 from constructs import Construct
-
-from ..constructs import (
-    BucketDeploymentConstruct,
-    LambdaTargetConstruct,
-    McpServerTargetConstruct,
-    OpenApiTargetConstruct,
-    UserPoolConstruct,
-    RuntimeConstruct,
-    GatewayConstruct,
-    OAuth2CredentialProviderConstruct,
-    ApiKeyCredentialProviderConstruct,
-    OnlineEvaluationConstruct,
-    CustomEvaluatorConstruct,
-    ModelConfiguration,
-    ScoringSchemaDefinition,
-    MemoryConstruct,
-)
-from ..utils import DestroyLogGroups, LogGroupCleanup, to_kebab_case, to_snake_case
 
 # Import evaluator definitions
 from ...evals import (
-    math_accuracy,
-    temperature_conversion,
-    skill_workflow,
     github_integrity,
+    math_accuracy,
     output_format,
+    skill_workflow,
+    temperature_conversion,
 )
+from ..constructs import (
+    ApiKeyCredentialProviderConstruct,
+    BucketDeploymentConstruct,
+    CustomEvaluatorConstruct,
+    GatewayConstruct,
+    LambdaTargetConstruct,
+    McpServerTargetConstruct,
+    MemoryConstruct,
+    ModelConfiguration,
+    OAuth2CredentialProviderConstruct,
+    OnlineEvaluationConstruct,
+    OpenApiTargetConstruct,
+    RuntimeConstruct,
+    ScoringSchemaDefinition,
+    UserPoolConstruct,
+)
+from ..utils import DestroyLogGroups, LogGroupCleanup, to_kebab_case, to_snake_case
 
 
 class AgentCoreStack(cdk.Stack):
-
     def __init__(
         self,
         scope: Construct,
@@ -406,7 +404,7 @@ class AgentCoreStack(cdk.Stack):
             "LogGroupCleanup",
             log_group_prefixes=[
                 f"/aws/bedrock-agentcore/runtimes/{to_snake_case(self.stack_name)}_",
-                f"/aws/bedrock-agentcore/evaluations/",
+                "/aws/bedrock-agentcore/evaluations/",
                 f"/aws/lambda/{self.stack_name}-",
                 f"/aws/lambda/{stack_prefix}-",
             ],
@@ -427,9 +425,7 @@ class AgentCoreStack(cdk.Stack):
         # ---------------------------------------------------------------
         cdk.CfnOutput(self, "IamGatewayUrl", value=iam_gw.url)
         cdk.CfnOutput(self, "JwtGatewayUrl", value=jwt_gw.url)
-        cdk.CfnOutput(
-            self, "JwtGatewayUserPoolId", value=gateway_auth.user_pool.user_pool_id
-        )
+        cdk.CfnOutput(self, "JwtGatewayUserPoolId", value=gateway_auth.user_pool.user_pool_id)
         cdk.CfnOutput(
             self,
             "JwtGatewayUserPoolClientId",
@@ -441,21 +437,15 @@ class AgentCoreStack(cdk.Stack):
             value=f"{gateway_auth.domain.base_url()}/oauth2/token",
         )
         cdk.CfnOutput(self, "AgentUserPoolId", value=agent_auth.user_pool.user_pool_id)
-        cdk.CfnOutput(
-            self, "AgentUserPoolClientId", value=agent_auth.client.user_pool_client_id
-        )
+        cdk.CfnOutput(self, "AgentUserPoolClientId", value=agent_auth.client.user_pool_client_id)
         cdk.CfnOutput(
             self,
             "AgentTokenEndpoint",
             value=f"{agent_auth.domain.base_url()}/oauth2/token",
         )
         cdk.CfnOutput(self, "McpUserPoolId", value=mcp_auth.user_pool.user_pool_id)
-        cdk.CfnOutput(
-            self, "McpUserPoolClientId", value=mcp_auth.client.user_pool_client_id
-        )
-        cdk.CfnOutput(
-            self, "McpTokenEndpoint", value=f"{mcp_auth.domain.base_url()}/oauth2/token"
-        )
+        cdk.CfnOutput(self, "McpUserPoolClientId", value=mcp_auth.client.user_pool_client_id)
+        cdk.CfnOutput(self, "McpTokenEndpoint", value=f"{mcp_auth.domain.base_url()}/oauth2/token")
         cdk.CfnOutput(self, "AgentRuntimeArn", value=agent_rt.runtime.agent_runtime_arn)
         cdk.CfnOutput(
             self,

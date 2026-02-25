@@ -11,11 +11,11 @@ Import these in your CDK stack to create custom evaluators.
 """
 
 from . import (
-    math_accuracy,
-    temperature_conversion,
-    skill_workflow,
     github_integrity,
+    math_accuracy,
     output_format,
+    skill_workflow,
+    temperature_conversion,
 )
 
 __all__ = [

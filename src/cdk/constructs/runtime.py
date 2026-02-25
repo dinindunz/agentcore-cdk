@@ -8,15 +8,15 @@ from aws_cdk import aws_logs as logs
 from aws_cdk import aws_ssm as ssm
 from aws_cdk.aws_bedrock_agentcore_alpha import (
     AgentRuntimeArtifact,
+    ProtocolType,
     Runtime,
     RuntimeAuthorizerConfiguration,
-    ProtocolType,
 )
-from cdk_ecr_deployment import ECRDeployment, DockerImageName
+from cdk_ecr_deployment import DockerImageName, ECRDeployment
 from constructs import Construct
 
-from .cognito import UserPoolConstruct
 from ..utils import to_kebab_case, to_snake_case
+from .cognito import UserPoolConstruct
 
 
 class RuntimeConstruct(Construct):
@@ -46,9 +46,7 @@ class RuntimeConstruct(Construct):
         ssm_param_key = f"{to_kebab_case(id)}-arn"
 
         # Runtime names only allow letters, numbers, and underscores — use snake_case
-        prefixed_runtime_name = (
-            f"{to_snake_case(stack.stack_name)}_{to_snake_case(runtime_name)}"
-        )
+        prefixed_runtime_name = f"{to_snake_case(stack.stack_name)}_{to_snake_case(runtime_name)}"
 
         self._role = iam.Role(
             self,
@@ -110,17 +108,13 @@ class RuntimeConstruct(Construct):
             self,
             "ImageDeployment",
             src=DockerImageName(docker_asset.image_uri),
-            dest=DockerImageName(
-                f"{self._ecr_repo.repository_uri}:{docker_asset.image_tag}"
-            ),
+            dest=DockerImageName(f"{self._ecr_repo.repository_uri}:{docker_asset.image_tag}"),
         )
 
         # Grant the runtime execution role permission to pull from our ECR repo
         self._ecr_repo.grant_pull(self._role)
 
-        artifact = AgentRuntimeArtifact.from_ecr_repository(
-            self._ecr_repo, docker_asset.image_tag
-        )
+        artifact = AgentRuntimeArtifact.from_ecr_repository(self._ecr_repo, docker_asset.image_tag)
 
         self._runtime = Runtime(
             self,

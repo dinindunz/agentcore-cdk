@@ -1,16 +1,18 @@
 import hashlib
 import json
 import os
+
 import boto3
 import botocore.auth
 import botocore.awsrequest
 import httpx
 from bedrock_agentcore.runtime import BedrockAgentCoreApp
+from strands import Agent
+from strands.tools.mcp import MCPClient
+
 from mcp.client.streamable_http import (
     streamablehttp_client,
 )  # TODO: Refactor to streamable_http_client
-from strands import Agent
-from strands.tools.mcp import MCPClient
 from memory import ShortTermMemory
 
 REGION_NAME = os.environ["REGION_NAME"]
@@ -21,18 +23,16 @@ ssm_client = boto3.client("ssm", region_name=REGION_NAME)
 sm_client = boto3.client("secretsmanager", region_name=REGION_NAME)
 s3_client = boto3.client("s3", region_name=REGION_NAME)
 
-JWT_GATEWAY_URL = ssm_client.get_parameter(Name=os.environ["JWT_GATEWAY_SSM_PATH"])[
-    "Parameter"
-]["Value"]
-IAM_GATEWAY_URL = ssm_client.get_parameter(Name=os.environ["IAM_GATEWAY_SSM_PATH"])[
-    "Parameter"
-]["Value"]
+JWT_GATEWAY_URL = ssm_client.get_parameter(Name=os.environ["JWT_GATEWAY_SSM_PATH"])["Parameter"][
+    "Value"
+]
+IAM_GATEWAY_URL = ssm_client.get_parameter(Name=os.environ["IAM_GATEWAY_SSM_PATH"])["Parameter"][
+    "Value"
+]
 
 # Fetch Cognito credentials from Secrets Manager
 gateway_cognito = json.loads(
-    sm_client.get_secret_value(SecretId=os.environ["GATEWAY_COGNITO_SECRET"])[
-        "SecretString"
-    ]
+    sm_client.get_secret_value(SecretId=os.environ["GATEWAY_COGNITO_SECRET"])["SecretString"]
 )
 
 
@@ -116,9 +116,7 @@ def load_skills_summary() -> str:
         key = obj["Key"]
         if not key.endswith(".md"):
             continue
-        body = (
-            s3_client.get_object(Bucket=SKILLS_BUCKET, Key=key)["Body"].read().decode()
-        )
+        body = s3_client.get_object(Bucket=SKILLS_BUCKET, Key=key)["Body"].read().decode()
         # Extract title (first H1) and description (first non-empty line after title)
         title = ""
         description = ""
@@ -172,9 +170,7 @@ agent = Agent(
 )
 
 # Initialise memory client (only if MEMORY_ID is configured)
-memory = (
-    ShortTermMemory(memory_id=MEMORY_ID, region_name=REGION_NAME) if MEMORY_ID else None
-)
+memory = ShortTermMemory(memory_id=MEMORY_ID, region_name=REGION_NAME) if MEMORY_ID else None
 
 
 @app.entrypoint
@@ -215,9 +211,7 @@ def invoke(payload):
 
     # Execute agent with context
     result = agent(enhanced_prompt)
-    text = "".join(
-        block["text"] for block in result.message.get("content", []) if "text" in block
-    )
+    text = "".join(block["text"] for block in result.message.get("content", []) if "text" in block)
 
     # Store this interaction in memory (if memory is enabled)
     if memory:
@@ -230,7 +224,7 @@ def invoke(payload):
         except Exception as e:
             print(f"[Memory] Error storing event: {e}")
 
-    print(f"[Agent] Completed")
+    print("[Agent] Completed")
     return {"result": text}
 
 

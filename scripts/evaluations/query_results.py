@@ -42,7 +42,7 @@ def list_evaluation_log_groups():
         for lg in log_groups:
             print("=" * 80)
             print(f"Log Group: {lg['logGroupName']}")
-            print(f"Created: {datetime.fromtimestamp(lg['creationTime']/1000)}")
+            print(f"Created: {datetime.fromtimestamp(lg['creationTime'] / 1000)}")
             print(f"Storage: {lg.get('storedBytes', 0)} bytes")
             print()
 
@@ -68,9 +68,7 @@ def query_recent_evaluations(log_group_name: str, hours: int = 1):
         | limit 20
         """
 
-        print(
-            f"\nQuerying {log_group_name} for evaluations in the last {hours} hour(s)..."
-        )
+        print(f"\nQuerying {log_group_name} for evaluations in the last {hours} hour(s)...")
 
         response = logs_client.start_query(
             logGroupName=log_group_name,
@@ -118,7 +116,7 @@ def query_recent_evaluations(log_group_name: str, hours: int = 1):
                         try:
                             msg = json.loads(field_value)
                             print(json.dumps(msg, indent=2))
-                        except:
+                        except (json.JSONDecodeError, ValueError):
                             print(field_value)
                     else:
                         print(f"{field_name}: {field_value}")

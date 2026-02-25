@@ -1,10 +1,11 @@
-import aws_cdk as cdk
 import json
-from aws_cdk import custom_resources as cr
+from typing import Literal
+
+import aws_cdk as cdk
 from aws_cdk import aws_iam as iam
 from aws_cdk import aws_lambda as lambda_
+from aws_cdk import custom_resources as cr
 from constructs import Construct
-from typing import Literal
 
 from ..utils import to_snake_case
 
@@ -239,9 +240,7 @@ class CustomEvaluatorConstruct(Construct):
                                 "bedrock:InvokeModel",
                                 "bedrock:InvokeModelWithResponseStream",
                             ],
-                            resources=[
-                                f"arn:aws:bedrock:{stack.region}::foundation-model/*"
-                            ],
+                            resources=[f"arn:aws:bedrock:{stack.region}::foundation-model/*"],
                         ),
                     ]
                 ),

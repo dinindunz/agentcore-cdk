@@ -26,7 +26,7 @@ The diagram shows the complete authentication and data flow, including:
 ├── src/
 │   ├── cdk/                      # CDK infrastructure code
 │   │   ├── stacks/               # CloudFormation stacks
-│   │   │   └── agentcore.py      - Main AgentCore stack (gateways, runtimes, MCP targets)
+│   │   │   └── agentcore.py      - Main AgentCore stack (gateways, runtimes, memory, evals, observability, and MCP targets)
 │   │   ├── constructs/           # Reusable L3 constructs
 │   │   │   ├── cognito.py        - Cognito user pools and app clients
 │   │   │   ├── gateway.py        - AgentCore Gateways

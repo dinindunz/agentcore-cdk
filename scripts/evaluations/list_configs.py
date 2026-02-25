@@ -45,9 +45,7 @@ def list_online_eval_configs():
 
             # Fetch full details to get evaluators
             try:
-                details = client.get_online_evaluation_config(
-                    onlineEvaluationConfigId=config_id
-                )
+                details = client.get_online_evaluation_config(onlineEvaluationConfigId=config_id)
 
                 agent_id = details.get("agentId", "N/A")
                 sampling_rate = details.get("samplingRate", "N/A")
@@ -98,9 +96,7 @@ def list_online_eval_configs():
 def get_eval_config_details(config_id: str):
     """Get detailed information about a specific evaluation configuration."""
     try:
-        response = client.get_online_evaluation_config(
-            onlineEvaluationConfigId=config_id
-        )
+        response = client.get_online_evaluation_config(onlineEvaluationConfigId=config_id)
 
         print("\nDetailed Configuration:")
         print("=" * 80)

@@ -1,5 +1,6 @@
 import aws_cdk as cdk
-from aws_cdk import aws_iam as iam, custom_resources as cr
+from aws_cdk import aws_iam as iam
+from aws_cdk import custom_resources as cr
 from constructs import Construct
 
 from ..utils import to_snake_case
@@ -26,9 +27,7 @@ class MemoryConstruct(Construct):
         stack = cdk.Stack.of(self)
 
         # Memory names only allow letters, numbers, and underscores — use snake_case
-        prefixed_memory_name = (
-            f"{to_snake_case(stack.stack_name)}_{to_snake_case(memory_name)}"
-        )
+        prefixed_memory_name = f"{to_snake_case(stack.stack_name)}_{to_snake_case(memory_name)}"
 
         # Build memory strategies based on flags
         strategies = []
@@ -111,9 +110,7 @@ class MemoryConstruct(Construct):
                             "bedrock-agentcore:DeleteMemory",
                             "bedrock-agentcore:GetMemory",
                         ],
-                        resources=[
-                            "*"
-                        ],  # CDK role will be used when moved to L2 constructs
+                        resources=["*"],  # CDK role will be used when moved to L2 constructs
                     )
                 ]
             ),

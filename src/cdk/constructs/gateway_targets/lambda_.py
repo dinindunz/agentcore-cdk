@@ -1,12 +1,12 @@
 import os
 
-from aws_cdk import aws_lambda as lambda_
 from aws_cdk import aws_ecr_assets as ecr_assets
+from aws_cdk import aws_lambda as lambda_
 from aws_cdk.aws_bedrock_agentcore_alpha import ToolSchema
 from constructs import Construct
 
-from ..gateway import GatewayConstruct
 from ...utils import to_pascal_case
+from ..gateway import GatewayConstruct
 
 
 class LambdaTargetConstruct(Construct):
@@ -26,9 +26,7 @@ class LambdaTargetConstruct(Construct):
         super().__init__(scope, id)
 
         # __file__ is src/cdk/constructs/gateway_targets/lambda_target.py — ../../.. resolves to src/
-        asset_dir = os.path.join(
-            os.path.dirname(__file__), "..", "..", "..", asset_path
-        )
+        asset_dir = os.path.join(os.path.dirname(__file__), "..", "..", "..", asset_path)
 
         self._function = lambda_.DockerImageFunction(
             self,
@@ -51,17 +49,13 @@ class LambdaTargetConstruct(Construct):
             gateway_target_name=target_name,
             description=description,
             lambda_function=self._function,
-            tool_schema=ToolSchema.from_local_asset(
-                os.path.join(asset_dir, "schema.json")
-            ),
+            tool_schema=ToolSchema.from_local_asset(os.path.join(asset_dir, "schema.json")),
         )
 
         # Ensure the gateway's service role policy (with lambda:InvokeFunction) is created
         # before the target — AgentCore validates this at CreateGatewayTarget time
         if gateway.gateway.role.node.try_find_child("DefaultPolicy"):
-            target.node.add_dependency(
-                gateway.gateway.role.node.find_child("DefaultPolicy")
-            )
+            target.node.add_dependency(gateway.gateway.role.node.find_child("DefaultPolicy"))
 
     @property
     def function(self) -> lambda_.DockerImageFunction:

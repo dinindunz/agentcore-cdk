@@ -1,11 +1,11 @@
 import aws_cdk as cdk
-from aws_cdk import custom_resources as cr
 from aws_cdk import aws_iam as iam
 from aws_cdk import aws_lambda as lambda_
+from aws_cdk import custom_resources as cr
 from constructs import Construct
 
-from .runtime import RuntimeConstruct
 from ..utils import to_snake_case
+from .runtime import RuntimeConstruct
 
 
 # TODO: Refactor to use L2 constructs once they are available.
@@ -59,9 +59,7 @@ class OnlineEvaluationConstruct(Construct):
                                 "bedrock-agentcore:ListOnlineEvaluationConfigs",
                                 "bedrock-agentcore:GetAgentRuntime",  # SDK validates agent exists
                             ],
-                            resources=[
-                                "*"
-                            ],  # CDK role will be used when moved to L2 constructs
+                            resources=["*"],  # CDK role will be used when moved to L2 constructs
                         ),
                         # SDK needs permission to create IAM roles for evaluation execution
                         iam.PolicyStatement(
@@ -72,9 +70,7 @@ class OnlineEvaluationConstruct(Construct):
                                 "iam:PutRolePolicy",
                                 "iam:PassRole",
                             ],
-                            resources=[
-                                "*"
-                            ],  # CDK role will be used when moved to L2 constructs
+                            resources=["*"],  # CDK role will be used when moved to L2 constructs
                         ),
                         # SDK needs permission to configure CloudWatch Logs index policies
                         iam.PolicyStatement(
@@ -96,9 +92,7 @@ class OnlineEvaluationConstruct(Construct):
 
         # Extract agent ID from runtime ARN for SDK
         # Runtime ARN format: arn:aws:bedrock-agentcore:region:account:runtime/agent_name-randomid
-        agent_id = cdk.Fn.select(
-            1, cdk.Fn.split("/", runtime.runtime.agent_runtime_arn)
-        )
+        agent_id = cdk.Fn.select(1, cdk.Fn.split("/", runtime.runtime.agent_runtime_arn))
 
         # Custom resource Lambda handler using AgentCore SDK
         handler = lambda_.Function(

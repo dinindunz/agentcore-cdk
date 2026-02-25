@@ -1,4 +1,4 @@
-from typing import Sequence
+from collections.abc import Sequence
 
 import aws_cdk as cdk
 from aws_cdk import aws_iam as iam
@@ -46,7 +46,9 @@ class GatewayConstruct(Construct):
 
         if has_oauth2 or has_api_key:
             workload_identity_base = f"arn:aws:bedrock-agentcore:{stack.region}:{stack.account}:workload-identity-directory/default"
-            token_vault_base = f"arn:aws:bedrock-agentcore:{stack.region}:{stack.account}:token-vault/default"
+            token_vault_base = (
+                f"arn:aws:bedrock-agentcore:{stack.region}:{stack.account}:token-vault/default"
+            )
 
             actions = [
                 "bedrock-agentcore:CompleteResourceTokenAuth",
@@ -61,16 +63,12 @@ class GatewayConstruct(Construct):
             if has_oauth2:
                 actions.append("bedrock-agentcore:GetResourceOauth2Token")
                 for name in oauth2_provider_names:
-                    resources.append(
-                        f"{token_vault_base}/oauth2credentialprovider/{name}"
-                    )
+                    resources.append(f"{token_vault_base}/oauth2credentialprovider/{name}")
 
             if has_api_key:
                 actions.append("bedrock-agentcore:GetResourceApiKey")
                 for name in api_key_provider_names:
-                    resources.append(
-                        f"{token_vault_base}/apikeycredentialprovider/{name}"
-                    )
+                    resources.append(f"{token_vault_base}/apikeycredentialprovider/{name}")
 
             self._gateway.role.add_to_policy(
                 iam.PolicyStatement(actions=actions, resources=resources)

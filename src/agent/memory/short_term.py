@@ -1,7 +1,7 @@
 """Short-term memory client for AgentCore."""
 
 from datetime import datetime
-from typing import List, Dict, Tuple
+
 import boto3
 
 
@@ -16,8 +16,8 @@ class ShortTermMemory:
         self,
         actor_id: str,
         session_id: str,
-        messages: List[Tuple[str, str]],
-    ) -> Dict:
+        messages: list[tuple[str, str]],
+    ) -> dict:
         """
         Store conversation turn immediately.
 
@@ -31,9 +31,7 @@ class ShortTermMemory:
         """
         payload = []
         for content, role in messages:
-            payload.append(
-                {"conversational": {"role": role, "content": {"text": content}}}
-            )
+            payload.append({"conversational": {"role": role, "content": {"text": content}}})
 
         print(f"[Memory] CreateEvent: actor={actor_id}, session={session_id}")
         response = self.data_client.create_event(
@@ -43,7 +41,7 @@ class ShortTermMemory:
             eventTimestamp=datetime.now(),
             payload=payload,
         )
-        print(f"[Memory] Event stored")
+        print("[Memory] Event stored")
         return response
 
     def get_recent_context(
@@ -51,7 +49,7 @@ class ShortTermMemory:
         actor_id: str,
         session_id: str,
         max_turns: int = 10,
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """
         Retrieve recent conversation history for context.
 
@@ -63,9 +61,7 @@ class ShortTermMemory:
         Returns:
             List of events in chronological order
         """
-        print(
-            f"[Memory] ListEvents: actor={actor_id}, session={session_id}, max={max_turns}"
-        )
+        print(f"[Memory] ListEvents: actor={actor_id}, session={session_id}, max={max_turns}")
         response = self.data_client.list_events(
             memoryId=self.memory_id,
             actorId=actor_id,

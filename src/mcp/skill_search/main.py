@@ -1,4 +1,3 @@
-import json
 import os
 import re
 
@@ -24,9 +23,7 @@ def _load_skills() -> list[dict]:
         key = obj["Key"]
         if not key.endswith(".md"):
             continue
-        body = (
-            s3_client.get_object(Bucket=SKILLS_BUCKET, Key=key)["Body"].read().decode()
-        )
+        body = s3_client.get_object(Bucket=SKILLS_BUCKET, Key=key)["Body"].read().decode()
         skill = _parse_skill_markdown(body)
         skill["file"] = key
         skills.append(skill)
