@@ -21,9 +21,9 @@ _CLIENT_ID = _agent_cognito["client_id"]
 _CLIENT_SECRET = _agent_cognito["client_secret"]
 _TOKEN_ENDPOINT = _agent_cognito["token_endpoint"]
 
-_agent_arn = _ssm.get_parameter(Name="/agent-core-stack-dev/agent-runtime-arn")[
-    "Parameter"
-]["Value"]
+_agent_arn = _ssm.get_parameter(Name="/agent-core-stack-dev/agent-runtime-arn")["Parameter"][
+    "Value"
+]
 
 _escaped_arn = urllib.parse.quote(_agent_arn, safe="")
 _URL = f"https://bedrock-agentcore.{REGION_NAME}.amazonaws.com/runtimes/{_escaped_arn}/invocations?qualifier=DEFAULT"
@@ -43,8 +43,11 @@ def invoke_agent(prompt: str) -> None:
     """Authenticate and invoke the agent with the given prompt, printing the response."""
     access_token = _get_access_token()
     session_id = str(uuid.uuid4())
+    actor_id = os.environ.get("ACTOR_ID", f"user-{uuid.uuid4().hex[:8]}")
 
-    print(f"Prompt: {prompt}\n")
+    print(f"Prompt: {prompt}")
+    print(f"Session ID: {session_id}")
+    print(f"Actor ID: {actor_id}\n")
 
     response = requests.post(
         _URL,
@@ -54,7 +57,13 @@ def invoke_agent(prompt: str) -> None:
             "Authorization": f"Bearer {access_token}",
             "X-Amzn-Bedrock-AgentCore-Runtime-Session-Id": session_id,
         },
-        data=json.dumps({"prompt": prompt}),
+        data=json.dumps(
+            {
+                "prompt": prompt,
+                "session_id": session_id,
+                "actor_id": actor_id,
+            }
+        ),
     )
 
     print(f"Status: {response.status_code}")

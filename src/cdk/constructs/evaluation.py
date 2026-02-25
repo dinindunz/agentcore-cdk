@@ -1,20 +1,30 @@
 import aws_cdk as cdk
-from aws_cdk import custom_resources as cr
 from aws_cdk import aws_iam as iam
 from aws_cdk import aws_lambda as lambda_
+from aws_cdk import custom_resources as cr
 from constructs import Construct
 
-from .runtime import RuntimeConstruct
 from ..utils import to_snake_case
+from .runtime import RuntimeConstruct
 
 
 # TODO: Refactor to use L2 constructs once they are available.
 class OnlineEvaluationConstruct(Construct):
     """Creates an AgentCore online evaluation configuration.
 
-    Uses the AgentCore SDK (bedrock-agentcore-starter-toolkit) in a Lambda-backed
-    custom resource to create and manage online evaluation configs. The SDK automatically
-    creates an execution role with necessary permissions for running evaluations.
+    Example:
+        evaluation = OnlineEvaluationConstruct(
+            self, "AgentEvaluation",
+            config_name="agent_quality",
+            runtime=agent_runtime,
+            evaluators=[
+                "Builtin.Helpfulness",
+                "Builtin.Accuracy",
+                math_evaluator.to_evaluator_reference()
+            ],
+            sampling_rate=0.5,
+            description="Quality metrics for agent responses"
+        )
     """
 
     def __init__(
@@ -29,6 +39,27 @@ class OnlineEvaluationConstruct(Construct):
         description: str | None = None,
         enable_on_create: bool = True,
     ) -> None:
+        """Create an online evaluation configuration for a runtime.
+
+        Args:
+            scope: CDK construct scope
+            id: Construct ID
+            config_name: Name for the evaluation configuration
+            runtime: AgentCore runtime to evaluate
+            evaluators: List of evaluator IDs (built-in or custom)
+            sampling_rate: Sampling rate (0.0-1.0) for evaluation
+            description: Optional description of the evaluation purpose
+            enable_on_create: Enable evaluation immediately upon creation
+
+        Example:
+            OnlineEvaluationConstruct(
+                self, "SkillEvaluation",
+                config_name="skill_metrics",
+                runtime=skill_runtime,
+                evaluators=["Builtin.Relevance", custom_eval.to_evaluator_reference()],
+                sampling_rate=1.0
+            )
+        """
         super().__init__(scope, id)
 
         stack = cdk.Stack.of(self)
@@ -59,9 +90,7 @@ class OnlineEvaluationConstruct(Construct):
                                 "bedrock-agentcore:ListOnlineEvaluationConfigs",
                                 "bedrock-agentcore:GetAgentRuntime",  # SDK validates agent exists
                             ],
-                            resources=[
-                                "*"
-                            ],  # CDK role will be used when moved to L2 constructs
+                            resources=["*"],  # CDK role will be used when moved to L2 constructs
                         ),
                         # SDK needs permission to create IAM roles for evaluation execution
                         iam.PolicyStatement(
@@ -72,9 +101,7 @@ class OnlineEvaluationConstruct(Construct):
                                 "iam:PutRolePolicy",
                                 "iam:PassRole",
                             ],
-                            resources=[
-                                "*"
-                            ],  # CDK role will be used when moved to L2 constructs
+                            resources=["*"],  # CDK role will be used when moved to L2 constructs
                         ),
                         # SDK needs permission to configure CloudWatch Logs index policies
                         iam.PolicyStatement(
@@ -96,9 +123,7 @@ class OnlineEvaluationConstruct(Construct):
 
         # Extract agent ID from runtime ARN for SDK
         # Runtime ARN format: arn:aws:bedrock-agentcore:region:account:runtime/agent_name-randomid
-        agent_id = cdk.Fn.select(
-            1, cdk.Fn.split("/", runtime.runtime.agent_runtime_arn)
-        )
+        agent_id = cdk.Fn.select(1, cdk.Fn.split("/", runtime.runtime.agent_runtime_arn))
 
         # Custom resource Lambda handler using AgentCore SDK
         handler = lambda_.Function(
@@ -248,15 +273,27 @@ def handler(event, context):
 
     @property
     def config_id(self) -> str:
-        """The online evaluation configuration ID."""
+        """The online evaluation configuration ID.
+
+        Returns:
+            Configuration ID for reference in API calls
+        """
         return self._config_id
 
     @property
     def config_arn(self) -> str:
-        """The full ARN of the online evaluation configuration."""
+        """The full ARN of the online evaluation configuration.
+
+        Returns:
+            Full ARN string for the evaluation config
+        """
         return self._config_arn
 
     @property
     def status(self) -> str:
-        """The status of the evaluation configuration."""
+        """The status of the evaluation configuration.
+
+        Returns:
+            Status string (e.g., "CREATED", "ENABLED", "DISABLED")
+        """
         return self._status

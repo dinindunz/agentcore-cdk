@@ -1,7 +1,7 @@
-from dotenv import load_dotenv
 import os
 
 import aws_cdk as cdk
+from dotenv import load_dotenv
 
 from src.cdk import AgentCoreStack
 

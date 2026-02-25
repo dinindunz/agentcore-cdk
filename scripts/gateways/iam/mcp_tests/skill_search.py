@@ -22,8 +22,8 @@ search_payload_1 = {
 }
 
 print(f"Invoking IAM Gateway at: {auth.get_gateway_url()}")
-print(f"Tool: skill-search___search_skills")
-print(f"Query: 'issue'")
+print("Tool: skill-search___search_skills")
+print("Query: 'issue'")
 
 print("\n=== Calling skill-search___search_skills ===")
 status_code, response_data = auth.make_request(search_payload_1)

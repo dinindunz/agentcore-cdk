@@ -10,6 +10,7 @@ The diagram shows the complete authentication and data flow, including:
 - AgentCore Identity with OAuth2 and API Key credential providers
 - MCP targets (Calculator Runtime, Skill Search Lambda, Temperature Converter Lambda, GitHub OpenAPI)
 - Observability components (Traces, Evaluations, CloudWatch Logs)
+- AgentCore Memory for short-term and long-term conversation memory (Summary, Preference, Semantic, and Episodic strategies)
 - Skills S3 bucket
 
 [View editable diagram](./architecture.excalidraw)
@@ -25,13 +26,15 @@ The diagram shows the complete authentication and data flow, including:
 ├── src/
 │   ├── cdk/                      # CDK infrastructure code
 │   │   ├── stacks/               # CloudFormation stacks
-│   │   │   └── agentcore.py      - Main AgentCore stack (gateways, runtimes, MCP targets)
+│   │   │   └── agentcore.py      - Main AgentCore stack (gateways, runtimes, memory, evals, observability, and MCP targets)
 │   │   ├── constructs/           # Reusable L3 constructs
 │   │   │   ├── cognito.py        - Cognito user pools and app clients
 │   │   │   ├── gateway.py        - AgentCore Gateways
 │   │   │   ├── runtime.py        - AgentCore Runtimes
 │   │   │   ├── identity.py       - Credential providers (OAuth2, API keys) in AgentCore Identity
 │   │   │   ├── evaluation.py     - Online evaluation configurations for runtime monitoring
+│   │   │   ├── custom_evaluator.py - Custom evaluators with configurable models, prompts, and scoring
+│   │   │   ├── memory.py         - AgentCore Memory with Summary, Preference, Semantic, and Episodic strategies
 │   │   │   ├── bucket.py         - S3 buckets with lifecycle policies (store skills)
 │   │   │   └── gateway_targets/  - Gateway target configurations
 │   │   │       ├── lambda_.py    - Lambda function targets
@@ -41,10 +44,32 @@ The diagram shows the complete authentication and data flow, including:
 │   │       ├── cleanup.py        - Log group cleanup aspects and custom resources
 │   │       └── strings.py        - Case conversion utilities (kebab/PascalCase/snake_case)
 │   │
-│   ├── agent/                    # Agent runtime implementation
-│   │   ├── main.py               - Agent entrypoint with Bedrock + MCP integration
+│   ├── agent/                    # Agent runtime implementation (modular Python structure)
+│   │   ├── main.py               - Minimal entry point and orchestration
+│   │   ├── config.py             - Configuration management with lazy loading
+│   │   ├── logger.py             - Reusable structured logging module
+│   │   ├── agent_handler.py      - Core agent invocation logic
+│   │   ├── auth/                 # Authentication modules
+│   │   │   ├── cognito.py        - OAuth2 token management for JWT gateway
+│   │   │   └── sigv4.py          - AWS SigV4 authentication for IAM gateway
+│   │   ├── gateway/              # MCP client management
+│   │   │   └── clients.py        - MCP client setup and tool aggregation
+│   │   ├── prompts/              # System prompt management
+│   │   │   ├── system_prompt.md  - Base system prompt (markdown format)
+│   │   │   └── loader.py         - Load and compose system prompts
+│   │   ├── skills/               # Skills loading from S3
+│   │   │   └── loader.py         - Extract and format skill definitions for system prompt
+│   │   ├── memory/               # Conversation memory integration
+│   │   │   └── short_term.py     - Short-term memory for conversation context
 │   │   ├── pyproject.toml        - Agent dependencies
 │   │   └── Dockerfile            - Agent container image
+│   │
+│   ├── evals/                    # Custom evaluator definitions
+│   │   ├── math_accuracy.py      - Calculator operation validation
+│   │   ├── temperature_conversion.py - Temperature formula validation
+│   │   ├── skill_workflow.py     - Skill completeness checking
+│   │   ├── github_integrity.py   - Data hallucination detection
+│   │   └── output_format.py      - Output format validation
 │   │
 │   ├── mcp/                      # MCP server implementations
 │   │   ├── calculator/           - Basic calculator MCP server (MCP Server Target)
@@ -78,7 +103,8 @@ The diagram shows the complete authentication and data flow, including:
 └── scripts/                      # Testing and invocation scripts
     ├── runtimes/
     │   ├── agent/                # Agent runtime testing
-    │   │   ├── invoke_agent.py   - Invoke agent with Oauth2 authentication
+    │   │   ├── invoke_agent.py   - Invoke agent with OAuth2 authentication (single prompt)
+    │   │   ├── chat_client.py    - Interactive chat client for continuous conversation
     │   │   └── skill_tests/      - Test scripts for each agent skill
     │   └── mcp/                  # MCP runtime testing
     │       └── invoke_calculator.py
@@ -127,11 +153,10 @@ cp .env.example .env
 ```
 
 Edit `.env` and set:
+- `ENV` - Deployment environment (e.g., `dev`, `test`, `prod`) - defaults to `dev` if not set
 - `AWS_ACCOUNT_ID` - Your AWS account ID (e.g., `123456789012`)
 - `REGION_NAME` - AWS region where resources will be deployed (e.g., `ap-southeast-2`)
 - `GITHUB_TOKEN` - Your GitHub personal access token (for GitHub MCP server)
-
-> **Note**: The observability setup script and CDK deployment will use the account and region from your `.env` file.
 
 ### 2. Install Dependencies
 
@@ -175,13 +200,79 @@ make deploy
 
 This will deploy the AgentCore stack with all gateways, runtimes, and MCP servers.
 
-### 6. Run Tests
+### 6. Chat with the Agent
+
+Start an interactive chat session with the agent:
 
 ```bash
-make skill-tests               # Run all agent skill tests
-make iam-tests                 # Run all IAM gateway tests
-make jwt-tests                 # Run all JWT gateway tests
+make agent-chat
 ```
+
+This launches an interactive chat client where you can have continuous conversations with the agent. Type `exit`, `quit`, or `q` to end the session.
+
+> **Note**: Set `ACTOR_ID` in your `.env` file to maintain the same identity across multiple chat sessions. This enables long-term memory strategies (Preference, Semantic, Summary, Episodic) to learn your patterns over time. Without it, a random ID is generated each time.
+
+### 7. Run Tests
+
+Test the deployed infrastructure with different test suites:
+
+```bash
+# Run all tests
+make all-tests
+
+# Agent skill tests (GitHub analysis skills)
+make skill-tests               # Run all agent skill tests
+make skill-issue-heat-map      # Test Issue Heat Map skill
+make skill-portfolio-summary   # Test Portfolio Summary skill
+make skill-repo-comparison     # Test Repo Comparison skill
+make skill-repo-hotness        # Test Repo Hotness Rating skill
+make skill-trending-topic      # Test Trending Topic Scout skill
+
+# IAM Gateway tests
+make iam-tests                 # Run all IAM gateway tests
+make iam-list-tools            # List available tools
+make iam-search-tools          # Search for tools
+make iam-test-calculator       # Test calculator MCP server
+make iam-test-skill-search     # Test skill search MCP server
+
+# JWT Gateway tests
+make jwt-tests                 # Run all JWT gateway tests
+make jwt-list-tools            # List available tools
+make jwt-search-tools          # Search for tools
+make jwt-test-github           # Test GitHub MCP server
+make jwt-test-temperature      # Test temperature converter MCP server
+```
+
+### 8. Monitor Evaluations
+
+The stack includes online evaluations that continuously monitor agent performance with 10 evaluators (5 built-in + 5 custom):
+
+```bash
+# List evaluation configurations
+make eval-list
+
+# View recent evaluation results (last 1 hour by default)
+make eval-results
+
+# View evaluation results from a longer time window
+make eval-results HOURS=6
+```
+
+**Built-in Evaluators** (general quality):
+- **Helpfulness** — Assesses whether responses help users achieve goals
+- **Correctness** — Evaluates factual accuracy
+- **Tool Selection Accuracy** — Validates appropriate tool selection
+- **Tool Parameter Accuracy** — Checks tool parameters are correct
+- **Response Relevance** — Measures relevance to user queries
+
+**Custom Evaluators** (domain-specific validation):
+- **Math Accuracy** — Validates calculator operation correctness
+- **Temperature Conversion Accuracy** — Validates C↔F conversion formulas
+- **Skill Workflow Completeness** — Ensures all required workflow steps completed
+- **GitHub Data Integrity** — Detects hallucinated GitHub data
+- **Structured Output Format** — Validates response formatting and required fields
+
+**For complete evaluator documentation**, including how to create custom evaluators with configurable models, prompts, and scoring schemas, see **[`src/evals/README.md`](src/evals/README.md)**
 
 ## Cleanup
 

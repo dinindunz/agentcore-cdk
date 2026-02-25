@@ -1,10 +1,10 @@
-from typing import Sequence
+from collections.abc import Sequence
 
 from aws_cdk.aws_bedrock_agentcore_alpha import GatewayCredentialProvider
 from constructs import Construct
 
-from ..gateway import GatewayConstruct
 from ...utils import to_pascal_case
+from ..gateway import GatewayConstruct
 
 
 class McpServerTargetConstruct(Construct):
@@ -19,9 +19,7 @@ class McpServerTargetConstruct(Construct):
         target_name: str,
         description: str,
         endpoint: str,
-        credential_provider_configurations: (
-            Sequence[GatewayCredentialProvider] | None
-        ) = None,
+        credential_provider_configurations: (Sequence[GatewayCredentialProvider] | None) = None,
     ) -> None:
         super().__init__(scope, id)
 

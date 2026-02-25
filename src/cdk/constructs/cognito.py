@@ -11,6 +11,13 @@ class UserPoolConstruct(Construct):
 
     Resource names are automatically prefixed with the kebab-case stack name.
     The ``name`` param is a short identifier (e.g. ``"agent"``, ``"gateway"``, ``"mcp"``).
+
+    Example:
+        agent_pool = UserPoolConstruct(
+            self, "AgentPool",
+            name="agent",
+            scope_description="Invoke agent runtime"
+        )
     """
 
     def __init__(
@@ -21,6 +28,21 @@ class UserPoolConstruct(Construct):
         name: str,
         scope_description: str,
     ) -> None:
+        """Create a Cognito user pool with domain and OAuth client.
+
+        Args:
+            scope: CDK construct scope
+            id: Construct ID
+            name: Short identifier (e.g., "agent", "gateway")
+            scope_description: Description for the OAuth invoke scope
+
+        Example:
+            UserPoolConstruct(
+                self, "GatewayPool",
+                name="gateway",
+                scope_description="Invoke gateway endpoints"
+            )
+        """
         super().__init__(scope, id)
 
         stack = cdk.Stack.of(self)
@@ -61,9 +83,7 @@ class UserPoolConstruct(Construct):
             generate_secret=True,
             o_auth=cognito.OAuthSettings(
                 flows=cognito.OAuthFlows(client_credentials=True),
-                scopes=[
-                    cognito.OAuthScope.resource_server(resource_server, invoke_scope)
-                ],
+                scopes=[cognito.OAuthScope.resource_server(resource_server, invoke_scope)],
             ),
         )
 
@@ -72,13 +92,9 @@ class UserPoolConstruct(Construct):
             "Secret",
             secret_name=self._secret_name,
             secret_object_value={
-                "client_id": cdk.SecretValue.unsafe_plain_text(
-                    self._client.user_pool_client_id
-                ),
+                "client_id": cdk.SecretValue.unsafe_plain_text(self._client.user_pool_client_id),
                 "client_secret": self._client.user_pool_client_secret,
-                "user_pool_id": cdk.SecretValue.unsafe_plain_text(
-                    self._user_pool.user_pool_id
-                ),
+                "user_pool_id": cdk.SecretValue.unsafe_plain_text(self._user_pool.user_pool_id),
                 "token_endpoint": cdk.SecretValue.unsafe_plain_text(
                     f"{self._domain.base_url()}/oauth2/token"
                 ),
@@ -88,16 +104,36 @@ class UserPoolConstruct(Construct):
 
     @property
     def user_pool(self) -> cognito.UserPool:
+        """The Cognito user pool.
+
+        Returns:
+            The UserPool resource
+        """
         return self._user_pool
 
     @property
     def domain(self) -> cognito.UserPoolDomain:
+        """The Cognito domain for OAuth flows.
+
+        Returns:
+            The UserPoolDomain resource
+        """
         return self._domain
 
     @property
     def client(self) -> cognito.UserPoolClient:
+        """The Cognito user pool client.
+
+        Returns:
+            The UserPoolClient resource
+        """
         return self._client
 
     @property
     def secret_name(self) -> str:
+        """Secrets Manager secret name containing credentials.
+
+        Returns:
+            Secret name in format: {stack-prefix}/{name}-cognito
+        """
         return self._secret_name

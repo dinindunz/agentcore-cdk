@@ -4,26 +4,37 @@ import aws_cdk as cdk
 from aws_cdk import aws_iam as iam
 
 # TODO: Refactor to use aws_cdk once L2 constructs are available.
-from aws_cdk.aws_bedrock_agentcore_alpha import ProtocolType, GatewayAuthorizer
+from aws_cdk.aws_bedrock_agentcore_alpha import GatewayAuthorizer, ProtocolType
 from constructs import Construct
 
+# Import evaluator definitions
+from ...evals import (
+    github_integrity,
+    math_accuracy,
+    output_format,
+    skill_workflow,
+    temperature_conversion,
+)
 from ..constructs import (
+    ApiKeyCredentialProviderConstruct,
     BucketDeploymentConstruct,
+    CustomEvaluatorConstruct,
+    GatewayConstruct,
     LambdaTargetConstruct,
     McpServerTargetConstruct,
-    OpenApiTargetConstruct,
-    UserPoolConstruct,
-    RuntimeConstruct,
-    GatewayConstruct,
+    MemoryConstruct,
+    ModelConfiguration,
     OAuth2CredentialProviderConstruct,
-    ApiKeyCredentialProviderConstruct,
     OnlineEvaluationConstruct,
+    OpenApiTargetConstruct,
+    RuntimeConstruct,
+    ScoringSchemaDefinition,
+    UserPoolConstruct,
 )
 from ..utils import DestroyLogGroups, LogGroupCleanup, to_kebab_case, to_snake_case
 
 
 class AgentCoreStack(cdk.Stack):
-
     def __init__(
         self,
         scope: Construct,
@@ -124,6 +135,20 @@ class AgentCoreStack(cdk.Stack):
         )
 
         # ---------------------------------------------------------------
+        # Create Memory
+        # ---------------------------------------------------------------
+        self.memory = MemoryConstruct(
+            self,
+            "AgentMemory",
+            memory_name="agent-memory",
+            event_expiry_days=90,
+            enable_summary_strategy=True,
+            enable_preference_strategy=True,
+            enable_semantic_strategy=True,
+            enable_episodic_strategy=False,  # TODO: Disabled - Fix configuration issues
+        )
+
+        # ---------------------------------------------------------------
         # AgentCore Runtimes
         # ---------------------------------------------------------------
 
@@ -134,6 +159,9 @@ class AgentCoreStack(cdk.Stack):
             "IAM_GATEWAY_SSM_PATH": iam_gw.ssm_url_param_name,
             "GATEWAY_COGNITO_SECRET": gateway_auth.secret_name,
             "SKILLS_BUCKET": skills_bucket.bucket_name_value,
+            "MEMORY_ID": self.memory.memory_id,
+            "LOG_LEVEL": "INFO",  # Configurable logging level (DEBUG, INFO, WARNING, ERROR)
+            "OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED": "false",  # Disable OTEL log duplication
         }
 
         # Agent Runtime — the "agent" runtime that will orchestrate calls to the gateways and execute tools
@@ -162,8 +190,132 @@ class AgentCoreStack(cdk.Stack):
             )
         )
 
+        # Grant agent runtime permissions to use memory
+        agent_rt.role.add_to_policy(
+            iam.PolicyStatement(
+                actions=[
+                    "bedrock-agentcore:CreateEvent",
+                    "bedrock-agentcore:ListEvents",
+                    "bedrock-agentcore:GetEvent",
+                    "bedrock-agentcore:ListSessions",
+                    "bedrock-agentcore:RetrieveMemoryRecords",
+                    "bedrock-agentcore:GetMemoryRecord",
+                    "bedrock-agentcore:ListMemoryRecords",
+                ],
+                resources=[
+                    f"arn:aws:bedrock-agentcore:{self.region}:{self.account}:memory/{self.memory.memory_id}",
+                    f"arn:aws:bedrock-agentcore:{self.region}:{self.account}:memory/{self.memory.memory_id}/*",
+                ],
+            )
+        )
+
         # ---------------------------------------------------------------
-        # Online Evaluation — continuous monitoring of agent performance
+        # Custom Evaluators — domain-specific validation
+        # ---------------------------------------------------------------
+
+        # Math Accuracy Evaluator (tool level)
+        math_eval = CustomEvaluatorConstruct(
+            self,
+            "MathAccuracyEvaluator",
+            evaluator_name=math_accuracy.EVALUATOR_NAME,
+            evaluation_level=math_accuracy.EVALUATION_LEVEL,
+            prompt=math_accuracy.PROMPT,
+            scoring_schema=ScoringSchemaDefinition.numbered_scale(
+                min_value=math_accuracy.MIN_VALUE,
+                max_value=math_accuracy.MAX_VALUE,
+                description=math_accuracy.SCORING_DESCRIPTION,
+            ),
+            model_config=ModelConfiguration(
+                model_id=math_accuracy.MODEL_ID,
+                temperature=math_accuracy.TEMPERATURE,
+                top_p=math_accuracy.TOP_P,
+                max_tokens=math_accuracy.MAX_TOKENS,
+            ),
+            description=math_accuracy.DESCRIPTION,
+        )
+
+        # Temperature Conversion Evaluator (tool level)
+        temp_conversion_eval = CustomEvaluatorConstruct(
+            self,
+            "TemperatureConversionEvaluator",
+            evaluator_name=temperature_conversion.EVALUATOR_NAME,
+            evaluation_level=temperature_conversion.EVALUATION_LEVEL,
+            prompt=temperature_conversion.PROMPT,
+            scoring_schema=ScoringSchemaDefinition.binary(
+                description=temperature_conversion.SCORING_DESCRIPTION
+            ),
+            model_config=ModelConfiguration(
+                model_id=temperature_conversion.MODEL_ID,
+                temperature=temperature_conversion.TEMPERATURE,
+                top_p=temperature_conversion.TOP_P,
+                max_tokens=temperature_conversion.MAX_TOKENS,
+            ),
+            description=temperature_conversion.DESCRIPTION,
+        )
+
+        # Skill Workflow Evaluator (trace level)
+        skill_workflow_eval = CustomEvaluatorConstruct(
+            self,
+            "SkillWorkflowEvaluator",
+            evaluator_name=skill_workflow.EVALUATOR_NAME,
+            evaluation_level=skill_workflow.EVALUATION_LEVEL,
+            prompt=skill_workflow.PROMPT,
+            scoring_schema=ScoringSchemaDefinition.numbered_scale(
+                min_value=skill_workflow.MIN_VALUE,
+                max_value=skill_workflow.MAX_VALUE,
+                description=skill_workflow.SCORING_DESCRIPTION,
+            ),
+            model_config=ModelConfiguration(
+                model_id=skill_workflow.MODEL_ID,
+                temperature=skill_workflow.TEMPERATURE,
+                top_p=skill_workflow.TOP_P,
+                max_tokens=skill_workflow.MAX_TOKENS,
+            ),
+            description=skill_workflow.DESCRIPTION,
+        )
+
+        # GitHub Data Integrity Evaluator (trace level)
+        github_integrity_eval = CustomEvaluatorConstruct(
+            self,
+            "GitHubIntegrityEvaluator",
+            evaluator_name=github_integrity.EVALUATOR_NAME,
+            evaluation_level=github_integrity.EVALUATION_LEVEL,
+            prompt=github_integrity.PROMPT,
+            scoring_schema=ScoringSchemaDefinition.numbered_scale(
+                min_value=github_integrity.MIN_VALUE,
+                max_value=github_integrity.MAX_VALUE,
+                description=github_integrity.SCORING_DESCRIPTION,
+            ),
+            model_config=ModelConfiguration(
+                model_id=github_integrity.MODEL_ID,
+                temperature=github_integrity.TEMPERATURE,
+                top_p=github_integrity.TOP_P,
+                max_tokens=github_integrity.MAX_TOKENS,
+            ),
+            description=github_integrity.DESCRIPTION,
+        )
+
+        # Output Format Evaluator (trace level)
+        output_format_eval = CustomEvaluatorConstruct(
+            self,
+            "OutputFormatEvaluator",
+            evaluator_name=output_format.EVALUATOR_NAME,
+            evaluation_level=output_format.EVALUATION_LEVEL,
+            prompt=output_format.PROMPT,
+            scoring_schema=ScoringSchemaDefinition.binary(
+                description=output_format.SCORING_DESCRIPTION
+            ),
+            model_config=ModelConfiguration(
+                model_id=output_format.MODEL_ID,
+                temperature=output_format.TEMPERATURE,
+                top_p=output_format.TOP_P,
+                max_tokens=output_format.MAX_TOKENS,
+            ),
+            description=output_format.DESCRIPTION,
+        )
+
+        # ---------------------------------------------------------------
+        # Online Evaluation — continuous monitoring with built-in + custom evaluators
         # ---------------------------------------------------------------
 
         agent_eval = OnlineEvaluationConstruct(
@@ -172,14 +324,21 @@ class AgentCoreStack(cdk.Stack):
             config_name=f"{agent_rt.runtime.agent_runtime_name}",
             runtime=agent_rt,
             evaluators=[
+                # Built-in evaluators (LLM-as-judge for general quality) - max 10 total
                 "Builtin.Helpfulness",
+                "Builtin.Correctness",
                 "Builtin.ToolSelectionAccuracy",
                 "Builtin.ToolParameterAccuracy",
                 "Builtin.ResponseRelevance",
-                "Builtin.InstructionFollowing",
+                # Custom evaluators (domain-specific validation)
+                math_eval.to_evaluator_reference(),
+                temp_conversion_eval.to_evaluator_reference(),
+                skill_workflow_eval.to_evaluator_reference(),
+                github_integrity_eval.to_evaluator_reference(),
+                output_format_eval.to_evaluator_reference(),
             ],
             sampling_rate=100.0,  # Evaluate 100% of interactions
-            description="Continuous evaluation of agent quality and tool usage",
+            description="Comprehensive evaluation with built-in + custom evaluators",
             enable_on_create=True,
         )
 
@@ -191,6 +350,7 @@ class AgentCoreStack(cdk.Stack):
             asset_path="mcp/calculator",
             protocol=ProtocolType.MCP,
             auth_pool=mcp_auth,
+            environment_variables={"LOG_LEVEL": "INFO"},
         )
 
         # ---------------------------------------------------------------
@@ -205,7 +365,10 @@ class AgentCoreStack(cdk.Stack):
             gateway=iam_gw,
             target_name="skill-search",
             description="Search available agent skills by keyword",
-            environment={"SKILLS_BUCKET": skills_bucket.bucket_name_value},
+            environment={
+                "SKILLS_BUCKET": skills_bucket.bucket_name_value,
+                "LOG_LEVEL": "INFO",
+            },
         )
         skills_bucket.bucket.grant_read(skill_search.function)
 
@@ -228,6 +391,7 @@ class AgentCoreStack(cdk.Stack):
             gateway=jwt_gw,
             target_name="temperature-converter",
             description="Temperature conversion tools (Celsius <> Fahrenheit)",
+            environment={"LOG_LEVEL": "INFO"},
         )
 
         # GitHub Open API Target on JWT Gateway
@@ -247,7 +411,7 @@ class AgentCoreStack(cdk.Stack):
             "LogGroupCleanup",
             log_group_prefixes=[
                 f"/aws/bedrock-agentcore/runtimes/{to_snake_case(self.stack_name)}_",
-                f"/aws/bedrock-agentcore/evaluations/",
+                "/aws/bedrock-agentcore/evaluations/",
                 f"/aws/lambda/{self.stack_name}-",
                 f"/aws/lambda/{stack_prefix}-",
             ],
@@ -268,9 +432,7 @@ class AgentCoreStack(cdk.Stack):
         # ---------------------------------------------------------------
         cdk.CfnOutput(self, "IamGatewayUrl", value=iam_gw.url)
         cdk.CfnOutput(self, "JwtGatewayUrl", value=jwt_gw.url)
-        cdk.CfnOutput(
-            self, "JwtGatewayUserPoolId", value=gateway_auth.user_pool.user_pool_id
-        )
+        cdk.CfnOutput(self, "JwtGatewayUserPoolId", value=gateway_auth.user_pool.user_pool_id)
         cdk.CfnOutput(
             self,
             "JwtGatewayUserPoolClientId",
@@ -282,21 +444,15 @@ class AgentCoreStack(cdk.Stack):
             value=f"{gateway_auth.domain.base_url()}/oauth2/token",
         )
         cdk.CfnOutput(self, "AgentUserPoolId", value=agent_auth.user_pool.user_pool_id)
-        cdk.CfnOutput(
-            self, "AgentUserPoolClientId", value=agent_auth.client.user_pool_client_id
-        )
+        cdk.CfnOutput(self, "AgentUserPoolClientId", value=agent_auth.client.user_pool_client_id)
         cdk.CfnOutput(
             self,
             "AgentTokenEndpoint",
             value=f"{agent_auth.domain.base_url()}/oauth2/token",
         )
         cdk.CfnOutput(self, "McpUserPoolId", value=mcp_auth.user_pool.user_pool_id)
-        cdk.CfnOutput(
-            self, "McpUserPoolClientId", value=mcp_auth.client.user_pool_client_id
-        )
-        cdk.CfnOutput(
-            self, "McpTokenEndpoint", value=f"{mcp_auth.domain.base_url()}/oauth2/token"
-        )
+        cdk.CfnOutput(self, "McpUserPoolClientId", value=mcp_auth.client.user_pool_client_id)
+        cdk.CfnOutput(self, "McpTokenEndpoint", value=f"{mcp_auth.domain.base_url()}/oauth2/token")
         cdk.CfnOutput(self, "AgentRuntimeArn", value=agent_rt.runtime.agent_runtime_arn)
         cdk.CfnOutput(
             self,

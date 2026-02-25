@@ -16,6 +16,10 @@ help:
 	@echo "  make install                       - Set up virtual environment and install dependencies"
 	@echo "  make setup-observability           - Enable CloudWatch Transaction Search (one-time account setup)"
 	@echo ""
+	@echo "Code Quality:"
+	@echo "  make lint                          - Lint Python code with ruff"
+	@echo "  make format                        - Format Python code with ruff"
+	@echo ""
 	@echo "CDK Deployment:"
 	@echo "  make deploy                        - Deploy AgentCore stack (ENV=dev by default)"
 	@echo "  make diff                          - Show AgentCore stack changes"
@@ -23,6 +27,7 @@ help:
 	@echo ""
 	@echo "Agent Runtime:"
 	@echo "  make agent-hello                   - Send a hello message to the agent runtime"
+	@echo "  make agent-chat                    - Start interactive chat with the agent"
 	@echo ""
 	@echo "Skill Tests (Agent Runtime):"
 	@echo "  make skill-issue-heat-map          - Test Issue Heat Map skill"
@@ -52,11 +57,17 @@ help:
 	@echo "MCP Direct Runtime Invocation:"
 	@echo "  make mcp-invoke-calculator         - Directly invoke calculator MCP runtime"
 	@echo ""
+	@echo "Evaluation Commands:"
+	@echo "  make eval-list                     - List online evaluation configurations"
+	@echo "  make eval-results                  - Query recent evaluation results (default: last 1 hour)"
+	@echo "  make eval-results HOURS=<n>        - Query evaluation results for last N hours"
+	@echo ""
 	@echo "Examples:"
 	@echo "  make deploy ENV=prod               - Deploy AgentCore to production"
 	@echo "  make diff ENV=test                 - Show changes for test environment"
 	@echo "  make iam-invoke-tool TOOL=add ARGS='{\"a\": 5, \"b\": 3}'"
 	@echo "  make jwt-invoke-tool TOOL=temperature-converter___celsius_to_fahrenheit ARGS='{\"celsius\": 25}'"
+	@echo "  make eval-results HOURS=6          - Query evaluation results from last 6 hours"
 
 # ==============================================================================
 # Setup Commands
@@ -108,14 +119,28 @@ setup-observability:
 	@AWS_ACCOUNT_ID=$(AWS_ACCOUNT_ID) REGION_NAME=$(REGION_NAME) ./src/observability/setup.sh
 
 # ==============================================================================
+# Code Quality Commands
+# ==============================================================================
+
+lint:
+	@echo "Linting Python code with ruff..."
+	@.venv/bin/ruff check src/ scripts/ app.py
+
+format:
+	@echo "Formatting Python code with ruff..."
+	@.venv/bin/ruff format src/ scripts/ app.py
+	@.venv/bin/ruff check --select I --fix src/ scripts/ app.py
+	@echo "✓ Code formatted successfully"
+
+# ==============================================================================
 # CDK Deployment Commands
 # ==============================================================================
 
-deploy:
+deploy: format lint
 	@echo "Deploying AgentCore stack (ENV=$(ENV))..."
 	cdk deploy --context env=$(ENV) --require-approval never --exclusively AgentCoreStack-$(ENV)
 
-diff:
+diff: format lint
 	@echo "Showing changes for AgentCore stack (ENV=$(ENV))..."
 	cdk diff --context env=$(ENV) --exclusively AgentCoreStack-$(ENV)
 
@@ -130,6 +155,10 @@ destroy:
 agent-hello:
 	@echo "Sending hello to agent runtime..."
 	@cd scripts/runtimes/agent && python hello.py
+
+agent-chat:
+	@echo "Starting interactive chat with agent..."
+	@cd scripts/runtimes/agent && python chat_client.py
 
 skill-issue-heat-map:
 	@echo "Running Issue Heat Map skill test..."
@@ -236,6 +265,20 @@ jwt-mcp-tests: jwt-test-github jwt-test-temperature
 mcp-invoke-calculator:
 	@echo "Directly invoking Calculator MCP runtime..."
 	@cd scripts/runtimes/mcp && python invoke_calculator.py
+
+# ==============================================================================
+# Evaluation Commands
+# ==============================================================================
+
+PYTHON := .venv/bin/python
+
+eval-list:
+	@echo "📊 Listing online evaluation configurations..."
+	@$(PYTHON) scripts/evaluations/list_configs.py
+
+eval-results:
+	@echo "🔍 Querying evaluation results from CloudWatch Logs..."
+	@$(PYTHON) scripts/evaluations/query_results.py $(if $(HOURS),$(HOURS),1)
 
 # ==============================================================================
 # Convenience Targets

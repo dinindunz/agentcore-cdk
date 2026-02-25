@@ -1,4 +1,4 @@
-from typing import Sequence
+from collections.abc import Sequence
 
 import aws_cdk as cdk
 from aws_cdk import aws_iam as iam
@@ -10,7 +10,17 @@ from ..utils import to_kebab_case
 
 
 class GatewayConstruct(Construct):
-    """AgentCore gateway with credential provider service role permissions and SSM URL parameter."""
+    """AgentCore gateway with credential provider service role permissions and SSM URL parameter.
+
+    Example:
+        gateway = GatewayConstruct(
+            self, "IAMGateway",
+            gateway_name="iam",
+            authorizer_configuration=GatewayAuthorizer.using_aws_iam(),
+            oauth2_provider_names=["github-oauth"],
+            api_key_provider_names=["api-key"]
+        )
+    """
 
     def __init__(
         self,
@@ -22,6 +32,23 @@ class GatewayConstruct(Construct):
         oauth2_provider_names: Sequence[str] | None = None,
         api_key_provider_names: Sequence[str] | None = None,
     ) -> None:
+        """Create an AgentCore gateway with credential provider support.
+
+        Args:
+            scope: CDK construct scope
+            id: Construct ID
+            gateway_name: Name for the gateway (will be prefixed with stack name)
+            authorizer_configuration: Gateway authorisation configuration
+            oauth2_provider_names: OAuth2 provider names for IAM permissions
+            api_key_provider_names: API key provider names for IAM permissions
+
+        Example:
+            GatewayConstruct(
+                self, "JWTGateway",
+                gateway_name="jwt",
+                authorizer_configuration=GatewayAuthorizer.using_cognito(user_pool)
+            )
+        """
         super().__init__(scope, id)
 
         stack = cdk.Stack.of(self)
@@ -46,7 +73,9 @@ class GatewayConstruct(Construct):
 
         if has_oauth2 or has_api_key:
             workload_identity_base = f"arn:aws:bedrock-agentcore:{stack.region}:{stack.account}:workload-identity-directory/default"
-            token_vault_base = f"arn:aws:bedrock-agentcore:{stack.region}:{stack.account}:token-vault/default"
+            token_vault_base = (
+                f"arn:aws:bedrock-agentcore:{stack.region}:{stack.account}:token-vault/default"
+            )
 
             actions = [
                 "bedrock-agentcore:CompleteResourceTokenAuth",
@@ -61,16 +90,12 @@ class GatewayConstruct(Construct):
             if has_oauth2:
                 actions.append("bedrock-agentcore:GetResourceOauth2Token")
                 for name in oauth2_provider_names:
-                    resources.append(
-                        f"{token_vault_base}/oauth2credentialprovider/{name}"
-                    )
+                    resources.append(f"{token_vault_base}/oauth2credentialprovider/{name}")
 
             if has_api_key:
                 actions.append("bedrock-agentcore:GetResourceApiKey")
                 for name in api_key_provider_names:
-                    resources.append(
-                        f"{token_vault_base}/apikeycredentialprovider/{name}"
-                    )
+                    resources.append(f"{token_vault_base}/apikeycredentialprovider/{name}")
 
             self._gateway.role.add_to_policy(
                 iam.PolicyStatement(actions=actions, resources=resources)
@@ -87,12 +112,27 @@ class GatewayConstruct(Construct):
 
     @property
     def gateway(self) -> Gateway:
+        """The AgentCore gateway resource.
+
+        Returns:
+            The Gateway L2 construct
+        """
         return self._gateway
 
     @property
     def url(self) -> str:
+        """The gateway MCP endpoint URL.
+
+        Returns:
+            HTTPS URL in format: https://{gateway-id}.gateway.bedrock-agentcore.{region}.amazonaws.com/mcp
+        """
         return self._url
 
     @property
     def ssm_url_param_name(self) -> str:
+        """SSM parameter name storing the gateway URL.
+
+        Returns:
+            Parameter name in format: /{stack-prefix}/{gateway-name}-url
+        """
         return self._ssm_url_param_name

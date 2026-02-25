@@ -8,21 +8,33 @@ from aws_cdk import aws_logs as logs
 from aws_cdk import aws_ssm as ssm
 from aws_cdk.aws_bedrock_agentcore_alpha import (
     AgentRuntimeArtifact,
+    ProtocolType,
     Runtime,
     RuntimeAuthorizerConfiguration,
-    ProtocolType,
 )
-from cdk_ecr_deployment import ECRDeployment, DockerImageName
+from cdk_ecr_deployment import DockerImageName, ECRDeployment
 from constructs import Construct
 
-from .cognito import UserPoolConstruct
 from ..utils import to_kebab_case, to_snake_case
+from .cognito import UserPoolConstruct
 
 
 class RuntimeConstruct(Construct):
     """AgentCore runtime with execution role, ECR repository, container artifact, and SSM ARN parameter.
 
-    Optionally configures X-Ray observability using CloudWatch Logs delivery."""
+    Optionally configures X-Ray observability using CloudWatch Logs delivery.
+
+    Example:
+        runtime = RuntimeConstruct(
+            self, "AgentRuntime",
+            runtime_name="agent",
+            asset_path="src/agent",
+            protocol=ProtocolType.MCP,
+            auth_pool=user_pool,
+            environment_variables={"MEMORY_ID": memory.memory_id},
+            enable_observability=True
+        )
+    """
 
     def __init__(
         self,
@@ -36,6 +48,27 @@ class RuntimeConstruct(Construct):
         environment_variables: dict[str, str] | None = None,
         enable_observability: bool = False,
     ) -> None:
+        """Create an AgentCore runtime with container deployment.
+
+        Args:
+            scope: CDK construct scope
+            id: Construct ID
+            runtime_name: Name for the runtime (will be prefixed with stack name)
+            asset_path: Path to Docker context directory
+            protocol: Protocol type (MCP, HTTP, or A2A)
+            auth_pool: Cognito user pool for JWT authorisation
+            environment_variables: Environment variables for the container
+            enable_observability: Enable X-Ray tracing via CloudWatch Logs delivery
+
+        Example:
+            RuntimeConstruct(
+                self, "CalculatorRuntime",
+                runtime_name="calculator",
+                asset_path="src/mcp/calculator",
+                protocol=ProtocolType.MCP,
+                auth_pool=user_pool
+            )
+        """
         super().__init__(scope, id)
 
         stack = cdk.Stack.of(self)
@@ -46,9 +79,7 @@ class RuntimeConstruct(Construct):
         ssm_param_key = f"{to_kebab_case(id)}-arn"
 
         # Runtime names only allow letters, numbers, and underscores — use snake_case
-        prefixed_runtime_name = (
-            f"{to_snake_case(stack.stack_name)}_{to_snake_case(runtime_name)}"
-        )
+        prefixed_runtime_name = f"{to_snake_case(stack.stack_name)}_{to_snake_case(runtime_name)}"
 
         self._role = iam.Role(
             self,
@@ -99,10 +130,13 @@ class RuntimeConstruct(Construct):
 
         # Build the Docker image (pushed to CDK bootstrap ECR during synth/deploy)
         # __file__ is src/cdk/constructs/runtime.py — ../.. resolves to src/
+        # Build context is src/ to allow access to common/ shared utilities
+        src_dir = os.path.join(os.path.dirname(__file__), "..", "..")
         docker_asset = ecr_assets.DockerImageAsset(
             self,
             "DockerAsset",
-            directory=os.path.join(os.path.dirname(__file__), "..", "..", asset_path),
+            directory=src_dir,
+            file=os.path.join(asset_path, "Dockerfile"),
         )
 
         # Copy the built image into our named ECR repository
@@ -110,17 +144,13 @@ class RuntimeConstruct(Construct):
             self,
             "ImageDeployment",
             src=DockerImageName(docker_asset.image_uri),
-            dest=DockerImageName(
-                f"{self._ecr_repo.repository_uri}:{docker_asset.image_tag}"
-            ),
+            dest=DockerImageName(f"{self._ecr_repo.repository_uri}:{docker_asset.image_tag}"),
         )
 
         # Grant the runtime execution role permission to pull from our ECR repo
         self._ecr_repo.grant_pull(self._role)
 
-        artifact = AgentRuntimeArtifact.from_ecr_repository(
-            self._ecr_repo, docker_asset.image_tag
-        )
+        artifact = AgentRuntimeArtifact.from_ecr_repository(self._ecr_repo, docker_asset.image_tag)
 
         self._runtime = Runtime(
             self,
@@ -191,17 +221,36 @@ class RuntimeConstruct(Construct):
 
     @property
     def runtime(self) -> Runtime:
+        """The AgentCore runtime resource.
+
+        Returns:
+            The Runtime L2 construct
+        """
         return self._runtime
 
     @property
     def endpoint(self) -> str | None:
-        """MCP invocation endpoint (only available for MCP protocol runtimes)."""
+        """MCP invocation endpoint (only available for MCP protocol runtimes).
+
+        Returns:
+            HTTPS invocation URL with URL-encoded ARN, or None for non-MCP protocols
+        """
         return self._endpoint
 
     @property
     def role(self) -> iam.Role:
+        """The runtime execution IAM role.
+
+        Returns:
+            IAM Role with permissions for Bedrock, SSM, and Secrets Manager
+        """
         return self._role
 
     @property
     def ecr_repository(self) -> ecr.Repository:
+        """The ECR repository for container images.
+
+        Returns:
+            ECR Repository with lifecycle policy (max 5 images)
+        """
         return self._ecr_repo

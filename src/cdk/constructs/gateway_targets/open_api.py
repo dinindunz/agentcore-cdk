@@ -1,11 +1,11 @@
 import os
-from typing import Sequence
+from collections.abc import Sequence
 
 from aws_cdk.aws_bedrock_agentcore_alpha import ApiSchema, GatewayCredentialProvider
 from constructs import Construct
 
-from ..gateway import GatewayConstruct
 from ...utils import to_pascal_case
+from ..gateway import GatewayConstruct
 
 
 class OpenApiTargetConstruct(Construct):
@@ -20,16 +20,12 @@ class OpenApiTargetConstruct(Construct):
         target_name: str,
         description: str,
         schema_path: str,
-        credential_provider_configurations: (
-            Sequence[GatewayCredentialProvider] | None
-        ) = None,
+        credential_provider_configurations: (Sequence[GatewayCredentialProvider] | None) = None,
     ) -> None:
         super().__init__(scope, id)
 
         # __file__ is src/cdk/constructs/gateway_targets/open_api.py — ../../.. resolves to src/
-        schema_file = os.path.join(
-            os.path.dirname(__file__), "..", "..", "..", schema_path
-        )
+        schema_file = os.path.join(os.path.dirname(__file__), "..", "..", "..", schema_path)
 
         gateway.gateway.add_open_api_target(
             f"{to_pascal_case(target_name)}Target",

@@ -28,9 +28,9 @@ def get_gateway_url() -> str:
         str: The IAM gateway URL
     """
     ssm_client = boto3.client("ssm", region_name=REGION_NAME)
-    return ssm_client.get_parameter(Name="/agent-core-stack-dev/iam-gateway-url")[
-        "Parameter"
-    ]["Value"]
+    return ssm_client.get_parameter(Name="/agent-core-stack-dev/iam-gateway-url")["Parameter"][
+        "Value"
+    ]
 
 
 def get_credentials():
