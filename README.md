@@ -47,7 +47,6 @@ The diagram shows the complete authentication and data flow, including:
 │   ├── agent/                    # Agent runtime implementation
 │   │   ├── main.py               - Agent entrypoint with Bedrock + MCP integration
 │   │   ├── memory/               # Memory strategy clients
-│   │   │   ├── __init__.py       - Memory package exports
 │   │   │   └── short_term.py     - Short-term memory for conversation context
 │   │   ├── pyproject.toml        - Agent dependencies
 │   │   └── Dockerfile            - Agent container image
@@ -57,8 +56,7 @@ The diagram shows the complete authentication and data flow, including:
 │   │   ├── temperature_conversion.py - Temperature formula validation
 │   │   ├── skill_workflow.py     - Skill completeness checking
 │   │   ├── github_integrity.py   - Data hallucination detection
-│   │   ├── output_format.py      - Output format validation
-│   │   └── README.md             - Evaluator documentation
+│   │   └── output_format.py      - Output format validation
 │   │
 │   ├── mcp/                      # MCP server implementations
 │   │   ├── calculator/           - Basic calculator MCP server (MCP Server Target)
@@ -232,6 +230,37 @@ make jwt-search-tools          # Search for tools
 make jwt-test-github           # Test GitHub MCP server
 make jwt-test-temperature      # Test temperature converter MCP server
 ```
+
+### 8. Monitor Evaluations
+
+The stack includes online evaluations that continuously monitor agent performance with 10 evaluators (5 built-in + 5 custom):
+
+```bash
+# List evaluation configurations
+make eval-list
+
+# View recent evaluation results (last 1 hour by default)
+make eval-results
+
+# View evaluation results from a longer time window
+make eval-results HOURS=6
+```
+
+**Built-in Evaluators** (general quality):
+- **Helpfulness** — Assesses whether responses help users achieve goals
+- **Correctness** — Evaluates factual accuracy
+- **Tool Selection Accuracy** — Validates appropriate tool selection
+- **Tool Parameter Accuracy** — Checks tool parameters are correct
+- **Response Relevance** — Measures relevance to user queries
+
+**Custom Evaluators** (domain-specific validation):
+- **Math Accuracy** — Validates calculator operation correctness
+- **Temperature Conversion Accuracy** — Validates C↔F conversion formulas
+- **Skill Workflow Completeness** — Ensures all required workflow steps completed
+- **GitHub Data Integrity** — Detects hallucinated GitHub data
+- **Structured Output Format** — Validates response formatting and required fields
+
+**For complete evaluator documentation**, including how to create custom evaluators with configurable models, prompts, and scoring schemas, see **[`src/evals/README.md`](src/evals/README.md)**
 
 ## Cleanup
 

@@ -66,7 +66,7 @@ class ScoringSchemaDefinition:
         return {
             "categorical": [
                 {"label": "Yes", "definition": "Criteria is met"},
-                {"label": "No", "definition": "Criteria is not met"}
+                {"label": "No", "definition": "Criteria is not met"},
             ]
         }
 
@@ -127,6 +127,7 @@ class ModelConfiguration:
 
 # Type aliases for better IDE support
 EvaluationLevel = Literal["session", "trace", "toolCall"]
+
 
 # TODO: Refactor to use L2 constructs once they are available.
 class CustomEvaluatorConstruct(Construct):
