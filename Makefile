@@ -53,11 +53,17 @@ help:
 	@echo "MCP Direct Runtime Invocation:"
 	@echo "  make mcp-invoke-calculator         - Directly invoke calculator MCP runtime"
 	@echo ""
+	@echo "Evaluation Commands:"
+	@echo "  make eval-list                     - List online evaluation configurations"
+	@echo "  make eval-results                  - Query recent evaluation results (default: last 1 hour)"
+	@echo "  make eval-results HOURS=<n>        - Query evaluation results for last N hours"
+	@echo ""
 	@echo "Examples:"
 	@echo "  make deploy ENV=prod               - Deploy AgentCore to production"
 	@echo "  make diff ENV=test                 - Show changes for test environment"
 	@echo "  make iam-invoke-tool TOOL=add ARGS='{\"a\": 5, \"b\": 3}'"
 	@echo "  make jwt-invoke-tool TOOL=temperature-converter___celsius_to_fahrenheit ARGS='{\"celsius\": 25}'"
+	@echo "  make eval-results HOURS=6          - Query evaluation results from last 6 hours"
 
 # ==============================================================================
 # Setup Commands
@@ -241,6 +247,20 @@ jwt-mcp-tests: jwt-test-github jwt-test-temperature
 mcp-invoke-calculator:
 	@echo "Directly invoking Calculator MCP runtime..."
 	@cd scripts/runtimes/mcp && python invoke_calculator.py
+
+# ==============================================================================
+# Evaluation Commands
+# ==============================================================================
+
+PYTHON := .venv/bin/python
+
+eval-list:
+	@echo "📊 Listing online evaluation configurations..."
+	@$(PYTHON) scripts/evaluations/list_configs.py
+
+eval-results:
+	@echo "🔍 Querying evaluation results from CloudWatch Logs..."
+	@$(PYTHON) scripts/evaluations/query_results.py $(if $(HOURS),$(HOURS),1)
 
 # ==============================================================================
 # Convenience Targets

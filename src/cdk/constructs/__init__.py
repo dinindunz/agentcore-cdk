@@ -1,5 +1,10 @@
 from .bucket import BucketDeploymentConstruct
 from .cognito import UserPoolConstruct
+from .custom_evaluator import (
+    CustomEvaluatorConstruct,
+    ModelConfiguration,
+    ScoringSchemaDefinition,
+)
 from .evaluation import OnlineEvaluationConstruct
 from .gateway import GatewayConstruct
 from .gateway_targets import (
@@ -25,5 +30,8 @@ __all__ = [
     "OAuth2CredentialProviderConstruct",
     "ApiKeyCredentialProviderConstruct",
     "OnlineEvaluationConstruct",
+    "CustomEvaluatorConstruct",
+    "ModelConfiguration",
+    "ScoringSchemaDefinition",
     "MemoryConstruct",
 ]

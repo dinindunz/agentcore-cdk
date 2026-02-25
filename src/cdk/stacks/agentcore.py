@@ -18,9 +18,21 @@ from ..constructs import (
     OAuth2CredentialProviderConstruct,
     ApiKeyCredentialProviderConstruct,
     OnlineEvaluationConstruct,
+    CustomEvaluatorConstruct,
+    ModelConfiguration,
+    ScoringSchemaDefinition,
     MemoryConstruct,
 )
 from ..utils import DestroyLogGroups, LogGroupCleanup, to_kebab_case, to_snake_case
+
+# Import evaluator definitions
+from ...evals import (
+    math_accuracy,
+    temperature_conversion,
+    skill_workflow,
+    github_integrity,
+    output_format,
+)
 
 
 class AgentCoreStack(cdk.Stack):
@@ -198,7 +210,112 @@ class AgentCoreStack(cdk.Stack):
         )
 
         # ---------------------------------------------------------------
-        # Online Evaluation — continuous monitoring of agent performance
+        # Custom Evaluators — domain-specific validation
+        # ---------------------------------------------------------------
+
+        # Math Accuracy Evaluator (tool level)
+        math_eval = CustomEvaluatorConstruct(
+            self,
+            "MathAccuracyEvaluator",
+            evaluator_name=math_accuracy.EVALUATOR_NAME,
+            evaluation_level=math_accuracy.EVALUATION_LEVEL,
+            prompt=math_accuracy.PROMPT,
+            scoring_schema=ScoringSchemaDefinition.numbered_scale(
+                min_value=math_accuracy.MIN_VALUE,
+                max_value=math_accuracy.MAX_VALUE,
+                description=math_accuracy.SCORING_DESCRIPTION,
+            ),
+            model_config=ModelConfiguration(
+                model_id=math_accuracy.MODEL_ID,
+                temperature=math_accuracy.TEMPERATURE,
+                top_p=math_accuracy.TOP_P,
+                max_tokens=math_accuracy.MAX_TOKENS,
+            ),
+            description=math_accuracy.DESCRIPTION,
+        )
+
+        # Temperature Conversion Evaluator (tool level)
+        temp_conversion_eval = CustomEvaluatorConstruct(
+            self,
+            "TemperatureConversionEvaluator",
+            evaluator_name=temperature_conversion.EVALUATOR_NAME,
+            evaluation_level=temperature_conversion.EVALUATION_LEVEL,
+            prompt=temperature_conversion.PROMPT,
+            scoring_schema=ScoringSchemaDefinition.binary(
+                description=temperature_conversion.SCORING_DESCRIPTION
+            ),
+            model_config=ModelConfiguration(
+                model_id=temperature_conversion.MODEL_ID,
+                temperature=temperature_conversion.TEMPERATURE,
+                top_p=temperature_conversion.TOP_P,
+                max_tokens=temperature_conversion.MAX_TOKENS,
+            ),
+            description=temperature_conversion.DESCRIPTION,
+        )
+
+        # Skill Workflow Evaluator (trace level)
+        skill_workflow_eval = CustomEvaluatorConstruct(
+            self,
+            "SkillWorkflowEvaluator",
+            evaluator_name=skill_workflow.EVALUATOR_NAME,
+            evaluation_level=skill_workflow.EVALUATION_LEVEL,
+            prompt=skill_workflow.PROMPT,
+            scoring_schema=ScoringSchemaDefinition.numbered_scale(
+                min_value=skill_workflow.MIN_VALUE,
+                max_value=skill_workflow.MAX_VALUE,
+                description=skill_workflow.SCORING_DESCRIPTION,
+            ),
+            model_config=ModelConfiguration(
+                model_id=skill_workflow.MODEL_ID,
+                temperature=skill_workflow.TEMPERATURE,
+                top_p=skill_workflow.TOP_P,
+                max_tokens=skill_workflow.MAX_TOKENS,
+            ),
+            description=skill_workflow.DESCRIPTION,
+        )
+
+        # GitHub Data Integrity Evaluator (trace level)
+        github_integrity_eval = CustomEvaluatorConstruct(
+            self,
+            "GitHubIntegrityEvaluator",
+            evaluator_name=github_integrity.EVALUATOR_NAME,
+            evaluation_level=github_integrity.EVALUATION_LEVEL,
+            prompt=github_integrity.PROMPT,
+            scoring_schema=ScoringSchemaDefinition.numbered_scale(
+                min_value=github_integrity.MIN_VALUE,
+                max_value=github_integrity.MAX_VALUE,
+                description=github_integrity.SCORING_DESCRIPTION,
+            ),
+            model_config=ModelConfiguration(
+                model_id=github_integrity.MODEL_ID,
+                temperature=github_integrity.TEMPERATURE,
+                top_p=github_integrity.TOP_P,
+                max_tokens=github_integrity.MAX_TOKENS,
+            ),
+            description=github_integrity.DESCRIPTION,
+        )
+
+        # Output Format Evaluator (trace level)
+        output_format_eval = CustomEvaluatorConstruct(
+            self,
+            "OutputFormatEvaluator",
+            evaluator_name=output_format.EVALUATOR_NAME,
+            evaluation_level=output_format.EVALUATION_LEVEL,
+            prompt=output_format.PROMPT,
+            scoring_schema=ScoringSchemaDefinition.binary(
+                description=output_format.SCORING_DESCRIPTION
+            ),
+            model_config=ModelConfiguration(
+                model_id=output_format.MODEL_ID,
+                temperature=output_format.TEMPERATURE,
+                top_p=output_format.TOP_P,
+                max_tokens=output_format.MAX_TOKENS,
+            ),
+            description=output_format.DESCRIPTION,
+        )
+
+        # ---------------------------------------------------------------
+        # Online Evaluation — continuous monitoring with built-in + custom evaluators
         # ---------------------------------------------------------------
 
         agent_eval = OnlineEvaluationConstruct(
@@ -207,14 +324,22 @@ class AgentCoreStack(cdk.Stack):
             config_name=f"{agent_rt.runtime.agent_runtime_name}",
             runtime=agent_rt,
             evaluators=[
+                # Built-in evaluators (LLM-as-judge for general quality)
                 "Builtin.Helpfulness",
+                "Builtin.Correctness",
                 "Builtin.ToolSelectionAccuracy",
                 "Builtin.ToolParameterAccuracy",
                 "Builtin.ResponseRelevance",
                 "Builtin.InstructionFollowing",
+                # Custom evaluators (domain-specific validation)
+                math_eval.to_evaluator_reference(),
+                temp_conversion_eval.to_evaluator_reference(),
+                skill_workflow_eval.to_evaluator_reference(),
+                github_integrity_eval.to_evaluator_reference(),
+                output_format_eval.to_evaluator_reference(),
             ],
             sampling_rate=100.0,  # Evaluate 100% of interactions
-            description="Continuous evaluation of agent quality and tool usage",
+            description="Comprehensive evaluation with built-in + custom evaluators",
             enable_on_create=True,
         )
 
