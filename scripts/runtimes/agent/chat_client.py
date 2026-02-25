@@ -43,7 +43,7 @@ def _get_access_token() -> str:
     return resp.json()["access_token"]
 
 
-def send_message(prompt: str, session_id: str, access_token: str) -> str:
+def send_message(prompt: str, session_id: str, actor_id: str, access_token: str) -> str:
     """Send a message to the agent and return the formatted response."""
     response = requests.post(
         _URL,
@@ -53,7 +53,13 @@ def send_message(prompt: str, session_id: str, access_token: str) -> str:
             "Authorization": f"Bearer {access_token}",
             "X-Amzn-Bedrock-AgentCore-Runtime-Session-Id": session_id,
         },
-        data=json.dumps({"prompt": prompt}),
+        data=json.dumps(
+            {
+                "prompt": prompt,
+                "session_id": session_id,
+                "actor_id": actor_id,
+            }
+        ),
     )
 
     if response.status_code != 200:
@@ -72,15 +78,18 @@ def send_message(prompt: str, session_id: str, access_token: str) -> str:
 
 def main():
     """Run the interactive chat client."""
+    print("Starting interactive chat with agent...")
     print("🤖 AgentCore Chat Client")
     print("Type 'exit' or 'quit' to end the conversation")
     print("-" * 50)
 
     # Initialise session
     session_id = str(uuid.uuid4())
+    actor_id = os.environ.get("ACTOR_ID", f"user-{uuid.uuid4().hex[:8]}")
     access_token = _get_access_token()
 
-    print(f"Session ID: {session_id}\n")
+    print(f"Session ID: {session_id}")
+    print(f"Actor ID: {actor_id}\n")
 
     while True:
         try:
@@ -97,7 +106,7 @@ def main():
                 continue
 
             # Send message and display response
-            response = send_message(user_input, session_id, access_token)
+            response = send_message(user_input, session_id, actor_id, access_token)
             print(f"\n🤖 Agent:\n{response}\n")
 
         except KeyboardInterrupt:

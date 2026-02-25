@@ -10,6 +10,7 @@ The diagram shows the complete authentication and data flow, including:
 - AgentCore Identity with OAuth2 and API Key credential providers
 - MCP targets (Calculator Runtime, Skill Search Lambda, Temperature Converter Lambda, GitHub OpenAPI)
 - Observability components (Traces, Evaluations, CloudWatch Logs)
+- AgentCore Memory for short-term and long-term conversation memory (Summary, Preference, Semantic, and Episodic strategies)
 - Skills S3 bucket
 
 [View editable diagram](./architecture.excalidraw)
@@ -32,6 +33,7 @@ The diagram shows the complete authentication and data flow, including:
 │   │   │   ├── runtime.py        - AgentCore Runtimes
 │   │   │   ├── identity.py       - Credential providers (OAuth2, API keys) in AgentCore Identity
 │   │   │   ├── evaluation.py     - Online evaluation configurations for runtime monitoring
+│   │   │   ├── memory.py         - AgentCore Memory with Summary, Preference, Semantic, and Episodic strategies
 │   │   │   ├── bucket.py         - S3 buckets with lifecycle policies (store skills)
 │   │   │   └── gateway_targets/  - Gateway target configurations
 │   │   │       ├── lambda_.py    - Lambda function targets
@@ -43,6 +45,9 @@ The diagram shows the complete authentication and data flow, including:
 │   │
 │   ├── agent/                    # Agent runtime implementation
 │   │   ├── main.py               - Agent entrypoint with Bedrock + MCP integration
+│   │   ├── memory/               # Memory strategy clients
+│   │   │   ├── __init__.py       - Memory package exports
+│   │   │   └── short_term.py     - Short-term memory for conversation context
 │   │   ├── pyproject.toml        - Agent dependencies
 │   │   └── Dockerfile            - Agent container image
 │   │
@@ -185,6 +190,8 @@ make agent-chat
 ```
 
 This launches an interactive chat client where you can have continuous conversations with the agent. Type `exit`, `quit`, or `q` to end the session.
+
+> **Note**: Set `ACTOR_ID` in your `.env` file to maintain the same identity across multiple chat sessions. This enables long-term memory strategies (Preference, Semantic, Summary, Episodic) to learn your patterns over time. Without it, a random ID is generated each time.
 
 ### 7. Run Tests
 

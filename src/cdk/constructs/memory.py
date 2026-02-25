@@ -38,7 +38,9 @@ class MemoryConstruct(Construct):
                 {
                     "summaryMemoryStrategy": {
                         "name": "SessionSummarizer",
-                        "namespaces": ["/strategies/summaries/actors/{actorId}/sessions/{sessionId}/"],
+                        "namespaces": [
+                            "/strategies/summaries/actors/{actorId}/sessions/{sessionId}/"
+                        ],
                     }
                 }
             )
@@ -68,7 +70,9 @@ class MemoryConstruct(Construct):
                 {
                     "episodicMemoryStrategy": {
                         "name": "EpisodeTracker",
-                        "namespaces": ["/strategies/episodic/actors/{actorId}/sessions/{sessionId}/"],
+                        "namespaces": [
+                            "/strategies/episodic/actors/{actorId}/sessions/{sessionId}/"
+                        ],
                     }
                 }
             )

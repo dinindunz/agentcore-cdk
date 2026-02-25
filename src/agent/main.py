@@ -11,9 +11,11 @@ from mcp.client.streamable_http import (
 )  # TODO: Refactor to streamable_http_client
 from strands import Agent
 from strands.tools.mcp import MCPClient
+from memory import ShortTermMemory
 
 REGION_NAME = os.environ["REGION_NAME"]
 SKILLS_BUCKET = os.environ.get("SKILLS_BUCKET")
+MEMORY_ID = os.environ.get("MEMORY_ID")
 
 ssm_client = boto3.client("ssm", region_name=REGION_NAME)
 sm_client = boto3.client("secretsmanager", region_name=REGION_NAME)
@@ -169,16 +171,66 @@ agent = Agent(
     ),
 )
 
+# Initialise memory client (only if MEMORY_ID is configured)
+memory = (
+    ShortTermMemory(memory_id=MEMORY_ID, region_name=REGION_NAME) if MEMORY_ID else None
+)
+
 
 @app.entrypoint
 def invoke(payload):
     """Process user input and return a response"""
     user_message = payload.get("prompt", "Hello")
+    actor_id = payload.get("actor_id", "default_actor")
+    session_id = payload.get("session_id", "default_session")
 
-    result = agent(user_message)
+    print(f"[Agent] Invoked: actor={actor_id}, session={session_id}")
+
+    # Retrieve recent conversation context (if memory is enabled)
+    context = ""
+    if memory:
+        try:
+            recent_events = memory.get_recent_context(
+                actor_id=actor_id,
+                session_id=session_id,
+                max_turns=5,  # Last 5 conversation turns
+            )
+
+            # Build context string from recent events
+            context_messages = []
+            for event in recent_events:
+                for turn in event.get("payload", []):
+                    if "conversational" in turn:
+                        role = turn["conversational"]["role"]
+                        text = turn["conversational"]["content"].get("text", "")
+                        context_messages.append(f"{role}: {text}")
+
+            if context_messages:
+                context = "\n".join(context_messages) + "\n\n"
+        except Exception as e:
+            print(f"[Memory] Error retrieving context: {e}")
+
+    # Enhance prompt with conversation context
+    enhanced_prompt = f"{context}USER: {user_message}" if context else user_message
+
+    # Execute agent with context
+    result = agent(enhanced_prompt)
     text = "".join(
         block["text"] for block in result.message.get("content", []) if "text" in block
     )
+
+    # Store this interaction in memory (if memory is enabled)
+    if memory:
+        try:
+            memory.create_event(
+                actor_id=actor_id,
+                session_id=session_id,
+                messages=[(user_message, "USER"), (text, "ASSISTANT")],
+            )
+        except Exception as e:
+            print(f"[Memory] Error storing event: {e}")
+
+    print(f"[Agent] Completed")
     return {"result": text}
 
 
