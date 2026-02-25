@@ -33,6 +33,7 @@ The diagram shows the complete authentication and data flow, including:
 │   │   │   ├── runtime.py        - AgentCore Runtimes
 │   │   │   ├── identity.py       - Credential providers (OAuth2, API keys) in AgentCore Identity
 │   │   │   ├── evaluation.py     - Online evaluation configurations for runtime monitoring
+│   │   │   ├── custom_evaluator.py - Custom evaluators with configurable models, prompts, and scoring
 │   │   │   ├── memory.py         - AgentCore Memory with Summary, Preference, Semantic, and Episodic strategies
 │   │   │   ├── bucket.py         - S3 buckets with lifecycle policies (store skills)
 │   │   │   └── gateway_targets/  - Gateway target configurations
@@ -50,6 +51,14 @@ The diagram shows the complete authentication and data flow, including:
 │   │   │   └── short_term.py     - Short-term memory for conversation context
 │   │   ├── pyproject.toml        - Agent dependencies
 │   │   └── Dockerfile            - Agent container image
+│   │
+│   ├── evals/                    # Custom evaluator definitions
+│   │   ├── math_accuracy.py      - Calculator operation validation
+│   │   ├── temperature_conversion.py - Temperature formula validation
+│   │   ├── skill_workflow.py     - Skill completeness checking
+│   │   ├── github_integrity.py   - Data hallucination detection
+│   │   ├── output_format.py      - Output format validation
+│   │   └── README.md             - Evaluator documentation
 │   │
 │   ├── mcp/                      # MCP server implementations
 │   │   ├── calculator/           - Basic calculator MCP server (MCP Server Target)

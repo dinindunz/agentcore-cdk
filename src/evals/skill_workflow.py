@@ -10,9 +10,7 @@ EVALUATOR_NAME = "SkillWorkflowCompleteness"
 EVALUATION_LEVEL = "trace"  # Evaluate entire conversation trace
 
 # Model configuration
-MODEL_ID = (
-    "anthropic.claude-opus-4-6-v1:0"  # Most capable for complex workflow analysis
-)
+MODEL_ID = "anthropic.claude-3-5-sonnet-20241022-v2:0"
 TEMPERATURE = 0.1  # Slight variation for nuanced judgment
 TOP_P = 0.95
 MAX_TOKENS = 2048  # Longer explanations for detailed workflow analysis
@@ -30,9 +28,7 @@ DESCRIPTION = "Validates agent followed skill workflow completely"
 PROMPT = """You are evaluating whether the agent completed all required steps in a GitHub analysis skill.
 
 TRACE CONTEXT:
-- User request: {input}
-- Agent response: {output}
-- Tools called: {tool_calls}
+{context}
 
 SKILL DEFINITIONS:
 

@@ -10,7 +10,7 @@ EVALUATOR_NAME = "MathAccuracy"
 EVALUATION_LEVEL = "toolCall"  # Evaluate each tool call individually
 
 # Model configuration
-MODEL_ID = "anthropic.claude-sonnet-4-5-v3:0"  # Balanced performance
+MODEL_ID = "anthropic.claude-3-5-sonnet-20241022-v2:0"
 TEMPERATURE = 0.0  # Deterministic for consistent math validation
 TOP_P = 0.95
 MAX_TOKENS = 512  # Short explanations needed
@@ -28,9 +28,7 @@ DESCRIPTION = "Validates mathematical correctness of calculator operations"
 PROMPT = """You are evaluating calculator tool calls for mathematical accuracy.
 
 TOOL CALL CONTEXT:
-- Tool name: {tool_name}
-- Tool input: {tool_input}
-- Tool output: {tool_output}
+{tool_turn}
 
 EVALUATION CRITERIA:
 

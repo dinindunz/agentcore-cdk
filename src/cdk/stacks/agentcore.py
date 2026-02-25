@@ -324,13 +324,12 @@ class AgentCoreStack(cdk.Stack):
             config_name=f"{agent_rt.runtime.agent_runtime_name}",
             runtime=agent_rt,
             evaluators=[
-                # Built-in evaluators (LLM-as-judge for general quality)
+                # Built-in evaluators (LLM-as-judge for general quality) - max 10 total
                 "Builtin.Helpfulness",
                 "Builtin.Correctness",
                 "Builtin.ToolSelectionAccuracy",
                 "Builtin.ToolParameterAccuracy",
                 "Builtin.ResponseRelevance",
-                "Builtin.InstructionFollowing",
                 # Custom evaluators (domain-specific validation)
                 math_eval.to_evaluator_reference(),
                 temp_conversion_eval.to_evaluator_reference(),

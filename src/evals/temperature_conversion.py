@@ -10,10 +10,10 @@ EVALUATOR_NAME = "TemperatureConversionAccuracy"
 EVALUATION_LEVEL = "toolCall"  # Evaluate each conversion
 
 # Model configuration
-MODEL_ID = "anthropic.claude-haiku-4-5-v1:0"  # Fast model for simple formula validation
+MODEL_ID = "anthropic.claude-3-5-sonnet-20241022-v2:0"
 TEMPERATURE = 0.0  # Deterministic
 TOP_P = 0.9
-MAX_TOKENS = 256  # Very short explanations
+MAX_TOKENS = 512  # Minimum 400 required by AgentCore
 
 # Scoring schema
 SCORING_TYPE = "binary"
@@ -26,9 +26,7 @@ DESCRIPTION = "Validates temperature conversion formula correctness"
 PROMPT = """You are evaluating temperature conversion tool calls for formula accuracy.
 
 TOOL CALL CONTEXT:
-- Tool name: {tool_name}
-- Tool input: {tool_input}
-- Tool output: {tool_output}
+{tool_turn}
 
 CONVERSION FORMULAS:
 

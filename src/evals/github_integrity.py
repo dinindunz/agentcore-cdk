@@ -10,7 +10,7 @@ EVALUATOR_NAME = "GitHubDataIntegrity"
 EVALUATION_LEVEL = "trace"  # Evaluate full trace with API responses
 
 # Model configuration
-MODEL_ID = "anthropic.claude-sonnet-4-5-v3:0"  # Balanced for fact-checking
+MODEL_ID = "anthropic.claude-3-5-sonnet-20241022-v2:0"
 TEMPERATURE = 0.0  # Deterministic for strict validation
 TOP_P = 0.95
 MAX_TOKENS = 1536  # Medium-length explanations with examples
@@ -28,10 +28,7 @@ DESCRIPTION = "Detects hallucinated or incorrect GitHub data"
 PROMPT = """You are evaluating whether the agent accurately reported GitHub data without hallucination.
 
 TRACE CONTEXT:
-- User request: {input}
-- Agent response: {output}
-- GitHub API calls made: {tool_calls}
-- API responses: {tool_outputs}
+{context}
 
 VALIDATION CATEGORIES:
 

@@ -9,10 +9,10 @@ EVALUATOR_NAME = "StructuredOutputFormat"
 EVALUATION_LEVEL = "trace"  # Evaluate full response
 
 # Model configuration
-MODEL_ID = "anthropic.claude-haiku-4-5-v1:0"  # Fast for format checking
+MODEL_ID = "anthropic.claude-3-5-sonnet-20241022-v2:0"
 TEMPERATURE = 0.0  # Deterministic
 TOP_P = 0.9
-MAX_TOKENS = 512  # Short explanations
+MAX_TOKENS = 512  # Minimum 400 required by AgentCore
 
 # Scoring schema
 SCORING_TYPE = "binary"
@@ -25,8 +25,7 @@ DESCRIPTION = "Validates response contains required fields and proper formatting
 PROMPT = """You are evaluating whether the agent's response follows the expected output format.
 
 TRACE CONTEXT:
-- User request: {input}
-- Agent response: {output}
+{context}
 
 FORMAT REQUIREMENTS BY SKILL:
 
