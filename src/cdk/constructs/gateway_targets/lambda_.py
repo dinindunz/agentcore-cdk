@@ -25,15 +25,18 @@ class LambdaTargetConstruct(Construct):
     ) -> None:
         super().__init__(scope, id)
 
-        # __file__ is src/cdk/constructs/gateway_targets/lambda_target.py — ../../.. resolves to src/
-        asset_dir = os.path.join(os.path.dirname(__file__), "..", "..", "..", asset_path)
+        # __file__ is src/cdk/constructs/gateway_targets/lambda_.py — ../../.. resolves to src/
+        # Build context is src/ to allow access to common/ shared utilities
+        src_dir = os.path.join(os.path.dirname(__file__), "..", "..", "..")
+        dockerfile_path = os.path.join(asset_path, "Dockerfile")
 
         self._function = lambda_.DockerImageFunction(
             self,
             "Function",
             architecture=lambda_.Architecture.ARM_64,
             code=lambda_.DockerImageCode.from_image_asset(
-                asset_dir,
+                src_dir,
+                file=dockerfile_path,
                 platform=ecr_assets.Platform.LINUX_ARM64,
             ),
             environment=environment,
@@ -49,7 +52,9 @@ class LambdaTargetConstruct(Construct):
             gateway_target_name=target_name,
             description=description,
             lambda_function=self._function,
-            tool_schema=ToolSchema.from_local_asset(os.path.join(asset_dir, "schema.json")),
+            tool_schema=ToolSchema.from_local_asset(
+                os.path.join(src_dir, asset_path, "schema.json")
+            ),
         )
 
         # Ensure the gateway's service role policy (with lambda:InvokeFunction) is created

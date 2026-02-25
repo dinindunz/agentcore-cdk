@@ -161,6 +161,7 @@ class AgentCoreStack(cdk.Stack):
             "SKILLS_BUCKET": skills_bucket.bucket_name_value,
             "MEMORY_ID": self.memory.memory_id,
             "LOG_LEVEL": "INFO",  # Configurable logging level (DEBUG, INFO, WARNING, ERROR)
+            "OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED": "false",  # Disable OTEL log duplication
         }
 
         # Agent Runtime — the "agent" runtime that will orchestrate calls to the gateways and execute tools

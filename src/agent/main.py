@@ -22,29 +22,48 @@ from skills.loader import load_skills_summary
 # Initialise Bedrock AgentCore app
 app = BedrockAgentCoreApp()
 
-# Load configuration
-config = get_config()
+# Global state for lazy initialization
+_initialized = False
+_agent: Agent | None = None
+_memory: ShortTermMemory | None = None
 
-# Setup authentication
-sigv4_auth = SigV4Auth(region=config.region_name)
 
-# Setup MCP clients
-jwt_client, iam_client = setup_mcp_clients(config, sigv4_auth)
+def _initialize() -> None:
+    """
+    Lazy initialization of agent and dependencies.
 
-# Load tools from both gateways
-tools = load_all_tools(jwt_client, iam_client)
+    Initialises the agent, MCP clients, tools, and memory on first invocation.
+    Subsequent calls are no-ops. Thread-safe for multiple workers in AgentCore.
+    """
+    global _initialized, _agent, _memory
 
-# Load system prompt and skills summary
-skills_section = load_skills_summary(config)
-system_prompt = load_system_prompt(skills_section=skills_section)
+    if _initialized:
+        return
 
-# Create agent with tools and system prompt
-agent = Agent(tools=tools, system_prompt=system_prompt)
+    # Load configuration
+    config = get_config()
 
-# Initialise memory (only if configured)
-memory: ShortTermMemory | None = None
-if config.memory_id:
-    memory = ShortTermMemory(memory_id=config.memory_id, region_name=config.region_name)
+    # Setup authentication
+    sigv4_auth = SigV4Auth(region=config.region_name)
+
+    # Setup MCP clients
+    jwt_client, iam_client = setup_mcp_clients(config, sigv4_auth)
+
+    # Load tools from both gateways
+    tools = load_all_tools(jwt_client, iam_client)
+
+    # Load system prompt and skills summary
+    skills_section = load_skills_summary(config)
+    system_prompt = load_system_prompt(skills_section=skills_section)
+
+    # Create agent with tools and system prompt
+    _agent = Agent(tools=tools, system_prompt=system_prompt)
+
+    # Initialise memory (only if configured)
+    if config.memory_id:
+        _memory = ShortTermMemory(memory_id=config.memory_id, region_name=config.region_name)
+
+    _initialized = True
 
 
 @app.entrypoint
@@ -71,7 +90,10 @@ def invoke(payload):
             "session_id": "sess456"
         }
     """
-    return invoke_agent(agent, payload, memory)
+    # Lazy initialize on first invocation
+    _initialize()
+
+    return invoke_agent(_agent, payload, _memory)
 
 
 # Start the runtime

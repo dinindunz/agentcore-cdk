@@ -10,8 +10,7 @@ from typing import Any
 from strands import Agent
 
 from common.logger import logger
-
-from .memory.short_term import ShortTermMemory
+from memory.short_term import ShortTermMemory
 
 # Default values for optional payload fields
 DEFAULT_ACTOR_ID = "default_actor"

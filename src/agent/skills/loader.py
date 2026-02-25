@@ -13,9 +13,9 @@ Example:
     system_prompt = base_prompt + skills_section
 """
 
-from common.logger import logger
+from config import AgentConfig
 
-from ..config import AgentConfig
+from common.logger import logger
 
 
 def load_skills_summary(config: AgentConfig) -> str:

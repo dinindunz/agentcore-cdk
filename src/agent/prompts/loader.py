@@ -6,7 +6,7 @@ markdown file and optionally append dynamic sections like skills summaries.
 
 from pathlib import Path
 
-from ..logger import log, log_error
+from common.logger import logger
 
 
 def load_system_prompt(skills_section: str = "") -> str:
@@ -43,7 +43,7 @@ def load_system_prompt(skills_section: str = "") -> str:
         prompt_file = prompts_dir / "system_prompt.md"
         base_prompt = prompt_file.read_text(encoding="utf-8")
 
-        log("Prompts", "Loaded system prompt", file=prompt_file.name)
+        logger.info(f"[Prompts] Loaded system prompt: file={prompt_file.name}")
 
         # Append skills section if provided
         if skills_section:
@@ -52,6 +52,6 @@ def load_system_prompt(skills_section: str = "") -> str:
         return base_prompt
 
     except Exception as e:
-        log_error("Prompts", "Failed to load system prompt", e)
+        logger.error(f"[Prompts] Failed to load system prompt: {e}")
         # Fallback to minimal prompt if file loading fails
         return "You are a helpful assistant."
