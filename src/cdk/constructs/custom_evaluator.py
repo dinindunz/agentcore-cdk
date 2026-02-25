@@ -132,39 +132,17 @@ EvaluationLevel = Literal["session", "trace", "toolCall"]
 
 # TODO: Refactor to use L2 constructs once they are available.
 class CustomEvaluatorConstruct(Construct):
-    """Creates an AgentCore custom evaluator.
-
-    Uses the AgentCore SDK (bedrock-agentcore-starter-toolkit) in a Lambda-backed
-    custom resource to create and manage custom evaluators. Custom evaluators allow
-    you to define domain-specific evaluation logic using your choice of model, custom
-    prompts, and scoring schemas. They can evaluate at session, trace, or tool call levels.
+    """AgentCore custom evaluator with configurable model, prompts, and scoring schemas.
 
     Example:
-        # Math accuracy evaluator for calculator operations
         math_eval = CustomEvaluatorConstruct(
             self, "MathAccuracyEvaluator",
             evaluator_name="MathAccuracy",
             evaluation_level="toolCall",
-            prompt='''You are evaluating calculator tool calls for mathematical accuracy.
-
-            Examine the tool input and output. Verify:
-            1. The calculation is mathematically correct
-            2. Precision is appropriate (no rounding errors)
-            3. Units are handled correctly
-
-            Score:
-            5 = Perfect accuracy
-            4 = Minor precision issues (e.g., 3.33 vs 3.333)
-            3 = Correct approach but calculation error
-            2 = Wrong operation used
-            1 = Completely incorrect
-            ''',
+            prompt="Evaluate mathematical correctness. Score 1-5.",
             scoring_schema=ScoringSchemaDefinition.numbered_scale(1, 5),
-            model_config=ModelConfiguration(
-                model_id="anthropic.claude-sonnet-4-5-v3:0",
-                temperature=0.0  # Deterministic for consistency
-            ),
-            description="Validates mathematical correctness of calculator operations"
+            model_config=ModelConfiguration("anthropic.claude-sonnet-4-5-v3:0"),
+            description="Validates calculator operations"
         )
     """
 
@@ -413,17 +391,29 @@ def handler(event, context):
 
     @property
     def evaluator_id(self) -> str:
-        """The evaluator ID (can be used in evaluation configs)."""
+        """The evaluator ID (can be used in evaluation configs).
+
+        Returns:
+            Evaluator ID string for use in OnlineEvaluationConstruct
+        """
         return self._evaluator_id
 
     @property
     def evaluator_arn(self) -> str:
-        """The full ARN of the evaluator."""
+        """The full ARN of the evaluator.
+
+        Returns:
+            Full ARN string for the custom evaluator
+        """
         return self._evaluator_arn
 
     @property
     def evaluator_name(self) -> str:
-        """The evaluator name."""
+        """The evaluator name.
+
+        Returns:
+            Evaluator name in snake_case format
+        """
         return self._evaluator_name
 
     def to_evaluator_reference(self) -> str:

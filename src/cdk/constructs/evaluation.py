@@ -12,9 +12,19 @@ from .runtime import RuntimeConstruct
 class OnlineEvaluationConstruct(Construct):
     """Creates an AgentCore online evaluation configuration.
 
-    Uses the AgentCore SDK (bedrock-agentcore-starter-toolkit) in a Lambda-backed
-    custom resource to create and manage online evaluation configs. The SDK automatically
-    creates an execution role with necessary permissions for running evaluations.
+    Example:
+        evaluation = OnlineEvaluationConstruct(
+            self, "AgentEvaluation",
+            config_name="agent_quality",
+            runtime=agent_runtime,
+            evaluators=[
+                "Builtin.Helpfulness",
+                "Builtin.Accuracy",
+                math_evaluator.to_evaluator_reference()
+            ],
+            sampling_rate=0.5,
+            description="Quality metrics for agent responses"
+        )
     """
 
     def __init__(
@@ -29,6 +39,27 @@ class OnlineEvaluationConstruct(Construct):
         description: str | None = None,
         enable_on_create: bool = True,
     ) -> None:
+        """Create an online evaluation configuration for a runtime.
+
+        Args:
+            scope: CDK construct scope
+            id: Construct ID
+            config_name: Name for the evaluation configuration
+            runtime: AgentCore runtime to evaluate
+            evaluators: List of evaluator IDs (built-in or custom)
+            sampling_rate: Sampling rate (0.0-1.0) for evaluation
+            description: Optional description of the evaluation purpose
+            enable_on_create: Enable evaluation immediately upon creation
+
+        Example:
+            OnlineEvaluationConstruct(
+                self, "SkillEvaluation",
+                config_name="skill_metrics",
+                runtime=skill_runtime,
+                evaluators=["Builtin.Relevance", custom_eval.to_evaluator_reference()],
+                sampling_rate=1.0
+            )
+        """
         super().__init__(scope, id)
 
         stack = cdk.Stack.of(self)
@@ -242,15 +273,27 @@ def handler(event, context):
 
     @property
     def config_id(self) -> str:
-        """The online evaluation configuration ID."""
+        """The online evaluation configuration ID.
+
+        Returns:
+            Configuration ID for reference in API calls
+        """
         return self._config_id
 
     @property
     def config_arn(self) -> str:
-        """The full ARN of the online evaluation configuration."""
+        """The full ARN of the online evaluation configuration.
+
+        Returns:
+            Full ARN string for the evaluation config
+        """
         return self._config_arn
 
     @property
     def status(self) -> str:
-        """The status of the evaluation configuration."""
+        """The status of the evaluation configuration.
+
+        Returns:
+            Status string (e.g., "CREATED", "ENABLED", "DISABLED")
+        """
         return self._status

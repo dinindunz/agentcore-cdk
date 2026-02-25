@@ -22,7 +22,19 @@ from .cognito import UserPoolConstruct
 class RuntimeConstruct(Construct):
     """AgentCore runtime with execution role, ECR repository, container artifact, and SSM ARN parameter.
 
-    Optionally configures X-Ray observability using CloudWatch Logs delivery."""
+    Optionally configures X-Ray observability using CloudWatch Logs delivery.
+
+    Example:
+        runtime = RuntimeConstruct(
+            self, "AgentRuntime",
+            runtime_name="agent",
+            asset_path="src/agent",
+            protocol=ProtocolType.MCP,
+            auth_pool=user_pool,
+            environment_variables={"MEMORY_ID": memory.memory_id},
+            enable_observability=True
+        )
+    """
 
     def __init__(
         self,
@@ -36,6 +48,27 @@ class RuntimeConstruct(Construct):
         environment_variables: dict[str, str] | None = None,
         enable_observability: bool = False,
     ) -> None:
+        """Create an AgentCore runtime with container deployment.
+
+        Args:
+            scope: CDK construct scope
+            id: Construct ID
+            runtime_name: Name for the runtime (will be prefixed with stack name)
+            asset_path: Path to Docker context directory
+            protocol: Protocol type (MCP, HTTP, or A2A)
+            auth_pool: Cognito user pool for JWT authorisation
+            environment_variables: Environment variables for the container
+            enable_observability: Enable X-Ray tracing via CloudWatch Logs delivery
+
+        Example:
+            RuntimeConstruct(
+                self, "CalculatorRuntime",
+                runtime_name="calculator",
+                asset_path="src/mcp/calculator",
+                protocol=ProtocolType.MCP,
+                auth_pool=user_pool
+            )
+        """
         super().__init__(scope, id)
 
         stack = cdk.Stack.of(self)
@@ -185,17 +218,36 @@ class RuntimeConstruct(Construct):
 
     @property
     def runtime(self) -> Runtime:
+        """The AgentCore runtime resource.
+
+        Returns:
+            The Runtime L2 construct
+        """
         return self._runtime
 
     @property
     def endpoint(self) -> str | None:
-        """MCP invocation endpoint (only available for MCP protocol runtimes)."""
+        """MCP invocation endpoint (only available for MCP protocol runtimes).
+
+        Returns:
+            HTTPS invocation URL with URL-encoded ARN, or None for non-MCP protocols
+        """
         return self._endpoint
 
     @property
     def role(self) -> iam.Role:
+        """The runtime execution IAM role.
+
+        Returns:
+            IAM Role with permissions for Bedrock, SSM, and Secrets Manager
+        """
         return self._role
 
     @property
     def ecr_repository(self) -> ecr.Repository:
+        """The ECR repository for container images.
+
+        Returns:
+            ECR Repository with lifecycle policy (max 5 images)
+        """
         return self._ecr_repo

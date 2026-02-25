@@ -10,7 +10,15 @@ from ..utils import to_kebab_case
 
 
 class BucketDeploymentConstruct(Construct):
-    """S3 bucket with local asset deployment, auto-cleanup on stack deletion, and SSM bucket name parameter."""
+    """S3 bucket with local asset deployment, auto-cleanup on stack deletion, and SSM bucket name parameter.
+
+    Example:
+        skills_bucket = BucketDeploymentConstruct(
+            self, "SkillsBucket",
+            bucket_name="skills",
+            source_path="skills"
+        )
+    """
 
     def __init__(
         self,
@@ -20,6 +28,21 @@ class BucketDeploymentConstruct(Construct):
         bucket_name: str,
         source_path: str,
     ) -> None:
+        """Create an S3 bucket and deploy local assets to it.
+
+        Args:
+            scope: CDK construct scope
+            id: Construct ID
+            bucket_name: Name for the bucket (will be prefixed with stack name)
+            source_path: Path to local directory to deploy (relative to src/)
+
+        Example:
+            BucketDeploymentConstruct(
+                self, "DataBucket",
+                bucket_name="data",
+                source_path="data/files"
+            )
+        """
         super().__init__(scope, id)
 
         stack = cdk.Stack.of(self)
@@ -59,9 +82,18 @@ class BucketDeploymentConstruct(Construct):
 
     @property
     def bucket(self) -> s3.Bucket:
+        """The S3 bucket resource.
+
+        Returns:
+            S3 Bucket with auto-delete enabled
+        """
         return self._bucket
 
     @property
     def bucket_name_value(self) -> str:
-        """The prefixed bucket name (resolved at deploy time)."""
+        """The prefixed bucket name (resolved at deploy time).
+
+        Returns:
+            Bucket name in format: {stack-prefix}-{bucket-name}
+        """
         return self._bucket.bucket_name

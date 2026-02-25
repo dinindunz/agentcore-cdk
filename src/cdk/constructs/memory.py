@@ -8,7 +8,17 @@ from ..utils import to_snake_case
 
 # TODO: Refactor to use L2 constructs once they are available.
 class MemoryConstruct(Construct):
-    """AgentCore Memory with configurable strategies."""
+    """AgentCore Memory with configurable strategies.
+
+    Example:
+        memory = MemoryConstruct(
+            self, "Memory",
+            memory_name="agent",
+            event_expiry_days=90,
+            enable_summary_strategy=True,
+            enable_preference_strategy=True
+        )
+    """
 
     def __init__(
         self,
@@ -22,6 +32,26 @@ class MemoryConstruct(Construct):
         enable_semantic_strategy: bool = False,
         enable_episodic_strategy: bool = False,
     ) -> None:
+        """Create an AgentCore memory with configurable strategies.
+
+        Args:
+            scope: CDK construct scope
+            id: Construct ID
+            memory_name: Name for the memory (will be prefixed with stack name)
+            event_expiry_days: Days to retain memory events (7-365)
+            enable_summary_strategy: Enable session summarisation
+            enable_preference_strategy: Enable user preference learning
+            enable_semantic_strategy: Enable fact extraction
+            enable_episodic_strategy: Enable episode tracking
+
+        Example:
+            MemoryConstruct(
+                self, "ShortTermMemory",
+                memory_name="short_term",
+                event_expiry_days=7,
+                enable_summary_strategy=True
+            )
+        """
         super().__init__(scope, id)
 
         stack = cdk.Stack.of(self)
@@ -120,5 +150,9 @@ class MemoryConstruct(Construct):
 
     @property
     def memory_id(self) -> str:
-        """Memory resource ID for use in runtime environment variables."""
+        """Memory resource ID for use in runtime environment variables.
+
+        Returns:
+            Memory ID string that can be passed to runtime containers
+        """
         return self._memory_id

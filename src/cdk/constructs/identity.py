@@ -10,7 +10,16 @@ from .cognito import UserPoolConstruct
 
 # TODO: Refactor to use L2 constructs once they are available.
 class OAuth2CredentialProviderConstruct(Construct):
-    """AgentCore OAuth2 credential provider backed by a Cognito user pool."""
+    """AgentCore OAuth2 credential provider backed by a Cognito user pool.
+
+    Example:
+        oauth_provider = OAuth2CredentialProviderConstruct(
+            self, "GitHubOAuth",
+            provider_name="github",
+            user_pool=user_pool,
+            scopes=["read:user", "repo"]
+        )
+    """
 
     def __init__(
         self,
@@ -21,6 +30,23 @@ class OAuth2CredentialProviderConstruct(Construct):
         user_pool: UserPoolConstruct,
         scopes: list[str],
     ) -> None:
+        """Create an OAuth2 credential provider backed by Cognito.
+
+        Args:
+            scope: CDK construct scope
+            id: Construct ID
+            provider_name: Name for the credential provider
+            user_pool: Cognito user pool for OAuth2 authentication
+            scopes: OAuth2 scopes to request
+
+        Example:
+            OAuth2CredentialProviderConstruct(
+                self, "SlackOAuth",
+                provider_name="slack",
+                user_pool=user_pool,
+                scopes=["chat:write", "channels:read"]
+            )
+        """
         super().__init__(scope, id)
 
         stack = cdk.Stack.of(self)
@@ -93,15 +119,33 @@ class OAuth2CredentialProviderConstruct(Construct):
 
     @property
     def name(self) -> str:
+        """The credential provider name.
+
+        Returns:
+            Provider name in format: {stack-prefix}-{provider-name}
+        """
         return self._name
 
     @property
     def credential_provider(self) -> GatewayCredentialProvider:
+        """Gateway credential provider for target configuration.
+
+        Returns:
+            GatewayCredentialProvider configured with OAuth2 settings
+        """
         return self._credential_provider
 
 
 class ApiKeyCredentialProviderConstruct(Construct):
-    """AgentCore API key credential provider."""
+    """AgentCore API key credential provider.
+
+    Example:
+        api_key_provider = ApiKeyCredentialProviderConstruct(
+            self, "OpenAIKey",
+            provider_name="openai",
+            api_key=secret.secret_value.unsafe_unwrap()
+        )
+    """
 
     def __init__(
         self,
@@ -111,6 +155,21 @@ class ApiKeyCredentialProviderConstruct(Construct):
         provider_name: str,
         api_key: str,
     ) -> None:
+        """Create an API key credential provider.
+
+        Args:
+            scope: CDK construct scope
+            id: Construct ID
+            provider_name: Name for the credential provider
+            api_key: API key to store securely
+
+        Example:
+            ApiKeyCredentialProviderConstruct(
+                self, "WeatherAPIKey",
+                provider_name="weather",
+                api_key=os.environ["WEATHER_API_KEY"]
+            )
+        """
         super().__init__(scope, id)
 
         stack = cdk.Stack.of(self)
@@ -173,8 +232,18 @@ class ApiKeyCredentialProviderConstruct(Construct):
 
     @property
     def name(self) -> str:
+        """The credential provider name.
+
+        Returns:
+            Provider name in format: {stack-prefix}-{provider-name}
+        """
         return self._name
 
     @property
     def credential_provider(self) -> GatewayCredentialProvider:
+        """Gateway credential provider for target configuration.
+
+        Returns:
+            GatewayCredentialProvider configured with API key settings
+        """
         return self._credential_provider
