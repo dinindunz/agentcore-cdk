@@ -160,6 +160,7 @@ class AgentCoreStack(cdk.Stack):
             "GATEWAY_COGNITO_SECRET": gateway_auth.secret_name,
             "SKILLS_BUCKET": skills_bucket.bucket_name_value,
             "MEMORY_ID": self.memory.memory_id,
+            "LOG_LEVEL": "INFO",  # Configurable logging level (DEBUG, INFO, WARNING, ERROR)
         }
 
         # Agent Runtime — the "agent" runtime that will orchestrate calls to the gateways and execute tools
@@ -348,6 +349,7 @@ class AgentCoreStack(cdk.Stack):
             asset_path="mcp/calculator",
             protocol=ProtocolType.MCP,
             auth_pool=mcp_auth,
+            environment_variables={"LOG_LEVEL": "INFO"},
         )
 
         # ---------------------------------------------------------------
@@ -362,7 +364,10 @@ class AgentCoreStack(cdk.Stack):
             gateway=iam_gw,
             target_name="skill-search",
             description="Search available agent skills by keyword",
-            environment={"SKILLS_BUCKET": skills_bucket.bucket_name_value},
+            environment={
+                "SKILLS_BUCKET": skills_bucket.bucket_name_value,
+                "LOG_LEVEL": "INFO",
+            },
         )
         skills_bucket.bucket.grant_read(skill_search.function)
 
@@ -385,6 +390,7 @@ class AgentCoreStack(cdk.Stack):
             gateway=jwt_gw,
             target_name="temperature-converter",
             description="Temperature conversion tools (Celsius <> Fahrenheit)",
+            environment={"LOG_LEVEL": "INFO"},
         )
 
         # GitHub Open API Target on JWT Gateway

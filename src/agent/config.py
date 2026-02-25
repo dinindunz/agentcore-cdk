@@ -3,13 +3,6 @@
 This module provides centralised configuration management with lazy loading
 from environment variables and AWS services (SSM Parameter Store, Secrets Manager)
 to eliminate module-level side effects and improve testability.
-
-Example:
-    from config import get_config
-
-    config = get_config()
-    print(config.region_name)
-    print(config.jwt_gateway_url)  # Lazy-loaded from SSM
 """
 
 import json
@@ -18,6 +11,8 @@ from functools import lru_cache
 from typing import TypedDict
 
 import boto3
+
+from common.logger import logger
 
 
 class GatewayCognitoConfig(TypedDict):
@@ -45,11 +40,6 @@ class AgentConfig:
         region_name: AWS region name (from REGION_NAME env var)
         skills_bucket: S3 bucket name for skills (from SKILLS_BUCKET env var, optional)
         memory_id: AgentCore Memory ID (from MEMORY_ID env var, optional)
-
-    Example:
-        config = AgentConfig()
-        print(config.region_name)  # Loaded immediately from env
-        print(config.jwt_gateway_url)  # Lazy-loaded from SSM on first access
     """
 
     def __init__(self) -> None:
@@ -57,6 +47,12 @@ class AgentConfig:
         self.region_name: str = os.environ["REGION_NAME"]
         self.skills_bucket: str | None = os.environ.get("SKILLS_BUCKET")
         self.memory_id: str | None = os.environ.get("MEMORY_ID")
+
+        logger.debug(
+            f"[Config] Initialised: region={self.region_name} "
+            f"skills_bucket={self.skills_bucket or 'None'} "
+            f"memory_id={self.memory_id or 'None'}"
+        )
 
         # Private cached properties (lazy-loaded)
         self._jwt_gateway_url: str | None = None
@@ -72,6 +68,7 @@ class AgentConfig:
     def ssm_client(self) -> boto3.client:
         """Lazy-load SSM client."""
         if self._ssm_client is None:
+            logger.debug(f"[Config] Creating SSM client: region={self.region_name}")
             self._ssm_client = boto3.client("ssm", region_name=self.region_name)
         return self._ssm_client
 
@@ -79,6 +76,7 @@ class AgentConfig:
     def sm_client(self) -> boto3.client:
         """Lazy-load Secrets Manager client."""
         if self._sm_client is None:
+            logger.debug(f"[Config] Creating Secrets Manager client: region={self.region_name}")
             self._sm_client = boto3.client("secretsmanager", region_name=self.region_name)
         return self._sm_client
 
@@ -86,6 +84,7 @@ class AgentConfig:
     def s3_client(self) -> boto3.client:
         """Lazy-load S3 client."""
         if self._s3_client is None:
+            logger.debug(f"[Config] Creating S3 client: region={self.region_name}")
             self._s3_client = boto3.client("s3", region_name=self.region_name)
         return self._s3_client
 
@@ -103,8 +102,10 @@ class AgentConfig:
         """
         if self._jwt_gateway_url is None:
             param_name = os.environ["JWT_GATEWAY_SSM_PATH"]
+            logger.debug(f"[Config] Loading JWT gateway URL from SSM: param={param_name}")
             response = self.ssm_client.get_parameter(Name=param_name)
             self._jwt_gateway_url = response["Parameter"]["Value"]
+            logger.debug(f"[Config] JWT gateway URL loaded: url={self._jwt_gateway_url}")
         return self._jwt_gateway_url
 
     @property
@@ -121,8 +122,10 @@ class AgentConfig:
         """
         if self._iam_gateway_url is None:
             param_name = os.environ["IAM_GATEWAY_SSM_PATH"]
+            logger.debug(f"[Config] Loading IAM gateway URL from SSM: param={param_name}")
             response = self.ssm_client.get_parameter(Name=param_name)
             self._iam_gateway_url = response["Parameter"]["Value"]
+            logger.debug(f"[Config] IAM gateway URL loaded: url={self._iam_gateway_url}")
         return self._iam_gateway_url
 
     @property
@@ -141,8 +144,16 @@ class AgentConfig:
         """
         if self._gateway_cognito is None:
             secret_name = os.environ["GATEWAY_COGNITO_SECRET"]
+            logger.debug(
+                f"[Config] Loading Cognito config from Secrets Manager: secret={secret_name}"
+            )
             response = self.sm_client.get_secret_value(SecretId=secret_name)
             self._gateway_cognito = json.loads(response["SecretString"])
+            logger.debug(
+                f"[Config] Cognito config loaded: "
+                f"endpoint={self._gateway_cognito['token_endpoint']} "
+                f"client_id={self._gateway_cognito['client_id']}"
+            )
         return self._gateway_cognito
 
 
@@ -157,4 +168,5 @@ def get_config() -> AgentConfig:
     Returns:
         Singleton AgentConfig instance
     """
+    logger.debug("[Config] Creating singleton AgentConfig instance")
     return AgentConfig()

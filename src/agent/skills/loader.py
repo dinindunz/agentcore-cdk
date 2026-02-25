@@ -13,8 +13,9 @@ Example:
     system_prompt = base_prompt + skills_section
 """
 
+from common.logger import logger
+
 from ..config import AgentConfig
-from ..logger import log, log_error
 
 
 def load_skills_summary(config: AgentConfig) -> str:
@@ -63,7 +64,9 @@ def load_skills_summary(config: AgentConfig) -> str:
         contents = response.get("Contents", [])
 
         if not contents:
-            log("Skills", "No objects found in skills bucket", bucket=config.skills_bucket)
+            logger.info(
+                f"[Skills] No objects found in skills bucket: bucket={config.skills_bucket}"
+            )
             return ""
 
         lines = []
@@ -82,6 +85,8 @@ def load_skills_summary(config: AgentConfig) -> str:
                     .decode()
                 )
 
+                logger.debug(f"[Skills] Processing skill file: key={key} size={len(body)} bytes")
+
                 # Extract title (first H1) and description (first non-empty line after title)
                 title = ""
                 description = ""
@@ -99,19 +104,32 @@ def load_skills_summary(config: AgentConfig) -> str:
                 # Only add to summary if we found a valid title
                 if title:
                     lines.append(f"- **{title}**: {description}")
+                    logger.debug(
+                        f"[Skills] Skill loaded: title='{title}' description='{description[:60]}...'"
+                    )
+                else:
+                    logger.debug(f"[Skills] Skipped skill (no title): key={key}")
 
             except Exception as e:
-                log_error("Skills", f"Failed to process skill file: {key}", e)
+                logger.error(f"[Skills] Failed to process skill file: key={key} error={e}")
                 # Continue processing other files even if one fails
                 continue
 
         # If no valid skills were found, return empty string
         if not lines:
-            log("Skills", "No valid skill definitions found in bucket")
+            logger.info("[Skills] No valid skill definitions found in bucket")
             return ""
 
         # Build the skills section
         skills_list = "\n".join(lines)
+        logger.info(
+            f"[Skills] Skills summary built: count={len(lines)} total_files={len(contents)}"
+        )
+
+        # Log each skill name at debug level
+        for line in lines:
+            logger.debug(f"[Skills] Available skill: {line}")
+
         return (
             "\n\n## Available Skills\n"
             "When a user's request matches a skill, use the skill-search___search_skills tool to "
@@ -119,5 +137,5 @@ def load_skills_summary(config: AgentConfig) -> str:
         )
 
     except Exception as e:
-        log_error("Skills", "Failed to load skills from S3", e)
+        logger.error(f"[Skills] Failed to load skills from S3: {e}")
         return ""

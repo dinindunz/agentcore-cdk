@@ -4,6 +4,8 @@ from datetime import datetime
 
 import boto3
 
+from common.logger import logger
+
 
 class ShortTermMemory:
     """Manages short-term conversation memory."""
@@ -33,7 +35,15 @@ class ShortTermMemory:
         for content, role in messages:
             payload.append({"conversational": {"role": role, "content": {"text": content}}})
 
-        print(f"[Memory] CreateEvent: actor={actor_id}, session={session_id}")
+        logger.debug(
+            f"[Memory] CreateEvent: actor={actor_id} session={session_id} messages={len(messages)}"
+        )
+
+        # Log message content at debug level
+        for content, role in messages:
+            content_preview = content[:100] + "..." if len(content) > 100 else content
+            logger.debug(f"[Memory] Storing message: role={role} content={content_preview}")
+
         response = self.data_client.create_event(
             memoryId=self.memory_id,
             actorId=actor_id,
@@ -41,7 +51,9 @@ class ShortTermMemory:
             eventTimestamp=datetime.now(),
             payload=payload,
         )
-        print("[Memory] Event stored")
+
+        event_id = response.get("eventId", "unknown")
+        logger.debug(f"[Memory] Event stored: event_id={event_id}")
         return response
 
     def get_recent_context(
@@ -61,13 +73,31 @@ class ShortTermMemory:
         Returns:
             List of events in chronological order
         """
-        print(f"[Memory] ListEvents: actor={actor_id}, session={session_id}, max={max_turns}")
+        logger.debug(f"[Memory] ListEvents: actor={actor_id} session={session_id} max={max_turns}")
+
         response = self.data_client.list_events(
             memoryId=self.memory_id,
             actorId=actor_id,
             sessionId=session_id,
             maxResults=max_turns,
         )
+
         events = list(reversed(response.get("events", [])))
-        print(f"[Memory] Retrieved {len(events)} events")
+        logger.debug(f"[Memory] Retrieved {len(events)} events")
+
+        # Log event content at debug level
+        for idx, event in enumerate(events, 1):
+            event_id = event.get("eventId", "unknown")
+            payload = event.get("payload", [])
+            logger.debug(
+                f"[Memory] Event {idx}/{len(events)}: event_id={event_id} turns={len(payload)}"
+            )
+
+            for turn in payload:
+                if "conversational" in turn:
+                    role = turn["conversational"]["role"]
+                    text = turn["conversational"]["content"].get("text", "")
+                    text_preview = text[:80] + "..." if len(text) > 80 else text
+                    logger.debug(f"[Memory] Turn content: role={role} text={text_preview}")
+
         return events

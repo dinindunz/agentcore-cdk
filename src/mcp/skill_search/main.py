@@ -3,6 +3,8 @@ import re
 
 import boto3
 
+from common.logger import logger
+
 SKILLS_BUCKET = os.environ["SKILLS_BUCKET"]
 
 s3_client = boto3.client("s3")
@@ -15,20 +17,24 @@ def _load_skills() -> list[dict]:
     """Load all markdown skill files from S3 and parse them."""
     global _cached_skills
     if _cached_skills is not None:
+        logger.debug(f"[SkillSearch] Using cached skills: count={len(_cached_skills)}")
         return _cached_skills
 
+    logger.info(f"[SkillSearch] Loading skills from S3: bucket={SKILLS_BUCKET}")
     resp = s3_client.list_objects_v2(Bucket=SKILLS_BUCKET)
     skills = []
     for obj in resp.get("Contents", []):
         key = obj["Key"]
         if not key.endswith(".md"):
             continue
+        logger.debug(f"[SkillSearch] Loading skill file: key={key}")
         body = s3_client.get_object(Bucket=SKILLS_BUCKET, Key=key)["Body"].read().decode()
         skill = _parse_skill_markdown(body)
         skill["file"] = key
         skills.append(skill)
 
     _cached_skills = skills
+    logger.info(f"[SkillSearch] Skills loaded and cached: count={len(skills)}")
     return _cached_skills
 
 
@@ -94,12 +100,17 @@ def _parse_skill_markdown(content: str) -> dict:
 def handler(event, context):
     """Search skills by keyword query. Returns matching skills sorted by relevance."""
     query = event.get("query", "").lower()
+    logger.info(f"[SkillSearch] Invoked: query={query}")
+
     skills = _load_skills()
 
     if not query:
+        logger.info(f"[SkillSearch] No query provided, returning all skills: count={len(skills)}")
         return {"skills": skills}
 
     keywords = query.split()
+    logger.debug(f"[SkillSearch] Searching skills: keywords={keywords}")
+
     scored = []
     for skill in skills:
         searchable = " ".join(
@@ -117,4 +128,7 @@ def handler(event, context):
     scored.sort(key=lambda x: x[0], reverse=True)
     results = [s for _, s in scored]
 
+    logger.info(
+        f"[SkillSearch] Search completed: matches={len(results)} total_skills={len(skills)}"
+    )
     return {"skills": results, "count": len(results)}

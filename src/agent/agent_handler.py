@@ -3,25 +3,14 @@
 This module provides the main agent execution logic, broken down into composable
 functions for building context, enhancing prompts, extracting results, and storing
 interactions in memory.
-
-Example:
-    from strands import Agent
-    from agent_handler import invoke_agent
-    from memory.short_term import ShortTermMemory
-
-    agent = Agent(tools=tools, system_prompt=prompt)
-    memory = ShortTermMemory(memory_id="...", region_name="ap-southeast-2")
-
-    payload = {"prompt": "Hello", "actor_id": "user123", "session_id": "sess456"}
-    result = invoke_agent(agent, payload, memory)
-    print(result["result"])
 """
 
 from typing import Any
 
 from strands import Agent
 
-from .logger import log, log_error, log_invocation
+from common.logger import logger
+
 from .memory.short_term import ShortTermMemory
 
 # Default values for optional payload fields
@@ -79,7 +68,7 @@ def build_context_from_memory(
         return ""
 
     except Exception as e:
-        log_error("Memory", "Error retrieving context", e)
+        logger.error(f"[Memory] Error retrieving context: {e}")
         return ""
 
 
@@ -96,12 +85,6 @@ def enhance_prompt_with_context(user_message: str, context: str) -> str:
 
     Returns:
         Enhanced prompt with context prepended, or original message if no context
-
-    Example:
-        context = "USER: Hi\\nASSISTANT: Hello!\\n\\n"
-        message = "What can you do?"
-        enhanced = enhance_prompt_with_context(message, context)
-        # Result: "USER: Hi\\nASSISTANT: Hello!\\n\\nUSER: What can you do?"
     """
     if context:
         return f"{context}USER: {user_message}"
@@ -121,11 +104,6 @@ def extract_text_from_result(result: Any) -> str:
     Returns:
         Concatenated text from all text content blocks, or empty string if
         no text content is present
-
-    Example:
-        result = agent("Hello")
-        text = extract_text_from_result(result)
-        print(text)  # "Hi! How can I help you today?"
     """
     return "".join(block["text"] for block in result.message.get("content", []) if "text" in block)
 
@@ -157,7 +135,7 @@ def store_interaction_in_memory(
             messages=[(user_message, "USER"), (assistant_response, "ASSISTANT")],
         )
     except Exception as e:
-        log_error("Memory", "Error storing event", e)
+        logger.error(f"[Memory] Error storing event: {e}")
 
 
 def invoke_agent(
@@ -190,22 +168,6 @@ def invoke_agent(
 
     Returns:
         Response dictionary with 'result' key containing agent response text
-
-    Example:
-        from strands import Agent
-        from memory.short_term import ShortTermMemory
-
-        agent = Agent(tools=tools, system_prompt="You are helpful.")
-        memory = ShortTermMemory(memory_id="mem-123", region_name="ap-southeast-2")
-
-        payload = {
-            "prompt": "What tools do you have?",
-            "actor_id": "user123",
-            "session_id": "sess456"
-        }
-
-        result = invoke_agent(agent, payload, memory)
-        print(result["result"])  # "I have access to the following tools..."
     """
     # Extract parameters from payload with defaults
     user_message = payload.get("prompt", DEFAULT_USER_MESSAGE)
@@ -213,7 +175,7 @@ def invoke_agent(
     session_id = payload.get("session_id", DEFAULT_SESSION_ID)
 
     # Log invocation
-    log_invocation("Agent", actor=actor_id, session=session_id)
+    logger.info(f"[Agent] Invoked: actor={actor_id} session={session_id}")
 
     # Retrieve recent conversation context (if memory is enabled)
     context = ""
@@ -245,6 +207,6 @@ def invoke_agent(
         )
 
     # Log completion
-    log("Agent", "Completed")
+    logger.info("[Agent] Completed")
 
     return {"result": text}

@@ -1,7 +1,11 @@
 FROM public.ecr.aws/docker/library/python:3.12-slim
 WORKDIR /app
 
-COPY . .
+# Copy shared utilities
+COPY common/ /app/common/
+
+# Copy agent service
+COPY agent/ /app/
 
 RUN pip install --no-cache-dir .
 

@@ -3,14 +3,6 @@
 This module provides an httpx.Auth implementation that signs requests using
 AWS Signature Version 4 (SigV4) for authenticating with IAM-protected
 AgentCore gateways.
-
-Example:
-    from auth.sigv4 import SigV4Auth
-    import httpx
-
-    auth = SigV4Auth(region="ap-southeast-2", service="bedrock-agentcore")
-    client = httpx.Client(auth=auth)
-    response = client.post(url, json=data)
 """
 
 import hashlib
@@ -19,6 +11,8 @@ import boto3
 import botocore.auth
 import botocore.awsrequest
 import httpx
+
+from common.logger import logger
 
 
 class SigV4Auth(httpx.Auth):
@@ -63,6 +57,7 @@ class SigV4Auth(httpx.Auth):
         self.region = region
         self.service = service
         self._boto_session = boto3.Session(region_name=region)
+        logger.debug(f"[Auth] SigV4Auth initialised: region={region} service={service}")
 
     def auth_flow(self, request: httpx.Request):
         """
@@ -81,6 +76,8 @@ class SigV4Auth(httpx.Auth):
             Credentials are refreshed on each call to handle rotation in
             long-running containers.
         """
+        logger.debug(f"[Auth] Signing request: method={request.method} url={request.url}")
+
         # Refresh credentials each call to handle credential rotation on long-running containers
         credentials = self._boto_session.get_credentials().get_frozen_credentials()
         body = request.content or b""
@@ -103,4 +100,6 @@ class SigV4Auth(httpx.Auth):
         # Copy signed headers to the httpx request
         for key, value in aws_request.headers.items():
             request.headers[key] = value
+
+        logger.debug(f"[Auth] Request signed: access_key={credentials.access_key[:8]}...")
         yield request

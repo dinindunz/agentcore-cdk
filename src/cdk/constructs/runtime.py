@@ -130,10 +130,13 @@ class RuntimeConstruct(Construct):
 
         # Build the Docker image (pushed to CDK bootstrap ECR during synth/deploy)
         # __file__ is src/cdk/constructs/runtime.py — ../.. resolves to src/
+        # Build context is src/ to allow access to common/ shared utilities
+        src_dir = os.path.join(os.path.dirname(__file__), "..", "..")
         docker_asset = ecr_assets.DockerImageAsset(
             self,
             "DockerAsset",
-            directory=os.path.join(os.path.dirname(__file__), "..", "..", asset_path),
+            directory=src_dir,
+            file=os.path.join(asset_path, "Dockerfile"),
         )
 
         # Copy the built image into our named ECR repository
