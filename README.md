@@ -44,9 +44,22 @@ The diagram shows the complete authentication and data flow, including:
 │   │       ├── cleanup.py        - Log group cleanup aspects and custom resources
 │   │       └── strings.py        - Case conversion utilities (kebab/PascalCase/snake_case)
 │   │
-│   ├── agent/                    # Agent runtime implementation
-│   │   ├── main.py               - Agent entrypoint with Bedrock + MCP integration
-│   │   ├── memory/               # Memory strategy clients
+│   ├── agent/                    # Agent runtime implementation (modular Python structure)
+│   │   ├── main.py               - Minimal entry point and orchestration
+│   │   ├── config.py             - Configuration management with lazy loading
+│   │   ├── logger.py             - Reusable structured logging module
+│   │   ├── agent_handler.py      - Core agent invocation logic
+│   │   ├── auth/                 # Authentication modules
+│   │   │   ├── cognito.py        - OAuth2 token management for JWT gateway
+│   │   │   └── sigv4.py          - AWS SigV4 authentication for IAM gateway
+│   │   ├── gateway/              # MCP client management
+│   │   │   └── clients.py        - MCP client setup and tool aggregation
+│   │   ├── prompts/              # System prompt management
+│   │   │   ├── system_prompt.md  - Base system prompt (markdown format)
+│   │   │   └── loader.py         - Load and compose system prompts
+│   │   ├── skills/               # Skills loading from S3
+│   │   │   └── loader.py         - Extract and format skill definitions for system prompt
+│   │   ├── memory/               # Conversation memory integration
 │   │   │   └── short_term.py     - Short-term memory for conversation context
 │   │   ├── pyproject.toml        - Agent dependencies
 │   │   └── Dockerfile            - Agent container image
