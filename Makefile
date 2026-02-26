@@ -7,6 +7,15 @@ export
 # Environment variables
 ENV ?= dev
 
+# Include all sub-makefiles
+include makefiles/setup.mk
+include makefiles/config.mk
+include makefiles/code-quality.mk
+include makefiles/cdk.mk
+include makefiles/integration-tests.mk
+include makefiles/manual-tests.mk
+include makefiles/convenience.mk
+
 # Default target - show help
 help:
 	@echo "AgentCore CDK - Make Commands"
@@ -30,51 +39,55 @@ help:
 	@echo "  make diff                          - Show AgentCore stack changes"
 	@echo "  make destroy                       - Destroy AgentCore stack"
 	@echo ""
-	@echo "Agent Runtime:"
-	@echo "  make agent-hello                   - Send a hello message to the agent runtime"
-	@echo "  make agent-chat                    - Start interactive chat with the agent"
-	@echo ""
-	@echo "Memory:"
-	@echo "  make view-memory                   - View stored memory records"
-	@echo ""
-	@echo "Testing (Pytest):"
+	@echo "Integration Tests (Pytest):"
 	@echo "  make test                          - Run all tests"
 	@echo "  make test-integration              - Run all integration tests"
 	@echo "  make test-memory                   - Run memory integration tests"
 	@echo "  make test-memory-quick             - Run memory tests (skip slow 60-90s tests)"
 	@echo ""
-	@echo "Skill Tests (Agent Runtime):"
+	@echo "Manual Tests - Agent Runtime:"
+	@echo "  make agent-hello                   - Send a hello message to the agent runtime"
+	@echo "  make agent-chat                    - Start interactive chat with the agent"
+	@echo ""
+	@echo "Manual Tests - Agent Skills:"
 	@echo "  make skill-issue-heat-map          - Test Issue Heat Map skill"
 	@echo "  make skill-portfolio-summary       - Test Portfolio Summary skill"
 	@echo "  make skill-repo-comparison         - Test Repo Comparison skill"
 	@echo "  make skill-repo-hotness            - Test Repo Hotness Rating skill"
 	@echo "  make skill-trending-topic          - Test Trending Topic Scout skill"
+	@echo "  make skill-tests                   - Run all skill tests"
 	@echo ""
-	@echo "IAM Gateway - Tool Invocation:"
+	@echo "Manual Tests - IAM Gateway:"
 	@echo "  make iam-list-tools                - List all tools via IAM gateway"
 	@echo "  make iam-search-tools              - Search tools via IAM gateway"
 	@echo "  make iam-invoke-tool TOOL=<name> ARGS='<json>' - Invoke specific tool"
-	@echo ""
-	@echo "IAM Gateway - MCP Tests:"
 	@echo "  make iam-test-calculator           - Test calculator via IAM gateway"
 	@echo "  make iam-test-skill-search         - Test skill search via IAM gateway"
+	@echo "  make iam-tests                     - Run all IAM gateway tests"
 	@echo ""
-	@echo "JWT Gateway - Tool Invocation:"
+	@echo "Manual Tests - JWT Gateway:"
 	@echo "  make jwt-list-tools                - List all tools via JWT gateway"
 	@echo "  make jwt-search-tools              - Search tools via JWT gateway"
 	@echo "  make jwt-invoke-tool TOOL=<name> ARGS='<json>' - Invoke specific tool"
-	@echo ""
-	@echo "JWT Gateway - MCP Tests:"
 	@echo "  make jwt-test-github               - Test GitHub MCP via JWT gateway"
 	@echo "  make jwt-test-temperature          - Test temperature converter via JWT gateway"
+	@echo "  make jwt-tests                     - Run all JWT gateway tests"
 	@echo ""
-	@echo "MCP Direct Runtime Invocation:"
+	@echo "Manual Tests - MCP Runtime:"
 	@echo "  make mcp-invoke-calculator         - Directly invoke calculator MCP runtime"
 	@echo ""
-	@echo "Evaluation Commands:"
+	@echo "Manual Tests - Memory:"
+	@echo "  make view-memory                   - View stored memory records"
+	@echo ""
+	@echo "Manual Tests - Evaluations:"
 	@echo "  make eval-list                     - List online evaluation configurations"
 	@echo "  make eval-results                  - Query recent evaluation results (default: last 1 hour)"
 	@echo "  make eval-results HOURS=<n>        - Query evaluation results for last N hours"
+	@echo ""
+	@echo "Convenience Targets:"
+	@echo "  make all-tests                     - Run all tests (integration + manual)"
+	@echo "  make all-integration-tests         - Run all pytest integration tests"
+	@echo "  make all-manual-tests              - Run all manual tests"
 	@echo ""
 	@echo "Examples:"
 	@echo "  make deploy ENV=prod               - Deploy AgentCore to production"
@@ -82,305 +95,3 @@ help:
 	@echo "  make iam-invoke-tool TOOL=add ARGS='{\"a\": 5, \"b\": 3}'"
 	@echo "  make jwt-invoke-tool TOOL=temperature-converter___celsius_to_fahrenheit ARGS='{\"celsius\": 25}'"
 	@echo "  make eval-results HOURS=6          - Query evaluation results from last 6 hours"
-
-# ==============================================================================
-# Setup Commands
-# ==============================================================================
-
-install:
-	@echo "Setting up virtual environment and installing dependencies..."
-	@PYTHON_CMD=""; \
-	if command -v python >/dev/null 2>&1; then \
-		python_version=$$(python --version 2>&1 | awk '{print $$2}'); \
-		major=$$(echo $$python_version | cut -d. -f1); \
-		minor=$$(echo $$python_version | cut -d. -f2); \
-		if [ $$major -gt 3 ] || ([ $$major -eq 3 ] && [ $$minor -ge 12 ]); then \
-			PYTHON_CMD="python"; \
-		fi; \
-	fi; \
-	if [ -z "$$PYTHON_CMD" ] && command -v python3 >/dev/null 2>&1; then \
-		python_version=$$(python3 --version 2>&1 | awk '{print $$2}'); \
-		major=$$(echo $$python_version | cut -d. -f1); \
-		minor=$$(echo $$python_version | cut -d. -f2); \
-		if [ $$major -gt 3 ] || ([ $$major -eq 3 ] && [ $$minor -ge 12 ]); then \
-			PYTHON_CMD="python3"; \
-		fi; \
-	fi; \
-	if [ -z "$$PYTHON_CMD" ]; then \
-		echo "✗ Error: Python 3.12 or higher is required"; \
-		echo "  Please install Python 3.12+ and ensure it's available as 'python' or 'python3'"; \
-		exit 1; \
-	fi; \
-	python_version=$$($$PYTHON_CMD --version 2>&1 | awk '{print $$2}'); \
-	echo "✓ Python version $$python_version detected (using $$PYTHON_CMD)"; \
-	if [ ! -d .venv ]; then \
-		echo "Creating virtual environment..."; \
-		$$PYTHON_CMD -m venv .venv; \
-	else \
-		echo "✓ Virtual environment already exists"; \
-	fi; \
-	echo "Installing dependencies into virtual environment..."; \
-	.venv/bin/pip install --upgrade pip; \
-	.venv/bin/pip install .
-	@echo ""
-	@echo "✓ Installation complete!"
-	@echo ""
-	@echo "Next step: Activate the virtual environment by running:"
-	@echo "  source .venv/bin/activate"
-
-setup-observability:
-	@echo "Enabling CloudWatch Transaction Search for AgentCore observability..."
-	@AWS_ACCOUNT_ID=$(AWS_ACCOUNT_ID) REGION_NAME=$(REGION_NAME) ./src/observability/setup.sh
-
-# ==============================================================================
-# Configuration Validation
-# ==============================================================================
-
-PYTHON := .venv/bin/python
-
-validate-config:
-	@echo "Validating environment configurations..."
-	@$(PYTHON) -c "from src.cdk.config import load_config; \
-		print('✓ dev.yaml'); load_config('dev'); \
-		print('✓ test.yaml'); load_config('test'); \
-		print('✓ prod.yaml'); load_config('prod'); \
-		print('\n✓ All configurations are valid')"
-
-show-config:
-	@echo "Configuration for $(ENV) environment:"
-	@echo "======================================"
-	@$(PYTHON) -c "from src.cdk.config import load_config; \
-		import yaml; \
-		config = load_config('$(ENV)'); \
-		print(yaml.dump({ \
-			'environment': config.environment, \
-			'memory': { \
-				'enabled': config.memory.enabled, \
-				'event_expiry_days': config.memory.event_expiry_days, \
-				'strategies': { \
-					'summary': config.memory.strategies.summary, \
-					'preference': config.memory.strategies.preference, \
-					'semantic': config.memory.strategies.semantic \
-				} \
-			}, \
-			'agent_runtime': { \
-				'log_level': config.agent_runtime.log_level, \
-				'otel_logging_enabled': config.agent_runtime.otel_logging_enabled \
-			}, \
-			'mcp_runtimes': { \
-				'calculator': { \
-					'log_level': config.mcp_runtimes.calculator.log_level \
-				} \
-			}, \
-			'lambda_targets': { \
-				'skill_search': { \
-					'log_level': config.lambda_targets.skill_search.log_level \
-				}, \
-				'temperature_converter': { \
-					'log_level': config.lambda_targets.temperature_converter.log_level \
-				} \
-			}, \
-			'observability': { \
-				'enabled': config.observability.enabled \
-			}, \
-			'evaluation': { \
-				'sampling_rate': config.evaluation.sampling_rate, \
-				'enable_on_create': config.evaluation.enable_on_create \
-			} \
-		}, default_flow_style=False))"
-
-# ==============================================================================
-# Code Quality Commands
-# ==============================================================================
-
-lint:
-	@echo "Linting Python code with ruff..."
-	@.venv/bin/ruff check src/ tests/ app.py
-
-format:
-	@echo "Formatting Python code with ruff..."
-	@.venv/bin/ruff format src/ tests/ app.py
-	@.venv/bin/ruff check --select I --fix src/ tests/ app.py
-	@echo "✓ Code formatted successfully"
-
-# ==============================================================================
-# CDK Deployment Commands
-# ==============================================================================
-
-deploy: format lint
-	@echo "Deploying AgentCore stack (ENV=$(ENV))..."
-	cdk deploy --context env=$(ENV) --require-approval never --exclusively AgentCoreStack-$(ENV)
-
-diff: format lint
-	@echo "Showing changes for AgentCore stack (ENV=$(ENV))..."
-	cdk diff --context env=$(ENV) --exclusively AgentCoreStack-$(ENV)
-
-destroy:
-	@echo "Destroying AgentCore stack (ENV=$(ENV))..."
-	cdk destroy --context env=$(ENV) --exclusively AgentCoreStack-$(ENV)
-
-# ==============================================================================
-# Skill Tests (Agent Runtime)
-# ==============================================================================
-
-agent-hello:
-	@echo "Sending hello to agent runtime..."
-	@cd tests/manual/runtimes/agent && python hello.py
-
-agent-chat:
-	@echo "Starting interactive chat with agent..."
-	@cd tests/manual/runtimes/agent && python chat_client.py
-
-view-memory:
-	@echo "Viewing AgentCore memory..."
-	@python tests/manual/memory/view_memory.py
-
-# Pytest Integration Tests
-test:
-	@echo "Running all tests..."
-	@pytest tests/ -v
-
-test-integration:
-	@echo "Running all integration tests..."
-	@pytest tests/integration/ -v -m integration
-
-test-memory:
-	@echo "Running memory integration tests..."
-	@pytest tests/integration/memory/ -v
-
-test-memory-quick:
-	@echo "Running memory integration tests (excluding slow tests)..."
-	@pytest tests/integration/memory/ -v -m "integration and not slow"
-
-skill-issue-heat-map:
-	@echo "Running Issue Heat Map skill test..."
-	@cd tests/manual/runtimes/agent/skill_tests && python issue_heat_map.py
-
-skill-portfolio-summary:
-	@echo "Running Portfolio Summary skill test..."
-	@cd tests/manual/runtimes/agent/skill_tests && python portfolio_summary.py
-
-skill-repo-comparison:
-	@echo "Running Repo Comparison skill test..."
-	@cd tests/manual/runtimes/agent/skill_tests && python repo_comparison.py
-
-skill-repo-hotness:
-	@echo "Running Repo Hotness Rating skill test..."
-	@cd tests/manual/runtimes/agent/skill_tests && python repo_hotness_rating.py
-
-skill-trending-topic:
-	@echo "Running Trending Topic Scout skill test..."
-	@cd tests/manual/runtimes/agent/skill_tests && python trending_topic_scout.py
-
-# Run all skill tests
-skill-tests: skill-issue-heat-map skill-portfolio-summary skill-repo-comparison skill-repo-hotness skill-trending-topic
-
-
-# ==============================================================================
-# IAM Gateway - Tool Invocation
-# ==============================================================================
-
-iam-list-tools:
-	@echo "Listing tools via IAM Gateway..."
-	@cd tests/manual/gateways/iam && python list_tools.py
-
-iam-search-tools:
-	@echo "Searching tools via IAM Gateway..."
-	@cd tests/manual/gateways/iam && python search_tools.py
-
-iam-invoke-tool:
-	@ifndef TOOL
-		$(error TOOL is not set. Usage: make iam-invoke-tool TOOL=<tool_name> ARGS='<json>')
-	@endif
-	@ifndef ARGS
-		$(error ARGS is not set. Usage: make iam-invoke-tool TOOL=<tool_name> ARGS='<json>')
-	@endif
-	@echo "Invoking tool $(TOOL) via IAM Gateway..."
-	@cd tests/manual/gateways/iam && python invoke_tool.py $(TOOL) '$(ARGS)'
-
-# ==============================================================================
-# IAM Gateway - MCP Tests
-# ==============================================================================
-
-iam-test-calculator:
-	@echo "Testing Calculator via IAM Gateway..."
-	@cd tests/manual/gateways/iam/mcp_tests && python calculator.py
-
-iam-test-skill-search:
-	@echo "Testing Skill Search via IAM Gateway..."
-	@cd tests/manual/gateways/iam/mcp_tests && python skill_search.py
-
-# Run all IAM MCP tests
-iam-mcp-tests: iam-test-calculator iam-test-skill-search
-
-# ==============================================================================
-# JWT Gateway - Tool Invocation
-# ==============================================================================
-
-jwt-list-tools:
-	@echo "Listing tools via JWT Gateway..."
-	@cd tests/manual/gateways/jwt && python list_tools.py
-
-jwt-search-tools:
-	@echo "Searching tools via JWT Gateway..."
-	@cd tests/manual/gateways/jwt && python search_tools.py
-
-jwt-invoke-tool:
-	@ifndef TOOL
-		$(error TOOL is not set. Usage: make jwt-invoke-tool TOOL=<tool_name> ARGS='<json>')
-	@endif
-	@ifndef ARGS
-		$(error ARGS is not set. Usage: make jwt-invoke-tool TOOL=<tool_name> ARGS='<json>')
-	@endif
-	@echo "Invoking tool $(TOOL) via JWT Gateway..."
-	@cd tests/manual/gateways/jwt && python invoke_tool.py $(TOOL) '$(ARGS)'
-
-# ==============================================================================
-# JWT Gateway - MCP Tests
-# ==============================================================================
-
-jwt-test-github:
-	@echo "Testing GitHub MCP via JWT Gateway..."
-	@cd tests/manual/gateways/jwt/mcp_tests && python github.py
-
-jwt-test-temperature:
-	@echo "Testing Temperature Converter via JWT Gateway..."
-	@cd tests/manual/gateways/jwt/mcp_tests && python temperature_converter.py
-
-# Run all JWT MCP tests
-jwt-mcp-tests: jwt-test-github jwt-test-temperature
-
-# ==============================================================================
-# MCP Direct Runtime Invocation
-# ==============================================================================
-
-mcp-invoke-calculator:
-	@echo "Directly invoking Calculator MCP runtime..."
-	@cd tests/manual/runtimes/mcp && python invoke_calculator.py
-
-# ==============================================================================
-# Evaluation Commands
-# ==============================================================================
-
-PYTHON := .venv/bin/python
-
-eval-list:
-	@echo "📊 Listing online evaluation configurations..."
-	@$(PYTHON) tests/manual/evaluations/list_configs.py
-
-eval-results:
-	@echo "🔍 Querying evaluation results from CloudWatch Logs..."
-	@$(PYTHON) tests/manual/evaluations/query_results.py $(if $(HOURS),$(HOURS),1)
-
-# ==============================================================================
-# Convenience Targets
-# ==============================================================================
-
-# Run all tests
-all-tests: skill-tests iam-mcp-tests jwt-mcp-tests
-
-# Run all IAM gateway tests
-iam-tests: iam-list-tools iam-search-tools iam-mcp-tests
-
-# Run all JWT gateway tests
-jwt-tests: jwt-list-tools jwt-search-tools jwt-mcp-tests

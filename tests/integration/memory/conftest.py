@@ -5,8 +5,9 @@ with the live AWS AgentCore service.
 """
 
 import os
-import pytest
+
 import boto3
+import pytest
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -66,4 +67,5 @@ def unique_session_id():
     test interference.
     """
     import uuid
+
     return f"test_{uuid.uuid4().hex[:8]}"

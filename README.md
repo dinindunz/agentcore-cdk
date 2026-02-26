@@ -21,8 +21,17 @@ The diagram shows the complete authentication and data flow, including:
 .
 ├── app.py                        # CDK application entry point
 ├── pyproject.toml                # Python project dependencies
-├── Makefile                      # Build, deploy, and test commands
+├── Makefile                      # Main Makefile (includes sub-makefiles)
 ├── pytest.ini                    # Pytest configuration
+│
+├── makefiles/                    # Modular Makefile organisation
+│   ├── setup.mk                  # Setup and installation commands
+│   ├── config.mk                 # Configuration validation
+│   ├── code-quality.mk           # Linting and formatting
+│   ├── cdk.mk                    # CDK deployment commands
+│   ├── integration-tests.mk      # Pytest integration tests
+│   ├── manual-tests.mk           # Manual testing scripts
+│   └── convenience.mk            # Convenience targets
 │
 ├── config/                       # Environment-specific configurations
 │   ├── dev.yaml                  # Development environment settings
@@ -242,53 +251,30 @@ This launches an interactive chat client where you can have continuous conversat
 
 > **Note**: Set `ACTOR_ID` in your `.env` file to maintain the same identity across multiple chat sessions. This enables long-term memory strategies (Preference, Semantic, Summary, Episodic) to learn your patterns over time. Without it, a random ID is generated each time.
 
-### 7. Run Tests
+### 7. Test and Monitor
 
-Test the deployed infrastructure with different test suites:
+The project includes comprehensive testing organised into integration tests (pytest) and manual tests (scripts):
 
 ```bash
-# Run all tests
-make all-tests
+# Integration tests (pytest)
+make test                      # Run all integration tests
+make test-memory               # Run memory integration tests
 
-# Agent skill tests (GitHub analysis skills)
+# Manual tests - Agent skills
 make skill-tests               # Run all agent skill tests
-make skill-issue-heat-map      # Test Issue Heat Map skill
-make skill-portfolio-summary   # Test Portfolio Summary skill
-make skill-repo-comparison     # Test Repo Comparison skill
-make skill-repo-hotness        # Test Repo Hotness Rating skill
-make skill-trending-topic      # Test Trending Topic Scout skill
+make agent-chat                # Interactive chat with the agent
 
-# IAM Gateway tests
+# Manual tests - Gateways
 make iam-tests                 # Run all IAM gateway tests
-make iam-list-tools            # List available tools
-make iam-search-tools          # Search for tools
-make iam-test-calculator       # Test calculator MCP server
-make iam-test-skill-search     # Test skill search MCP server
-
-# JWT Gateway tests
 make jwt-tests                 # Run all JWT gateway tests
-make jwt-list-tools            # List available tools
-make jwt-search-tools          # Search for tools
-make jwt-test-github           # Test GitHub MCP server
-make jwt-test-temperature      # Test temperature converter MCP server
+
+# Manual tests - Evaluations
+make eval-list                 # List evaluation configurations
+make eval-results              # Query evaluation results
+
+# Run everything
+make all-tests                 # Run all integration + manual tests
 ```
-
-### 8. Monitor Evaluations
-
-The stack includes online evaluations that continuously monitor agent performance with 10 evaluators (5 built-in + 5 custom):
-
-```bash
-# List evaluation configurations
-make eval-list
-
-# View recent evaluation results (last 1 hour by default)
-make eval-results
-
-# View evaluation results from a longer time window
-make eval-results HOURS=6
-```
-
-**For complete evaluator documentation**, including how to create custom evaluators with configurable models, prompts, and scoring schemas, see **[`src/evals/README.md`](src/evals/README.md)**
 
 ## Cleanup
 

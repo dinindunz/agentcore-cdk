@@ -139,14 +139,9 @@ def test_memory_event_extraction_delay(
     records = response.get("memoryRecordSummaries", [])
 
     # Look for our content in the records
-    found_immediately = any(
-        test_content in str(record.get("content", {}))
-        for record in records
-    )
+    found_immediately = any(test_content in str(record.get("content", {})) for record in records)
 
-    # Document expected behaviour: extraction is not immediate
-    # In a real scenario, you'd wait 90 seconds or check in a separate test
-    assert not found_immediately or True, (
-        "Memory extraction is asynchronous (60-90s delay). "
-        "Immediate retrieval typically won't find the record."
-    )
+    # Expected behaviour: extraction is NOT immediate due to 60-90s asynchronous delay
+    # The record typically won't be found in immediate retrieval
+    # See test_memory_queries.py for tests that verify extraction after waiting
+    _ = found_immediately  # Acknowledge the variable is intentionally unused here

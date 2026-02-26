@@ -113,10 +113,7 @@ def test_search_semantic_memory(
     )
 
     if not list_response.get("memoryRecordSummaries"):
-        pytest.skip(
-            "No semantic records found for test-user. "
-            "Create test facts first."
-        )
+        pytest.skip("No semantic records found for test-user. Create test facts first.")
 
     # Perform search
     response = bedrock_agentcore_client.retrieve_memory_records(

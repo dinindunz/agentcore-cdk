@@ -10,10 +10,10 @@ from typing import Any
 
 from auth.cognito import get_access_token
 from auth.sigv4 import SigV4Auth
-from config import AgentConfig
 from strands.tools.mcp import MCPClient
 
 from common.logger import logger
+from config import AgentConfig
 
 # TODO: Refactor to use streamable_http_client
 from mcp.client.streamable_http import streamablehttp_client

@@ -11,10 +11,10 @@ testability and maintainability.
 from agent_handler import invoke_agent_with_session_manager
 from auth.sigv4 import SigV4Auth
 from bedrock_agentcore.runtime import BedrockAgentCoreApp
-from config import get_config
 from gateway.clients import load_all_tools, setup_mcp_clients
 from prompts.loader import load_system_prompt
 
+from config import get_config
 from skills.loader import load_skills_summary
 
 # Initialise Bedrock AgentCore app
