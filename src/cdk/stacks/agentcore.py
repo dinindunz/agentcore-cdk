@@ -170,9 +170,17 @@ class AgentCoreStack(cdk.Stack):
                 config.agent_runtime.otel_logging_enabled
             ).lower(),
         }
-        # Add memory ID if memory is enabled
+        # Add memory configuration if memory is enabled
         if self.memory:
             agent_env_vars["MEMORY_ID"] = self.memory.memory_id
+            agent_env_vars["MEMORY_PREFERENCE_TOP_K"] = str(config.memory.preference_top_k)
+            agent_env_vars["MEMORY_PREFERENCE_RELEVANCE_SCORE"] = str(
+                config.memory.preference_relevance_score
+            )
+            agent_env_vars["MEMORY_SEMANTIC_TOP_K"] = str(config.memory.semantic_top_k)
+            agent_env_vars["MEMORY_SEMANTIC_RELEVANCE_SCORE"] = str(
+                config.memory.semantic_relevance_score
+            )
 
         # Agent Runtime — the "agent" runtime that will orchestrate calls to the gateways and execute tools
         agent_rt = RuntimeConstruct(

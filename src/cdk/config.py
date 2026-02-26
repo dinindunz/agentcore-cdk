@@ -29,6 +29,11 @@ class MemoryConfig:
     enabled: bool = False
     event_expiry_days: int = 90  # Valid range: 7-365
     strategies: MemoryStrategyConfig | None = None
+    # Retrieval configuration for long-term memory strategies
+    preference_top_k: int = 10
+    preference_relevance_score: float = 0.2
+    semantic_top_k: int = 10
+    semantic_relevance_score: float = 0.2
 
     def __post_init__(self):
         """Validate and initialise nested dataclasses."""
@@ -41,6 +46,20 @@ class MemoryConfig:
         if not 7 <= self.event_expiry_days <= 365:
             raise ValueError(
                 f"event_expiry_days must be between 7 and 365, got {self.event_expiry_days}"
+            )
+
+        # Validate retrieval config values
+        if self.preference_top_k < 1:
+            raise ValueError(f"preference_top_k must be >= 1, got {self.preference_top_k}")
+        if not 0.0 <= self.preference_relevance_score <= 1.0:
+            raise ValueError(
+                f"preference_relevance_score must be between 0.0 and 1.0, got {self.preference_relevance_score}"
+            )
+        if self.semantic_top_k < 1:
+            raise ValueError(f"semantic_top_k must be >= 1, got {self.semantic_top_k}")
+        if not 0.0 <= self.semantic_relevance_score <= 1.0:
+            raise ValueError(
+                f"semantic_relevance_score must be between 0.0 and 1.0, got {self.semantic_relevance_score}"
             )
 
 

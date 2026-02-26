@@ -10,6 +10,11 @@ memory:
     preference: true                  # Enable user preference memory strategy (user preferences)
     semantic: true                    # Enable semantic memory strategy (knowledge graphs)
     # episodic: false                 # Episodic memory (currently disabled - AgentCore validation issue)
+  # Retrieval configuration for long-term memory strategies
+  preference_top_k: 10                # Maximum number of preference records to retrieve
+  preference_relevance_score: 0.2     # Minimum relevance threshold for preference retrieval (0.0-1.0)
+  semantic_top_k: 10                  # Maximum number of semantic facts to retrieve
+  semantic_relevance_score: 0.2       # Minimum relevance threshold for semantic retrieval (0.0-1.0)
 
 # Agent Runtime Configuration (AgentCore Runtime construct)
 agent_runtime:
