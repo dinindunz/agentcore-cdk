@@ -104,45 +104,43 @@ The diagram shows the complete authentication and data flow, including:
 ├── layers/                       # Lambda layer source directories
 │   └── agentcore_sdk/            # AgentCore Starter Toolkit SDK layer (bundled at deploy time)
 │
-├── scripts/                      # Testing and invocation scripts
-│   ├── runtimes/
-│   │   ├── agent/                # Agent runtime testing
-│   │   │   ├── invoke_agent.py   # Invoke agent with OAuth2 authentication (single prompt)
-│   │   │   ├── chat_client.py    # Interactive chat client for continuous conversation
-│   │   │   └── skill_tests/      # Test scripts for each agent skill
-│   │   └── mcp/                  # MCP runtime testing
-│   │       └── invoke_calculator.py # Calculator runtime invocation
-│   ├── gateways/
-│   │   ├── iam/                  # IAM-authenticated gateway testing
-│   │   │   ├── auth.py           # SigV4 signing helper
-│   │   │   ├── list_tools.py     # List available tools
-│   │   │   ├── search_tools.py   # Search tools by keyword
-│   │   │   ├── invoke_tool.py    # Invoke a specific tool
-│   │   │   └── mcp_tests/        # MCP tools tests
-│   │   │       ├── calculator.py # Test calculator tools
-│   │   │       └── skill_search.py # Test skill search tool
-│   │   └── jwt/                  # JWT-authenticated gateway testing
-│   │       ├── auth.py           # Cognito authentication helper
-│   │       ├── list_tools.py     # List available tools
-│   │       ├── search_tools.py   # Search tools by keyword
-│   │       ├── invoke_tool.py    # Invoke a specific tool
-│   │       └── mcp_tests/        # MCP tools tests
-│   │           ├── github.py     # Test GitHub tools
-│   │           └── temperature_converter.py # Test temperature converter tools
-│   ├── memory/                   # Memory utility
-│   │   ├── view_memory.py        # View memory records for an actor
-│   └── evaluations/              # Evaluation utilities
-│       ├── list_evals.py         # List online evaluation configurations
-│       └── query_results.py      # Query evaluation results
-│
-└── tests/                        # Integration tests
-    └── integration/
-        └── memory/               # Memory integration tests
-            ├── conftest.py       # Shared fixtures (test-user, memory_id, etc.)
-            ├── test_memory_create.py  # Create memory events
-            ├── test_memory_queries.py # Query memory records
-            └── test_memory_view.py    # View stored memories
-│
+└── tests/                        # Tests and manual invocation scripts
+    ├── integration/              # Automated integration tests
+    │   └── memory/               # Memory integration tests
+    │       ├── conftest.py       # Shared fixtures (test-user, memory_id, etc.)
+    │       ├── test_memory_create.py  # Create memory events
+    │       ├── test_memory_queries.py # Query memory records
+    │       └── test_memory_view.py    # View stored memories
+    └── manual/                   # Manual testing and invocation scripts
+        ├── runtimes/
+        │   ├── agent/            # Agent runtime testing
+        │   │   ├── invoke_agent.py   # Invoke agent with OAuth2 authentication (single prompt)
+        │   │   ├── chat_client.py    # Interactive chat client for continuous conversation
+        │   │   └── skill_tests/  # Test scripts for each agent skill
+        │   └── mcp/              # MCP runtime testing
+        │       └── invoke_calculator.py # Calculator runtime invocation
+        ├── gateways/
+        │   ├── iam/              # IAM-authenticated gateway testing
+        │   │   ├── auth.py       # SigV4 signing helper
+        │   │   ├── list_tools.py # List available tools
+        │   │   ├── search_tools.py # Search tools by keyword
+        │   │   ├── invoke_tool.py # Invoke a specific tool
+        │   │   └── mcp_tests/    # MCP tools tests
+        │   │       ├── calculator.py # Test calculator tools
+        │   │       └── skill_search.py # Test skill search tool
+        │   └── jwt/              # JWT-authenticated gateway testing
+        │       ├── auth.py       # Cognito authentication helper
+        │       ├── list_tools.py # List available tools
+        │       ├── search_tools.py # Search tools by keyword
+        │       ├── invoke_tool.py # Invoke a specific tool
+        │       └── mcp_tests/    # MCP tools tests
+        │           ├── github.py # Test GitHub tools
+        │           └── temperature_converter.py # Test temperature converter tools
+        ├── memory/               # Memory utility
+        │   └── view_memory.py    # View memory records for an actor
+        └── evaluations/          # Evaluation utilities
+            ├── list_evals.py     # List online evaluation configurations
+            └── query_results.py  # Query evaluation results
 ```
 
 ## Prerequisites

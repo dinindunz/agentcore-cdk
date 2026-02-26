@@ -38,8 +38,8 @@ packages = []
 # Target Python 3.12+
 target-version = "py312"
 
-# Include src, scripts, and tests directories
-include = ["src/**/*.py", "scripts/**/*.py", "tests/**/*.py", "app.py"]
+# Include src and tests directories
+include = ["src/**/*.py", "tests/**/*.py", "app.py"]
 
 # Line length
 line-length = 100

@@ -9,7 +9,7 @@ Quick utility to view AgentCore memory records.
 make view-memory
 
 # Specify custom actor ID
-python scripts/memory/view_memory.py your-actor-id
+python tests/manual/memory/view_memory.py your-actor-id
 ```
 
 ## What It Shows

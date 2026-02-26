@@ -195,12 +195,12 @@ show-config:
 
 lint:
 	@echo "Linting Python code with ruff..."
-	@.venv/bin/ruff check src/ scripts/ tests/ app.py
+	@.venv/bin/ruff check src/ tests/ app.py
 
 format:
 	@echo "Formatting Python code with ruff..."
-	@.venv/bin/ruff format src/ scripts/ tests/ app.py
-	@.venv/bin/ruff check --select I --fix src/ scripts/ tests/ app.py
+	@.venv/bin/ruff format src/ tests/ app.py
+	@.venv/bin/ruff check --select I --fix src/ tests/ app.py
 	@echo "✓ Code formatted successfully"
 
 # ==============================================================================
@@ -225,15 +225,15 @@ destroy:
 
 agent-hello:
 	@echo "Sending hello to agent runtime..."
-	@cd scripts/runtimes/agent && python hello.py
+	@cd tests/manual/runtimes/agent && python hello.py
 
 agent-chat:
 	@echo "Starting interactive chat with agent..."
-	@cd scripts/runtimes/agent && python chat_client.py
+	@cd tests/manual/runtimes/agent && python chat_client.py
 
 view-memory:
 	@echo "Viewing AgentCore memory..."
-	@python scripts/memory/view_memory.py
+	@python tests/manual/memory/view_memory.py
 
 # Pytest Integration Tests
 test:
@@ -254,23 +254,23 @@ test-memory-quick:
 
 skill-issue-heat-map:
 	@echo "Running Issue Heat Map skill test..."
-	@cd scripts/runtimes/agent/skill_tests && python issue_heat_map.py
+	@cd tests/manual/runtimes/agent/skill_tests && python issue_heat_map.py
 
 skill-portfolio-summary:
 	@echo "Running Portfolio Summary skill test..."
-	@cd scripts/runtimes/agent/skill_tests && python portfolio_summary.py
+	@cd tests/manual/runtimes/agent/skill_tests && python portfolio_summary.py
 
 skill-repo-comparison:
 	@echo "Running Repo Comparison skill test..."
-	@cd scripts/runtimes/agent/skill_tests && python repo_comparison.py
+	@cd tests/manual/runtimes/agent/skill_tests && python repo_comparison.py
 
 skill-repo-hotness:
 	@echo "Running Repo Hotness Rating skill test..."
-	@cd scripts/runtimes/agent/skill_tests && python repo_hotness_rating.py
+	@cd tests/manual/runtimes/agent/skill_tests && python repo_hotness_rating.py
 
 skill-trending-topic:
 	@echo "Running Trending Topic Scout skill test..."
-	@cd scripts/runtimes/agent/skill_tests && python trending_topic_scout.py
+	@cd tests/manual/runtimes/agent/skill_tests && python trending_topic_scout.py
 
 # Run all skill tests
 skill-tests: skill-issue-heat-map skill-portfolio-summary skill-repo-comparison skill-repo-hotness skill-trending-topic
@@ -282,11 +282,11 @@ skill-tests: skill-issue-heat-map skill-portfolio-summary skill-repo-comparison 
 
 iam-list-tools:
 	@echo "Listing tools via IAM Gateway..."
-	@cd scripts/gateways/iam && python list_tools.py
+	@cd tests/manual/gateways/iam && python list_tools.py
 
 iam-search-tools:
 	@echo "Searching tools via IAM Gateway..."
-	@cd scripts/gateways/iam && python search_tools.py
+	@cd tests/manual/gateways/iam && python search_tools.py
 
 iam-invoke-tool:
 	@ifndef TOOL
@@ -296,7 +296,7 @@ iam-invoke-tool:
 		$(error ARGS is not set. Usage: make iam-invoke-tool TOOL=<tool_name> ARGS='<json>')
 	@endif
 	@echo "Invoking tool $(TOOL) via IAM Gateway..."
-	@cd scripts/gateways/iam && python invoke_tool.py $(TOOL) '$(ARGS)'
+	@cd tests/manual/gateways/iam && python invoke_tool.py $(TOOL) '$(ARGS)'
 
 # ==============================================================================
 # IAM Gateway - MCP Tests
@@ -304,11 +304,11 @@ iam-invoke-tool:
 
 iam-test-calculator:
 	@echo "Testing Calculator via IAM Gateway..."
-	@cd scripts/gateways/iam/mcp_tests && python calculator.py
+	@cd tests/manual/gateways/iam/mcp_tests && python calculator.py
 
 iam-test-skill-search:
 	@echo "Testing Skill Search via IAM Gateway..."
-	@cd scripts/gateways/iam/mcp_tests && python skill_search.py
+	@cd tests/manual/gateways/iam/mcp_tests && python skill_search.py
 
 # Run all IAM MCP tests
 iam-mcp-tests: iam-test-calculator iam-test-skill-search
@@ -319,11 +319,11 @@ iam-mcp-tests: iam-test-calculator iam-test-skill-search
 
 jwt-list-tools:
 	@echo "Listing tools via JWT Gateway..."
-	@cd scripts/gateways/jwt && python list_tools.py
+	@cd tests/manual/gateways/jwt && python list_tools.py
 
 jwt-search-tools:
 	@echo "Searching tools via JWT Gateway..."
-	@cd scripts/gateways/jwt && python search_tools.py
+	@cd tests/manual/gateways/jwt && python search_tools.py
 
 jwt-invoke-tool:
 	@ifndef TOOL
@@ -333,7 +333,7 @@ jwt-invoke-tool:
 		$(error ARGS is not set. Usage: make jwt-invoke-tool TOOL=<tool_name> ARGS='<json>')
 	@endif
 	@echo "Invoking tool $(TOOL) via JWT Gateway..."
-	@cd scripts/gateways/jwt && python invoke_tool.py $(TOOL) '$(ARGS)'
+	@cd tests/manual/gateways/jwt && python invoke_tool.py $(TOOL) '$(ARGS)'
 
 # ==============================================================================
 # JWT Gateway - MCP Tests
@@ -341,11 +341,11 @@ jwt-invoke-tool:
 
 jwt-test-github:
 	@echo "Testing GitHub MCP via JWT Gateway..."
-	@cd scripts/gateways/jwt/mcp_tests && python github.py
+	@cd tests/manual/gateways/jwt/mcp_tests && python github.py
 
 jwt-test-temperature:
 	@echo "Testing Temperature Converter via JWT Gateway..."
-	@cd scripts/gateways/jwt/mcp_tests && python temperature_converter.py
+	@cd tests/manual/gateways/jwt/mcp_tests && python temperature_converter.py
 
 # Run all JWT MCP tests
 jwt-mcp-tests: jwt-test-github jwt-test-temperature
@@ -356,7 +356,7 @@ jwt-mcp-tests: jwt-test-github jwt-test-temperature
 
 mcp-invoke-calculator:
 	@echo "Directly invoking Calculator MCP runtime..."
-	@cd scripts/runtimes/mcp && python invoke_calculator.py
+	@cd tests/manual/runtimes/mcp && python invoke_calculator.py
 
 # ==============================================================================
 # Evaluation Commands
@@ -366,11 +366,11 @@ PYTHON := .venv/bin/python
 
 eval-list:
 	@echo "📊 Listing online evaluation configurations..."
-	@$(PYTHON) scripts/evaluations/list_configs.py
+	@$(PYTHON) tests/manual/evaluations/list_configs.py
 
 eval-results:
 	@echo "🔍 Querying evaluation results from CloudWatch Logs..."
-	@$(PYTHON) scripts/evaluations/query_results.py $(if $(HOURS),$(HOURS),1)
+	@$(PYTHON) tests/manual/evaluations/query_results.py $(if $(HOURS),$(HOURS),1)
 
 # ==============================================================================
 # Convenience Targets
