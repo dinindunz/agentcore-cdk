@@ -60,6 +60,9 @@ The diagram shows the complete authentication and data flow, including:
 │   │       ├── cleanup.py        # Log group cleanup aspects and custom resources
 │   │       └── strings.py        # Case conversion utilities (kebab/PascalCase/snake_case)
 │   │
+│   ├── common/                   # Shared utilities
+│   │   └── logger.py             # Structured logging module (shared across Agent and MCP targets)
+│   │
 │   ├── agent/                    # Agent runtime implementation (modular Python structure)
 │   │   ├── main.py               # Minimal entry point and orchestration
 │   │   ├── config.py             # Configuration management with lazy loading

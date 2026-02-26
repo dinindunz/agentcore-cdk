@@ -106,10 +106,12 @@ def load_all_tools(jwt_client: MCPClient, iam_client: MCPClient) -> Sequence[Any
     """
     Load and deduplicate tools from multiple MCP clients.
 
-    Aggregates tools from both JWT and IAM gateways, handling duplicate tool
-    names by keeping only the first occurrence. This is necessary because both
-    gateways may expose tools with identical names (e.g., the built-in
-    x_amz_bedrock_agentcore_search tool).
+    Aggregates tools from both JWT and IAM gateways. When duplicate tool names
+    are encountered (e.g., x_amz_bedrock_agentcore_search exposed by both
+    gateways), only the first occurrence is kept to avoid naming conflicts.
+
+    Current behaviour: JWT gateway tools are prioritised over IAM gateway tools.
+    Duplicate tools from the IAM gateway are silently dropped.
 
     Args:
         jwt_client: JWT-authenticated MCP client
@@ -118,10 +120,10 @@ def load_all_tools(jwt_client: MCPClient, iam_client: MCPClient) -> Sequence[Any
     Returns:
         Deduplicated list of tools from all clients
 
-    Note:
-        Both gateways may expose tools with identical names (e.g.,
-        x_amz_bedrock_agentcore_search). Only the first encountered
-        tool is kept to avoid naming conflicts in the agent.
+    TODO:
+        Improve deduplication strategy to merge tools intelligently rather than
+        silently dropping duplicates. Consider tool metadata, capabilities, or
+        explicit priority configuration.
     """
     logger.info("[Gateway] Loading tools from MCP clients")
 
