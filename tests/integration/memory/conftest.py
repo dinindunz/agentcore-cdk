@@ -16,7 +16,7 @@ load_dotenv()
 @pytest.fixture(scope="session")
 def aws_region():
     """AWS region for testing."""
-    return os.environ.get("REGION_NAME", "ap-southeast-2")
+    return os.environ.get("REGION_NAME")
 
 
 @pytest.fixture(scope="session")

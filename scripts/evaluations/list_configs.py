@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 env_path = Path(__file__).parent.parent.parent / ".env"
 load_dotenv(env_path)
 
-region = os.getenv("REGION_NAME", "ap-southeast-2")
+region = os.getenv("REGION_NAME")
 
 # Initialise Bedrock AgentCore Control client (for control plane operations)
 client = boto3.client("bedrock-agentcore-control", region_name=region)

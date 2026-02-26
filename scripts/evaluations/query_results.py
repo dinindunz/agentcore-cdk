@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 env_path = Path(__file__).parent.parent.parent / ".env"
 load_dotenv(env_path)
 
-region = os.getenv("REGION_NAME", "ap-southeast-2")
+region = os.getenv("REGION_NAME")
 
 # Initialise CloudWatch Logs client
 logs_client = boto3.client("logs", region_name=region)
