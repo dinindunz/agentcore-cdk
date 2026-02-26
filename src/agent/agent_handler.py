@@ -15,6 +15,7 @@ from bedrock_agentcore.memory.integrations.strands.session_manager import (
     AgentCoreMemorySessionManager,
 )
 from strands import Agent
+from strands.models.bedrock import BedrockModel
 
 from common.logger import logger
 
@@ -110,8 +111,16 @@ def invoke_agent_with_session_manager(
             region_name=config.region_name,
         )
 
+    # Create Bedrock model with inference profile (if available)
+    model = BedrockModel(
+        model_id=config.inference_profile_arn,
+        max_tokens=config.model_max_tokens,
+        temperature=config.model_temperature,
+    )
+
     # Create agent with session manager (automatic memory!)
     agent = Agent(
+        model=model,
         tools=tools,
         system_prompt=system_prompt,
         session_manager=session_manager,

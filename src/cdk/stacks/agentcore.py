@@ -21,6 +21,7 @@ from ..constructs import (
     BucketDeploymentConstruct,
     CustomEvaluatorConstruct,
     GatewayConstruct,
+    InferenceProfileConstruct,
     LambdaTargetConstruct,
     McpServerTargetConstruct,
     MemoryConstruct,
@@ -155,6 +156,18 @@ class AgentCoreStack(cdk.Stack):
             )
 
         # ---------------------------------------------------------------
+        # Create Inference Profile
+        # ---------------------------------------------------------------
+        self.inference_profile = InferenceProfileConstruct(
+            self,
+            "AgentInferenceProfile",
+            profile_name="agent-profile",
+            model_id=config.inference_profile.model_id,
+            description=config.inference_profile.description,
+            tags=config.inference_profile.tags,
+        )
+
+        # ---------------------------------------------------------------
         # AgentCore Runtimes
         # ---------------------------------------------------------------
 
@@ -169,6 +182,9 @@ class AgentCoreStack(cdk.Stack):
             "OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED": str(
                 config.agent_runtime.otel_logging_enabled
             ).lower(),
+            "INFERENCE_PROFILE_ARN": self.inference_profile.inference_profile_arn,
+            "MODEL_TEMPERATURE": str(config.agent_runtime.model_temperature),
+            "MODEL_MAX_TOKENS": str(config.agent_runtime.model_max_tokens),
         }
         # Add memory configuration if memory is enabled
         if self.memory:
@@ -192,6 +208,8 @@ class AgentCoreStack(cdk.Stack):
             auth_pool=agent_auth,
             environment_variables=agent_env_vars,
             enable_observability=config.observability.enabled,
+            memory=self.memory,
+            inference_profile=self.inference_profile,
         )
 
         # Grant the agent runtime's execution role permission to read skills from S3
@@ -207,26 +225,6 @@ class AgentCoreStack(cdk.Stack):
                 ],
             )
         )
-
-        # Grant agent runtime permissions to use memory (if enabled)
-        if self.memory:
-            agent_rt.role.add_to_policy(
-                iam.PolicyStatement(
-                    actions=[
-                        "bedrock-agentcore:CreateEvent",
-                        "bedrock-agentcore:ListEvents",
-                        "bedrock-agentcore:GetEvent",
-                        "bedrock-agentcore:ListSessions",
-                        "bedrock-agentcore:RetrieveMemoryRecords",
-                        "bedrock-agentcore:GetMemoryRecord",
-                        "bedrock-agentcore:ListMemoryRecords",
-                    ],
-                    resources=[
-                        f"arn:aws:bedrock-agentcore:{self.region}:{self.account}:memory/{self.memory.memory_id}",
-                        f"arn:aws:bedrock-agentcore:{self.region}:{self.account}:memory/{self.memory.memory_id}/*",
-                    ],
-                )
-            )
 
         # ---------------------------------------------------------------
         # Custom Evaluators — domain-specific validation

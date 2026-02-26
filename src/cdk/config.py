@@ -69,11 +69,23 @@ class AgentRuntimeConfig:
 
     log_level: str = "INFO"
     otel_logging_enabled: bool = False
+    model_temperature: float = 0.7
+    model_max_tokens: int = 4096
 
     def __post_init__(self):
-        """Validate log level."""
+        """Validate log level and model parameters."""
         self._validate_log_level(self.log_level)
         self.log_level = self.log_level.upper()
+
+        # Validate temperature (0.0 to 1.0)
+        if not 0.0 <= self.model_temperature <= 1.0:
+            raise ValueError(
+                f"model_temperature must be between 0.0 and 1.0, got {self.model_temperature}"
+            )
+
+        # Validate max_tokens (must be positive)
+        if self.model_max_tokens < 1:
+            raise ValueError(f"model_max_tokens must be >= 1, got {self.model_max_tokens}")
 
     @staticmethod
     def _validate_log_level(level: str) -> None:
@@ -164,6 +176,26 @@ class EvaluationConfig:
 
 
 @dataclass
+class InferenceProfileConfig:
+    """Bedrock inference profile configuration for cost tracking."""
+
+    model_id: str = (
+        "au.anthropic.claude-sonnet-4-6"  # Cross-region inference profile ID or foundation model ID
+    )
+    description: str = ""  # Profile description
+    tags: dict[str, str] | None = None  # Cost allocation tags
+
+    def __post_init__(self):
+        """Validate inference profile configuration."""
+        if not self.model_id:
+            raise ValueError("model_id is required for inference_profile")
+
+        # Initialise tags as empty dict if None
+        if self.tags is None:
+            self.tags = {}
+
+
+@dataclass
 class AgentCoreConfig:
     """Complete AgentCore stack configuration."""
 
@@ -174,6 +206,7 @@ class AgentCoreConfig:
     lambda_targets: LambdaTargetsConfig
     observability: ObservabilityConfig
     evaluation: EvaluationConfig
+    inference_profile: InferenceProfileConfig | None = None
 
     def __post_init__(self):
         """Initialise nested dataclasses from dicts."""
@@ -189,6 +222,10 @@ class AgentCoreConfig:
             self.observability = ObservabilityConfig(**self.observability)
         if isinstance(self.evaluation, dict):
             self.evaluation = EvaluationConfig(**self.evaluation)
+        if self.inference_profile is None:
+            self.inference_profile = InferenceProfileConfig()
+        elif isinstance(self.inference_profile, dict):
+            self.inference_profile = InferenceProfileConfig(**self.inference_profile)
 
 
 def load_config(environment: str) -> AgentCoreConfig:

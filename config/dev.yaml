@@ -20,6 +20,8 @@ memory:
 agent_runtime:
   log_level: INFO                     # Agent runtime logging level: DEBUG, INFO, WARNING, ERROR
   otel_logging_enabled: false         # Set to false to disable OTEL log duplication
+  model_temperature: 0.7              # Model temperature (0.0-1.0): 0.0=deterministic, 1.0=creative
+  model_max_tokens: 4096              # Maximum tokens to generate in response
 
 # MCP Runtimes Configuration (AgentCore Runtime constructs for MCP servers)
 mcp_runtimes:
@@ -41,3 +43,13 @@ observability:
 evaluation:
   sampling_rate: 100.0                # Percentage of interactions to evaluate (0.0 - 100.0)
   enable_on_create: true              # Automatically enable evaluation config after creation
+
+# Inference Profile Configuration
+inference_profile:
+  model_id: "au.anthropic.claude-sonnet-4-6"  # Cross-region inference profile
+  description: "Development inference profile for cost tracking"
+  tags:
+    Environment: "Development"
+    CostCentre: "AI-Engineering"
+    Project: "AgentCore"
+    ManagedBy: "CDK"
