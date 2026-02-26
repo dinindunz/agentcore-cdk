@@ -1,9 +1,10 @@
 import aws_cdk as cdk
 from aws_cdk import aws_iam as iam
+from aws_cdk import aws_ssm as ssm
 from aws_cdk import custom_resources as cr
 from constructs import Construct
 
-from ..utils import to_snake_case
+from ..utils import to_kebab_case, to_snake_case
 
 # Default namespace patterns
 DEFAULT_SUMMARY_NAMESPACES = ["/summaries/{actorId}/{sessionId}/"]
@@ -160,6 +161,18 @@ class MemoryConstruct(Construct):
         )
 
         self._memory_id = self._memory.get_response_field("memory.id")
+
+        # Export memory ID to SSM for easy script access (matches gateway naming convention)
+        stack = cdk.Stack.of(self)
+        stack_prefix = to_kebab_case(stack.stack_name)
+        ssm_prefix = f"/{stack_prefix}"
+        ssm.StringParameter(
+            self,
+            "MemoryIdParam",
+            parameter_name=f"{ssm_prefix}/memory-id",
+            string_value=self._memory_id,
+            description="AgentCore Memory ID for agent memory strategies",
+        )
 
     @property
     def memory_id(self) -> str:

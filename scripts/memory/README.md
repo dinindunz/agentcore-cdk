@@ -1,0 +1,59 @@
+# Memory Viewer Utility
+
+Quick command-line tool for viewing AgentCore memory records.
+
+## Usage
+
+```bash
+# View memory for actor from .env
+make view-memory
+
+# Specify custom actor ID
+python scripts/memory/view_memory.py your-actor-id
+```
+
+## What It Shows
+
+- **Preference memory** - User preferences and personalisation (`/preferences/{actorId}/`)
+- **Semantic memory** - Facts and knowledge about the user (`/facts/{actorId}/`)
+- **Summary memory** - Session conversation summaries (`/summaries/{actorId}/{sessionId}/`)
+
+## Environment Variables
+
+Required `.env` configuration:
+
+```bash
+REGION_NAME=ap-southeast-2
+ENV=dev
+ACTOR_ID=your-actor-id  # Optional, can be passed via CLI argument
+```
+
+## Example Output
+
+```
+================================================================================
+AGENTCORE MEMORY VIEWER
+================================================================================
+Memory ID: mem-abc123...
+Actor ID:  dini-123
+================================================================================
+
+================================================================================
+📝 PREFERENCE MEMORY
+================================================================================
+Namespace: /preferences/dini-123/
+
+  1. User prefers Australian English spelling
+     Created: 2024-02-26T08:30:00Z
+
+  2. User's name is dini-123
+     Created: 2024-02-26T08:25:00Z
+
+================================================================================
+📝 SEMANTIC MEMORY
+================================================================================
+Namespace: /facts/dini-123/
+
+  1. User lives in Melbourne, Australia
+     Created: 2024-02-26T08:20:00Z
+```

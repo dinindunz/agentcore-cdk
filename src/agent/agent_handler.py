@@ -6,7 +6,10 @@ for automatic conversation memory handling (short-term + long-term strategies).
 
 from typing import Any
 
-from bedrock_agentcore.memory.integrations.strands.config import AgentCoreMemoryConfig
+from bedrock_agentcore.memory.integrations.strands.config import (
+    AgentCoreMemoryConfig,
+    RetrievalConfig,
+)
 from bedrock_agentcore.memory.integrations.strands.session_manager import (
     AgentCoreMemorySessionManager,
 )
@@ -76,10 +79,24 @@ def invoke_agent_with_session_manager(
     # Create session manager for automatic memory handling (if configured)
     session_manager = None
     if config.memory_id:
+        # Configure retrieval for long-term memory strategies
+        # Map namespaces to retrieval configs for preference and semantic memory
+        retrieval_config = {
+            f"/preferences/{actor_id}/": RetrievalConfig(
+                top_k=10,  # Retrieve up to 10 preference records
+                relevance_score=0.2,  # Minimum relevance threshold
+            ),
+            f"/facts/{actor_id}/": RetrievalConfig(
+                top_k=10,  # Retrieve up to 10 semantic facts
+                relevance_score=0.2,
+            ),
+        }
+
         agentcore_memory_config = AgentCoreMemoryConfig(
             memory_id=config.memory_id,
             session_id=session_id,
             actor_id=actor_id,
+            retrieval_config=retrieval_config,  # Namespace-specific retrieval configs
         )
         session_manager = AgentCoreMemorySessionManager(
             agentcore_memory_config=agentcore_memory_config,
