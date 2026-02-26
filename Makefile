@@ -34,6 +34,15 @@ help:
 	@echo "  make agent-hello                   - Send a hello message to the agent runtime"
 	@echo "  make agent-chat                    - Start interactive chat with the agent"
 	@echo ""
+	@echo "Memory:"
+	@echo "  make view-memory                   - View stored memory records"
+	@echo ""
+	@echo "Testing (Pytest):"
+	@echo "  make test                          - Run all tests"
+	@echo "  make test-integration              - Run all integration tests"
+	@echo "  make test-memory                   - Run memory integration tests"
+	@echo "  make test-memory-quick             - Run memory tests (skip slow 60-90s tests)"
+	@echo ""
 	@echo "Skill Tests (Agent Runtime):"
 	@echo "  make skill-issue-heat-map          - Test Issue Heat Map skill"
 	@echo "  make skill-portfolio-summary       - Test Portfolio Summary skill"
@@ -186,12 +195,12 @@ show-config:
 
 lint:
 	@echo "Linting Python code with ruff..."
-	@.venv/bin/ruff check src/ scripts/ app.py
+	@.venv/bin/ruff check src/ scripts/ tests/ app.py
 
 format:
 	@echo "Formatting Python code with ruff..."
-	@.venv/bin/ruff format src/ scripts/ app.py
-	@.venv/bin/ruff check --select I --fix src/ scripts/ app.py
+	@.venv/bin/ruff format src/ scripts/ tests/ app.py
+	@.venv/bin/ruff check --select I --fix src/ scripts/ tests/ app.py
 	@echo "✓ Code formatted successfully"
 
 # ==============================================================================
@@ -221,6 +230,27 @@ agent-hello:
 agent-chat:
 	@echo "Starting interactive chat with agent..."
 	@cd scripts/runtimes/agent && python chat_client.py
+
+view-memory:
+	@echo "Viewing AgentCore memory..."
+	@python scripts/memory/view_memory.py
+
+# Pytest Integration Tests
+test:
+	@echo "Running all tests..."
+	@pytest tests/ -v
+
+test-integration:
+	@echo "Running all integration tests..."
+	@pytest tests/integration/ -v -m integration
+
+test-memory:
+	@echo "Running memory integration tests..."
+	@pytest tests/integration/memory/ -v
+
+test-memory-quick:
+	@echo "Running memory integration tests (excluding slow tests)..."
+	@pytest tests/integration/memory/ -v -m "integration and not slow"
 
 skill-issue-heat-map:
 	@echo "Running Issue Heat Map skill test..."
