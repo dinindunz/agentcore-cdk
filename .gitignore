@@ -9,3 +9,4 @@ research/
 cdk.out*
 cdk.context.json
 CLAUDE.md
+.ruff_cache/

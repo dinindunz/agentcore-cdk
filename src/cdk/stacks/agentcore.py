@@ -15,6 +15,7 @@ from ...evals import (
     skill_workflow,
     temperature_conversion,
 )
+from ..config import AgentCoreConfig
 from ..constructs import (
     ApiKeyCredentialProviderConstruct,
     BucketDeploymentConstruct,
@@ -39,9 +40,13 @@ class AgentCoreStack(cdk.Stack):
         self,
         scope: Construct,
         construct_id: str,
+        config: AgentCoreConfig,
         **kwargs,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
+
+        # Store configuration for use throughout the stack
+        self.config = config
 
         # Ensure all log groups in this stack are cleaned up on deletion
         cdk.Aspects.of(self).add(DestroyLogGroups())
@@ -135,19 +140,18 @@ class AgentCoreStack(cdk.Stack):
         )
 
         # ---------------------------------------------------------------
-        # Create Memory (optional - controlled via context variable)
+        # Create Memory (optional - controlled via configuration)
         # ---------------------------------------------------------------
-        enable_memory = self.node.try_get_context("enable_memory") or False
         self.memory = None
-        if enable_memory:
+        if config.memory.enabled:
             self.memory = MemoryConstruct(
                 self,
                 "AgentMemory",
                 memory_name="agent-memory",
-                event_expiry_days=90,
-                enable_summary_strategy=True,
-                enable_preference_strategy=True,
-                enable_semantic_strategy=True,
+                event_expiry_days=config.memory.event_expiry_days,
+                enable_summary_strategy=config.memory.strategies.summary,
+                enable_preference_strategy=config.memory.strategies.preference,
+                enable_semantic_strategy=config.memory.strategies.semantic,
             )
 
         # ---------------------------------------------------------------
@@ -161,8 +165,10 @@ class AgentCoreStack(cdk.Stack):
             "IAM_GATEWAY_SSM_PATH": iam_gw.ssm_url_param_name,
             "GATEWAY_COGNITO_SECRET": gateway_auth.secret_name,
             "SKILLS_BUCKET": skills_bucket.bucket_name_value,
-            "LOG_LEVEL": "INFO",  # Configurable logging level (DEBUG, INFO, WARNING, ERROR)
-            "OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED": "false",  # Disable OTEL log duplication
+            "LOG_LEVEL": config.agent_runtime.log_level,
+            "OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED": str(
+                config.agent_runtime.otel_logging_enabled
+            ).lower(),
         }
         # Add memory ID if memory is enabled
         if self.memory:
@@ -177,7 +183,7 @@ class AgentCoreStack(cdk.Stack):
             protocol=ProtocolType.HTTP,
             auth_pool=agent_auth,
             environment_variables=agent_env_vars,
-            enable_observability=True,
+            enable_observability=config.observability.enabled,
         )
 
         # Grant the agent runtime's execution role permission to read skills from S3
@@ -342,9 +348,9 @@ class AgentCoreStack(cdk.Stack):
                 github_integrity_eval.to_evaluator_reference(),
                 output_format_eval.to_evaluator_reference(),
             ],
-            sampling_rate=100.0,  # Evaluate 100% of interactions
+            sampling_rate=config.evaluation.sampling_rate,
             description="Comprehensive evaluation with built-in + custom evaluators",
-            enable_on_create=True,
+            enable_on_create=config.evaluation.enable_on_create,
         )
 
         # MCP Calculator Runtime — a simple MCP runtime that exposes calculator tools (add, subtract, multiply, divide) for demonstration purposes
@@ -355,7 +361,7 @@ class AgentCoreStack(cdk.Stack):
             asset_path="mcp/calculator",
             protocol=ProtocolType.MCP,
             auth_pool=mcp_auth,
-            environment_variables={"LOG_LEVEL": "INFO"},
+            environment_variables={"LOG_LEVEL": config.mcp_runtimes.calculator.log_level},
         )
 
         # ---------------------------------------------------------------
@@ -372,7 +378,7 @@ class AgentCoreStack(cdk.Stack):
             description="Search available agent skills by keyword",
             environment={
                 "SKILLS_BUCKET": skills_bucket.bucket_name_value,
-                "LOG_LEVEL": "INFO",
+                "LOG_LEVEL": config.lambda_targets.skill_search.log_level,
             },
         )
         skills_bucket.bucket.grant_read(skill_search.function)
@@ -396,7 +402,7 @@ class AgentCoreStack(cdk.Stack):
             gateway=jwt_gw,
             target_name="temperature-converter",
             description="Temperature conversion tools (Celsius <> Fahrenheit)",
-            environment={"LOG_LEVEL": "INFO"},
+            environment={"LOG_LEVEL": config.lambda_targets.temperature_converter.log_level},
         )
 
         # GitHub Open API Target on JWT Gateway

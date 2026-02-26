@@ -1,0 +1,38 @@
+# Development Environment Configuration
+# This file defines all configurable parameters for the AgentCore CDK stack in the dev environment
+
+# AgentCore Memory Configuration
+memory:
+  enabled: true                       # Enable AgentCore Memory for conversation history and context
+  event_expiry_days: 90               # Memory retention period (7-365 days)
+  strategies:
+    summary: true                     # Enable summary memory strategy (conversation summaries)
+    preference: true                  # Enable user preference memory strategy (user preferences)
+    semantic: true                    # Enable semantic memory strategy (knowledge graphs)
+    # episodic: false                 # Episodic memory (currently disabled - AgentCore validation issue)
+
+# Agent Runtime Configuration (AgentCore Runtime construct)
+agent_runtime:
+  log_level: INFO                     # Agent runtime logging level: DEBUG, INFO, WARNING, ERROR
+  otel_logging_enabled: false         # Set to false to disable OTEL log duplication
+
+# MCP Runtimes Configuration (AgentCore Runtime constructs for MCP servers)
+mcp_runtimes:
+  calculator:
+    log_level: INFO                   # Calculator MCP runtime logging level
+
+# Lambda Targets Configuration (Lambda functions invoked via Gateway)
+lambda_targets:
+  skill_search:
+    log_level: INFO                   # Skill search Lambda logging level
+  temperature_converter:
+    log_level: INFO                   # Temperature converter Lambda logging level
+
+# Observability Configuration
+observability:
+  enabled: true                       # Enable AgentCore tracing and observability
+
+# Online Evaluation Configuration
+evaluation:
+  sampling_rate: 100.0                # Percentage of interactions to evaluate (0.0 - 100.0)
+  enable_on_create: true              # Automatically enable evaluation config after creation

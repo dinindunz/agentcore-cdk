@@ -1,0 +1,38 @@
+# Production Environment Configuration
+# This file defines all configurable parameters for the AgentCore CDK stack in the prod environment
+
+# AgentCore Memory Configuration
+memory:
+  enabled: true                       # Enable AgentCore Memory for conversation history and context
+  event_expiry_days: 180              # Memory retention period (6 months for production)
+  strategies:
+    summary: true                     # Enable summary memory strategy (conversation summaries)
+    preference: true                  # Enable user preference memory strategy (user preferences)
+    semantic: true                    # Enable semantic memory strategy (knowledge graphs)
+    # episodic: false                 # Episodic memory (currently disabled - AgentCore validation issue)
+
+# Agent Runtime Configuration (AgentCore Runtime construct)
+agent_runtime:
+  log_level: WARNING                  # Production agent runtime logging (less verbose)
+  otel_logging_enabled: false         # Set to false to disable OTEL log duplication
+
+# MCP Runtimes Configuration (AgentCore Runtime constructs for MCP servers)
+mcp_runtimes:
+  calculator:
+    log_level: WARNING                # Production MCP runtime logging (less verbose)
+
+# Lambda Targets Configuration (Lambda functions invoked via Gateway)
+lambda_targets:
+  skill_search:
+    log_level: INFO                   # Standard Lambda logging (INFO for diagnostics)
+  temperature_converter:
+    log_level: INFO                   # Standard Lambda logging (INFO for diagnostics)
+
+# Observability Configuration
+observability:
+  enabled: true                       # Enable AgentCore tracing and observability
+
+# Online Evaluation Configuration
+evaluation:
+  sampling_rate: 10.0                 # Evaluate 10% of interactions in production (cost optimisation)
+  enable_on_create: true              # Automatically enable evaluation config after creation

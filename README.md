@@ -23,8 +23,14 @@ The diagram shows the complete authentication and data flow, including:
 ├── pyproject.toml                # Python project dependencies
 ├── Makefile                      # Build, deploy, and test commands
 │
+├── config/                       # Environment-specific configurations
+│   ├── dev.yaml                  - Development environment settings
+│   ├── test.yaml                 - Test environment settings
+│   └── prod.yaml                 - Production environment settings
+│
 ├── src/
 │   ├── cdk/                      # CDK infrastructure code
+│   │   ├── config.py             - Configuration loader (type-safe YAML parsing)
 │   │   ├── stacks/               # CloudFormation stacks
 │   │   │   └── agentcore.py      - Main AgentCore stack (gateways, runtimes, memory, evals, observability, and MCP targets)
 │   │   ├── constructs/           # Reusable L3 constructs
@@ -59,8 +65,6 @@ The diagram shows the complete authentication and data flow, including:
 │   │   │   └── loader.py         - Load and compose system prompts
 │   │   ├── skills/               # Skills loading from S3
 │   │   │   └── loader.py         - Extract and format skill definitions for system prompt
-│   │   ├── memory/               # Conversation memory integration
-│   │   │   └── short_term.py     - Short-term memory for conversation context
 │   │   ├── pyproject.toml        - Agent dependencies
 │   │   └── Dockerfile            - Agent container image
 │   │
@@ -144,7 +148,9 @@ The diagram shows the complete authentication and data flow, including:
 
 ## Quick Start
 
-### 1. Configure Environment Variables
+### 1. Configure Environment and Stack Settings
+
+#### Environment Variables
 
 Copy the example environment file and update it with your values:
 
@@ -157,6 +163,18 @@ Edit `.env` and set:
 - `AWS_ACCOUNT_ID` - Your AWS account ID (e.g., `123456789012`)
 - `REGION_NAME` - AWS region where resources will be deployed (e.g., `ap-southeast-2`)
 - `GITHUB_TOKEN` - Your GitHub personal access token (for GitHub MCP server)
+- `ACTOR_ID` - (Optional) Unique identifier for memory personalisation across sessions
+
+#### Stack Configuration (Memory, Runtime, Observability, Evaluation)
+
+Environment-specific stack configuration is managed in YAML files under `config/`:
+
+```bash
+config/
+├── dev.yaml   # Development environment settings
+├── test.yaml  # Test environment settings
+└── prod.yaml  # Production environment settings
+```
 
 ### 2. Install Dependencies
 
@@ -257,20 +275,6 @@ make eval-results
 # View evaluation results from a longer time window
 make eval-results HOURS=6
 ```
-
-**Built-in Evaluators** (general quality):
-- **Helpfulness** — Assesses whether responses help users achieve goals
-- **Correctness** — Evaluates factual accuracy
-- **Tool Selection Accuracy** — Validates appropriate tool selection
-- **Tool Parameter Accuracy** — Checks tool parameters are correct
-- **Response Relevance** — Measures relevance to user queries
-
-**Custom Evaluators** (domain-specific validation):
-- **Math Accuracy** — Validates calculator operation correctness
-- **Temperature Conversion Accuracy** — Validates C↔F conversion formulas
-- **Skill Workflow Completeness** — Ensures all required workflow steps completed
-- **GitHub Data Integrity** — Detects hallucinated GitHub data
-- **Structured Output Format** — Validates response formatting and required fields
 
 **For complete evaluator documentation**, including how to create custom evaluators with configurable models, prompts, and scoring schemas, see **[`src/evals/README.md`](src/evals/README.md)**
 
