@@ -15,7 +15,6 @@ config = get_config_from_context(app)
 
 # AWS environment configuration (required for SSM lookups if needed)
 aws_env = cdk.Environment(
-    account=os.environ.get("AWS_ACCOUNT_ID"),
     region=os.environ.get("REGION_NAME"),
 )
 

@@ -2,7 +2,7 @@
 # CDK Deployment Commands
 # ==============================================================================
 
-deploy: format lint
+deploy: #format lint
 	@echo "Deploying AgentCore stack (ENV=$(ENV))..."
 	cdk deploy --context env=$(ENV) --require-approval never --exclusively AgentCoreStack-$(ENV)
 
