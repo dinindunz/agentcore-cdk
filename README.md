@@ -290,35 +290,7 @@ make destroy
 
 ## Troubleshooting
 
-### Service-Linked Role Error
-
-If deployment fails with:
-```
-User is not authorized to perform: bedrock-agentcore:CreateOauth2CredentialProvider
-on resource: arn:aws:bedrock-agentcore:ap-southeast-2:ACCOUNT_ID:token-vault/default/oauth2credentialprovider/*
-```
-
-AWS usually auto-creates the required service-linked role (`AWSServiceRoleForBedrockAgentCoreRuntimeIdentity`) on first use. If it fails, simply **redeploy** and it should succeed on the second attempt.
-
-### ResourceExistenceCheck Error (Orphaned Observability Resources)
-
-If deployment fails with `AWS::EarlyValidation::ResourceExistenceCheck` for `AWS::Logs::DeliverySource` or `AWS::Logs::DeliveryDestination`, delete orphaned resources from a previous failed deployment:
-
-```bash
-# List and identify orphaned resources
-aws logs describe-delivery-sources --region REGION_NAME --query 'deliverySources[?name==`agent_core_stack_ENV_agent_traces`]'
-aws logs describe-delivery-destinations --region REGION_NAME --query 'deliveryDestinations[?name==`agent_core_stack_ENV_agent_xray`]'
-
-# Find the delivery ID
-aws logs describe-deliveries --region REGION_NAME --query 'deliveries[?deliverySourceName==`agent_core_stack_ENV_agent_traces`]'
-
-# Delete in order: delivery, source, destination
-aws logs delete-delivery --id DELIVERY_ID --region REGION_NAME
-aws logs delete-delivery-source --name agent_core_stack_ENV_agent_traces --region REGION_NAME
-aws logs delete-delivery-destination --name agent_core_stack_ENV_agent_xray --region REGION_NAME
-```
-
-Replace `ENV` with your environment name (e.g., `dev`).
+If you encounter issues during deployment, see the **[Deployment Troubleshooting Guide](docs/deployment-troubleshooting.md)** for common problems and solutions.
 
 ## Available Commands
 
