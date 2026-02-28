@@ -1,17 +1,17 @@
-"""Integration tests for creating AgentCore memory events.
+"""Infrastructure tests for creating AgentCore memory events.
 
 These tests verify that memory events can be created successfully
 and are properly stored in AgentCore memory.
 
 Run with:
-    pytest tests/integration/memory/test_memory_create.py -v
-    pytest tests/integration/memory/test_memory_create.py -v -m integration
+    pytest tests/infrastructure/memory/test_memory_create.py -v
+    pytest tests/infrastructure/memory/test_memory_create.py -v -m infrastructure
 """
 
 import pytest
 
 
-@pytest.mark.integration
+@pytest.mark.infrastructure
 @pytest.mark.parametrize(
     "event_type,content",
     [
@@ -74,7 +74,7 @@ def test_create_memory_event(
     assert response["ResponseMetadata"]["HTTPStatusCode"] == 200
 
 
-@pytest.mark.integration
+@pytest.mark.infrastructure
 def test_create_event_invalid_memory_id(
     bedrock_agentcore_client,
     test_actor_id,
@@ -98,7 +98,7 @@ def test_create_event_invalid_memory_id(
     assert exc_info.value is not None
 
 
-@pytest.mark.integration
+@pytest.mark.infrastructure
 @pytest.mark.slow
 def test_memory_event_extraction_delay(
     bedrock_agentcore_client,

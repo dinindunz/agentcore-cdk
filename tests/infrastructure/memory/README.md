@@ -1,6 +1,6 @@
-# Memory Integration Tests
+# Memory Infrastructure Tests
 
-Automated integration tests for AgentCore memory functionality.
+Automated infrastructure tests for AgentCore memory functionality.
 
 ## Quick Start
 
@@ -9,7 +9,7 @@ make test-memory           # Run all memory tests
 make test-memory-quick     # Skip slow tests (faster development)
 ```
 
-See **[Integration Testing Guide](../../../docs/INTEGRATION_TESTING.md#memory-integration-tests)** for complete documentation.
+See **[Infrastructure Testing Guide](../../../docs/INFRASTRUCTURE_TESTING.md#memory-infrastructure-tests)** for complete documentation.
 
 ## Test Files
 

@@ -6,7 +6,7 @@ from pathlib import Path
 
 # Add parent directory to path to import auth module
 sys.path.insert(0, str(Path(__file__).parent.parent))
-import auth
+from tests.common.auth import iam as auth
 
 # Call the add tool
 call_tool_payload = {

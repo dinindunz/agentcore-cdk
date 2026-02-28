@@ -1,7 +1,7 @@
 import json
 import sys
 
-import auth
+from tests.common.auth import iam as auth
 
 query = sys.argv[1] if len(sys.argv) > 1 else "add two numbers"
 

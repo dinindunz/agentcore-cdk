@@ -1,7 +1,7 @@
 import json
 import sys
 
-import auth
+from tests.common.auth import jwt as auth
 
 query = sys.argv[1] if len(sys.argv) > 1 else "convert Celsius to Fahrenheit"
 

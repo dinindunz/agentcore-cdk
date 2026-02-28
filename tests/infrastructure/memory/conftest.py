@@ -1,6 +1,6 @@
-"""Pytest fixtures for AgentCore memory integration tests.
+"""Pytest fixtures for AgentCore memory infrastructure tests.
 
-These fixtures provide common setup for integration tests that interact
+These fixtures provide common setup for infrastructure tests that interact
 with the live AWS AgentCore service.
 """
 
@@ -28,7 +28,7 @@ def environment():
 
 @pytest.fixture(scope="session")
 def test_actor_id():
-    """Actor ID for integration tests.
+    """Actor ID for infrastructure tests.
 
     Uses 'test-user' as the standard test actor to avoid polluting
     production user data.

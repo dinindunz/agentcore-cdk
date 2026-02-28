@@ -14,8 +14,9 @@ See **[Manual Testing Guide](../../../../docs/MANUAL_TESTING.md#iam-gateway-sigv
 
 ## Available Scripts
 
-- **`auth.py`** - Reusable authentication helper (SigV4 signing)
 - **`list_tools.py`** - List all available tools
 - **`search_tools.py`** - Semantic tool search
 - **`invoke_tool.py`** - Generic tool invocation
 - **`mcp_tests/`** - Comprehensive MCP server tests (Calculator, Skill Search)
+
+**Note:** Authentication logic is in `tests/common/auth/iam.py` (shared with infrastructure tests)

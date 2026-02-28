@@ -1,4 +1,4 @@
-"""Integration tests for querying AgentCore memory.
+"""Infrastructure tests for querying AgentCore memory.
 
 These tests verify that memory retrieval queries work correctly
 and return expected results based on relevance scoring.
@@ -8,14 +8,14 @@ Prerequisites:
     - Run test_memory_create.py first and wait for extraction
 
 Run with:
-    pytest tests/integration/memory/test_memory_queries.py -v
-    pytest tests/integration/memory/test_memory_queries.py::test_search_preference_memory -v
+    pytest tests/infrastructure/memory/test_memory_queries.py -v
+    pytest tests/infrastructure/memory/test_memory_queries.py::test_search_preference_memory -v
 """
 
 import pytest
 
 
-@pytest.mark.integration
+@pytest.mark.infrastructure
 @pytest.mark.parametrize(
     "query,expected_found",
     [
@@ -84,7 +84,7 @@ def test_search_preference_memory(
         pass
 
 
-@pytest.mark.integration
+@pytest.mark.infrastructure
 @pytest.mark.parametrize(
     "query",
     ["location", "city", "lives", "Melbourne", "Australia"],
@@ -136,7 +136,7 @@ def test_search_semantic_memory(
         assert 0 <= record["score"] <= 1.0
 
 
-@pytest.mark.integration
+@pytest.mark.infrastructure
 def test_retrieve_memory_max_results(
     bedrock_agentcore_client,
     memory_id,
@@ -173,7 +173,7 @@ def test_retrieve_memory_max_results(
     assert len(records) <= max_results
 
 
-@pytest.mark.integration
+@pytest.mark.infrastructure
 def test_query_nonexistent_namespace(
     bedrock_agentcore_client,
     memory_id,

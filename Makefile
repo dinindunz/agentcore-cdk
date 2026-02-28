@@ -12,7 +12,7 @@ include makefiles/setup.mk
 include makefiles/config.mk
 include makefiles/code-quality.mk
 include makefiles/cdk.mk
-include makefiles/integration-tests.mk
+include makefiles/infrastructure-tests.mk
 include makefiles/manual-tests.mk
 include makefiles/convenience.mk
 
@@ -39,11 +39,15 @@ help:
 	@echo "  make diff                          - Show AgentCore stack changes"
 	@echo "  make destroy                       - Destroy AgentCore stack"
 	@echo ""
-	@echo "Integration Tests (Pytest):"
+	@echo "Infrastructure Tests (Pytest):"
 	@echo "  make test                          - Run all tests"
-	@echo "  make test-integration              - Run all integration tests"
-	@echo "  make test-memory                   - Run memory integration tests"
+	@echo "  make test-infrastructure           - Run all infrastructure tests"
+	@echo "  make test-memory                   - Run memory infrastructure tests"
 	@echo "  make test-memory-quick             - Run memory tests (skip slow 60-90s tests)"
+	@echo "  make test-gateways                 - Run gateway infrastructure tests"
+	@echo "  make test-gateways-quick           - Run gateway tests (skip slow tests)"
+	@echo "  make test-runtimes                 - Run runtime infrastructure tests"
+	@echo "  make test-runtimes-quick           - Run runtime tests (skip slow tests)"
 	@echo ""
 	@echo "Manual Tests - Agent Runtime:"
 	@echo "  make agent-hello                   - Send a hello message to the agent runtime"
@@ -85,8 +89,8 @@ help:
 	@echo "  make eval-results HOURS=<n>        - Query evaluation results for last N hours"
 	@echo ""
 	@echo "Convenience Targets:"
-	@echo "  make all-tests                     - Run all tests (integration + manual)"
-	@echo "  make all-integration-tests         - Run all pytest integration tests"
+	@echo "  make all-tests                     - Run all tests (infrastructure + manual)"
+	@echo "  make all-infrastructure-tests      - Run all pytest infrastructure tests"
 	@echo "  make all-manual-tests              - Run all manual tests"
 	@echo ""
 	@echo "Examples:"

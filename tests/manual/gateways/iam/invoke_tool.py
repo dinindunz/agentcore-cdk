@@ -11,7 +11,7 @@ Examples:
 import json
 import sys
 
-import auth
+from tests.common.auth import iam as auth
 
 if len(sys.argv) < 3:
     print("Usage: python invoke_tool.py <tool_name> <arguments_json>")

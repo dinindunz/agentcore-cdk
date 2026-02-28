@@ -1,6 +1,6 @@
 import json
 
-import auth
+from tests.common.auth import iam as auth
 
 payload = {
     "jsonrpc": "2.0",

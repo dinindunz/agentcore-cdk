@@ -14,8 +14,9 @@ See **[Manual Testing Guide](../../../../docs/MANUAL_TESTING.md#jwt-gateway-cogn
 
 ## Available Scripts
 
-- **`auth.py`** - Reusable authentication helper (Cognito OAuth2)
 - **`list_tools.py`** - List all available tools
 - **`search_tools.py`** - Semantic tool search
 - **`invoke_tool.py`** - Generic tool invocation
 - **`mcp_tests/`** - Comprehensive MCP server tests (GitHub, Temperature Converter)
+
+**Note:** Authentication logic is in `tests/common/auth/jwt.py` (shared with infrastructure tests)

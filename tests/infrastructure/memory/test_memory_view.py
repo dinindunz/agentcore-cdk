@@ -1,16 +1,16 @@
-"""Integration tests for viewing AgentCore memory records.
+"""Infrastructure tests for viewing AgentCore memory records.
 
 These tests verify that memory records can be listed and viewed
 across different memory strategies.
 
 Run with:
-    pytest tests/integration/memory/test_memory_view.py -v
+    pytest tests/infrastructure/memory/test_memory_view.py -v
 """
 
 import pytest
 
 
-@pytest.mark.integration
+@pytest.mark.infrastructure
 @pytest.mark.parametrize(
     "strategy_name,namespace_pattern",
     [
@@ -59,7 +59,7 @@ def test_list_memory_records(
             assert "text" in content or content, "Content should have text"
 
 
-@pytest.mark.integration
+@pytest.mark.infrastructure
 def test_list_all_memory_strategies(
     bedrock_agentcore_client,
     memory_id,
@@ -96,7 +96,7 @@ def test_list_all_memory_strategies(
     assert "summary" in results
 
 
-@pytest.mark.integration
+@pytest.mark.infrastructure
 def test_list_memory_pagination(
     bedrock_agentcore_client,
     memory_id,
@@ -144,7 +144,7 @@ def test_list_memory_pagination(
                 assert first_ids != second_ids, "Pagination should return different records"
 
 
-@pytest.mark.integration
+@pytest.mark.infrastructure
 def test_view_memory_record_content_types(
     bedrock_agentcore_client,
     memory_id,
@@ -181,7 +181,7 @@ def test_view_memory_record_content_types(
                 assert len(text) > 0, "Text content should not be empty"
 
 
-@pytest.mark.integration
+@pytest.mark.infrastructure
 def test_memory_record_timestamps(
     bedrock_agentcore_client,
     memory_id,

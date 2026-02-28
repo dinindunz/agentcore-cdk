@@ -29,7 +29,7 @@ The diagram shows the complete authentication and data flow, including:
 │   ├── config.mk                 # Configuration validation
 │   ├── code-quality.mk           # Linting and formatting
 │   ├── cdk.mk                    # CDK deployment commands
-│   ├── integration-tests.mk      # Pytest integration tests
+│   ├── infrastructure-tests.mk   # Pytest infrastructure tests
 │   ├── manual-tests.mk           # Manual testing scripts
 │   └── convenience.mk            # Convenience targets
 │
@@ -117,12 +117,27 @@ The diagram shows the complete authentication and data flow, including:
 │   └── agentcore_sdk/            # AgentCore Starter Toolkit SDK layer (bundled at deploy time)
 │
 └── tests/                        # Tests and manual invocation scripts
-    ├── integration/              # Automated integration tests
-    │   └── memory/               # Memory integration tests
-    │       ├── conftest.py       # Shared fixtures (test-user, memory_id, etc.)
-    │       ├── test_memory_create.py  # Create memory events
-    │       ├── test_memory_queries.py # Query memory records
-    │       └── test_memory_view.py    # View stored memories
+    ├── common/                   # Shared test utilities
+    │   └── auth/                 # Authentication modules (IAM SigV4, JWT OAuth2)
+    │       ├── iam.py            # SigV4 auth for IAM gateway
+    │       └── jwt.py            # OAuth2 auth for JWT gateway
+    ├── infrastructure/           # Automated infrastructure tests (pytest)
+    │   ├── memory/               # Memory service validation
+    │   │   ├── conftest.py       # Shared fixtures (test-user, memory_id, etc.)
+    │   │   ├── test_memory_create.py  # Create memory events
+    │   │   ├── test_memory_queries.py # Query memory records
+    │   │   └── test_memory_view.py    # View stored memories
+    │   ├── gateways/             # Gateway deployment validation
+    │   │   ├── conftest.py       # Shared fixtures (gateway URLs, test-user)
+    │   │   ├── test_iam_auth.py  # IAM SigV4 authentication tests
+    │   │   ├── test_jwt_auth.py  # JWT OAuth2 authentication tests
+    │   │   ├── test_tool_invocation.py # End-to-end tool invocation
+    │   │   └── test_error_handling.py  # Error scenarios
+    │   └── runtimes/             # Runtime deployment validation
+    │       ├── conftest.py       # Shared fixtures (runtime ARNs, test-user)
+    │       ├── test_agent_invocation.py   # Agent orchestration tests
+    │       ├── test_mcp_invocation.py     # MCP runtime tests
+    │       └── test_performance.py        # Basic performance benchmarks
     └── manual/                   # Manual testing and invocation scripts
         ├── runtimes/
         │   ├── agent/            # Agent runtime testing
@@ -133,7 +148,6 @@ The diagram shows the complete authentication and data flow, including:
         │       └── invoke_calculator.py # Calculator runtime invocation
         ├── gateways/
         │   ├── iam/              # IAM-authenticated gateway testing
-        │   │   ├── auth.py       # SigV4 signing helper
         │   │   ├── list_tools.py # List available tools
         │   │   ├── search_tools.py # Search tools by keyword
         │   │   ├── invoke_tool.py # Invoke a specific tool
@@ -141,7 +155,6 @@ The diagram shows the complete authentication and data flow, including:
         │   │       ├── calculator.py # Test calculator tools
         │   │       └── skill_search.py # Test skill search tool
         │   └── jwt/              # JWT-authenticated gateway testing
-        │       ├── auth.py       # Cognito authentication helper
         │       ├── list_tools.py # List available tools
         │       ├── search_tools.py # Search tools by keyword
         │       ├── invoke_tool.py # Invoke a specific tool
@@ -255,19 +268,19 @@ This launches an interactive chat client where you can have continuous conversat
 
 ### 7. Test and Monitor
 
-The project includes comprehensive testing organised into integration tests (pytest) and manual tests (scripts).
+The project includes comprehensive testing organised into infrastructure tests (pytest) and manual tests (scripts).
 
 **Quick Start:**
 ```bash
 make agent-chat                # Interactive chat with the agent
-make test-memory               # Run memory integration tests
+make test-memory               # Run memory infrastructure tests
 make iam-tests                 # Test IAM gateway
 make jwt-tests                 # Test JWT gateway
 ```
 
 **Full Documentation:**
 - **[Manual Testing Guide](docs/MANUAL_TESTING.md)** - Interactive scripts for agent, gateways, memory, and evaluations
-- **[Integration Testing Guide](docs/INTEGRATION_TESTING.md)** - Automated pytest integration tests
+- **[Infrastructure Testing Guide](docs/INFRASTRUCTURE_TESTING.md)** - Automated pytest infrastructure validation
 
 Run `make help` for the complete list of available commands.
 
