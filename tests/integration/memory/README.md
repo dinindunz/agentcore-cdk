@@ -1,74 +1,45 @@
 # Memory Integration Tests
 
-Integration tests for AgentCore memory functionality.
+Automated integration tests for AgentCore memory functionality.
 
 ## Quick Start
 
 ```bash
-# Run all memory tests
-make test-memory
-
-# Skip slow tests (60-90s waits) - faster during development
-make test-memory-quick
-
-# Or using pytest directly
-pytest tests/integration/memory/ -v
-
-# Specific test file
-pytest tests/integration/memory/test_memory_create.py -v
+make test-memory           # Run all memory tests
+make test-memory-quick     # Skip slow tests (faster development)
 ```
+
+See **[Integration Testing Guide](../../../docs/INTEGRATION_TESTING.md#memory-integration-tests)** for complete documentation.
 
 ## Test Files
 
-- **test_memory_create.py** - Create memory events (preferences, facts)
-- **test_memory_queries.py** - Search and query memory records
-- **test_memory_view.py** - List and view stored memories
+- **`test_memory_create.py`** - Create memory events (preferences, facts, summaries)
+- **`test_memory_queries.py`** - Search and query memory records
+- **`test_memory_view.py`** - List and view stored memories
+- **`conftest.py`** - Shared fixtures (test_actor_id, memory_id, etc.)
 
-## Key Fixtures
+## Important: Memory Extraction Delay
 
-Shared fixtures in `conftest.py`:
-
-- **`test_actor_id`** - Always returns `"test-user"` (for isolation)
-- **`memory_id`** - Retrieved from SSM Parameter Store
-- **`unique_session_id`** - UUID-based session ID (per test)
-- **`bedrock_agentcore_client`** - Boto3 client for AgentCore
-
-## Important Notes
-
-### Memory Extraction Delay
-
-Memory extraction is **asynchronous (60-90 seconds)**:
+Memory extraction is **asynchronous (60-90 seconds)**. Wait after creating events before verifying:
 
 ```bash
-# Create test events
-pytest tests/integration/memory/test_memory_create.py -v
-
-# Wait for extraction
-sleep 90
-
-# Verify records exist
-pytest tests/integration/memory/test_memory_view.py -v
+pytest test_memory_create.py -v && sleep 90 && pytest test_memory_view.py -v
 ```
 
-### Test Isolation
+## Viewing Memory Records
 
-- All tests use `test-user` as actor ID (never your real user)
-- Unique session IDs prevent test interference
-- Tests don't auto-cleanup (manual deletion via AWS console if needed)
+To inspect memory records created by tests:
 
-### Auto-Skipping
-
-Tests skip automatically if:
-- Stack not deployed (memory ID not found in SSM)
-- No records exist for test-user
-- Prerequisites missing
-
-## Troubleshooting
-
-**"Memory ID not found"** → Run `make deploy`
-
-**"No records found for test-user"** → Create test data:
 ```bash
-pytest tests/integration/memory/test_memory_create.py -v
-sleep 90
+# View memory for test-user
+make view-memory
+
+# Specify custom actor ID
+python tests/manual/memory/view_memory.py test-user
 ```
+
+### What It Shows
+
+- **Preference memory** - User preferences and personalisation
+- **Semantic memory** - Facts and knowledge about the user
+- **Summary memory** - Session conversation summaries

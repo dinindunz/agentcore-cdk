@@ -2,7 +2,7 @@
 
 ## Architecture
 
-![AgentCore Architecture](./architecture.png)
+![AgentCore Architecture](docs/architecture.png)
 
 The diagram shows the complete authentication and data flow, including:
 - Cognito UserPools for authentication (Agent Runtimes, Gateways, MCP Runtimes)
@@ -13,7 +13,7 @@ The diagram shows the complete authentication and data flow, including:
 - AgentCore Memory for short-term and long-term conversation memory (Summary, Preference, Semantic, and Episodic strategies)
 - Skills S3 bucket
 
-[View editable diagram](./architecture.excalidraw)
+[View editable diagram](docs/architecture.excalidraw)
 
 ## Project Structure
 
@@ -255,28 +255,21 @@ This launches an interactive chat client where you can have continuous conversat
 
 ### 7. Test and Monitor
 
-The project includes comprehensive testing organised into integration tests (pytest) and manual tests (scripts):
+The project includes comprehensive testing organised into integration tests (pytest) and manual tests (scripts).
 
+**Quick Start:**
 ```bash
-# Integration tests (pytest)
-make test                      # Run all integration tests
-make test-memory               # Run memory integration tests
-
-# Manual tests - Agent skills
-make skill-tests               # Run all agent skill tests
 make agent-chat                # Interactive chat with the agent
-
-# Manual tests - Gateways
-make iam-tests                 # Run all IAM gateway tests
-make jwt-tests                 # Run all JWT gateway tests
-
-# Manual tests - Evaluations
-make eval-list                 # List evaluation configurations
-make eval-results              # Query evaluation results
-
-# Run everything
-make all-tests                 # Run all integration + manual tests
+make test-memory               # Run memory integration tests
+make iam-tests                 # Test IAM gateway
+make jwt-tests                 # Test JWT gateway
 ```
+
+**Full Documentation:**
+- **[Manual Testing Guide](docs/MANUAL_TESTING.md)** - Interactive scripts for agent, gateways, memory, and evaluations
+- **[Integration Testing Guide](docs/INTEGRATION_TESTING.md)** - Automated pytest integration tests
+
+Run `make help` for the complete list of available commands.
 
 ## Cleanup
 
@@ -290,7 +283,7 @@ make destroy
 
 ## Troubleshooting
 
-If you encounter issues during deployment, see the **[Deployment Troubleshooting Guide](docs/deployment-troubleshooting.md)** for common problems and solutions.
+If you encounter issues during deployment, see the **[Deployment Troubleshooting Guide](docs/DEPLOYMENT_TROUBLESHOOTING.md)** for common problems and solutions.
 
 ## Available Commands
 
