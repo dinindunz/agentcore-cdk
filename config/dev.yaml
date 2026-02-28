@@ -46,7 +46,7 @@ evaluation:
 
 # Inference Profile Configuration
 inference_profile:
-  model_id: "au.anthropic.claude-sonnet-4-6"  # Cross-region inference profile
+  model_id: "au.anthropic.claude-sonnet-4-5-20250929-v1:0"  # AU Claude Sonnet 4.5 cross-region profile
   description: "Development inference profile for cost tracking"
   tags:
     Environment: "Development"

@@ -223,6 +223,9 @@ class RuntimeConstruct(Construct):
 
         # Grant permissions for inference profile if provided
         if inference_profile:
+            # Grant permissions for the inference profile and foundation models
+            # Cross-region inference profiles can route to any region,
+            # so we use wildcard for foundation models
             self._role.add_to_policy(
                 iam.PolicyStatement(
                     actions=[
@@ -230,7 +233,10 @@ class RuntimeConstruct(Construct):
                         "bedrock:InvokeModelWithResponseStream",
                         "bedrock:GetInferenceProfile",
                     ],
-                    resources=[inference_profile.inference_profile_arn],
+                    resources=[
+                        "arn:aws:bedrock:*::foundation-model/*",
+                        inference_profile.inference_profile_arn,
+                    ],
                 )
             )
 
