@@ -93,7 +93,7 @@ def get_access_token(config: "GatewayCognitoConfig") -> str:
         _token_cache = (token, expiry_time)
 
         # Log token metadata (not the actual token for security)
-        logger.info(
+        logger.debug(
             f"[Auth] OAuth2 token obtained and cached: length={len(token)} client_id={config['client_id']} expires_in={expires_in}s"
         )
         return token

@@ -19,7 +19,7 @@ memory:
 # Agent Runtime Configuration (AgentCore Runtime construct)
 agent_runtime:
   log_level: WARNING                  # Production agent runtime logging (less verbose)
-  otel_logging_enabled: false         # Set to false to disable OTEL log duplication
+  otel_logging_enabled: true          # Set to true to enable OTEL logging
   model_temperature: 0.5              # Lower temperature for more consistent production responses
   model_max_tokens: 4096              # Maximum tokens to generate in response
 
