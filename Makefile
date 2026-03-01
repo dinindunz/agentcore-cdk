@@ -14,6 +14,7 @@ include makefiles/code-quality.mk
 include makefiles/cdk.mk
 include makefiles/infrastructure-tests.mk
 include makefiles/manual-tests.mk
+include makefiles/observability.mk
 include makefiles/convenience.mk
 
 # Default target - show help
@@ -84,6 +85,12 @@ help:
 	@echo "  make eval-list                     - List online evaluation configurations"
 	@echo "  make eval-results                  - Query recent evaluation results (default: last 1 hour)"
 	@echo "  make eval-results HOURS=<n>        - Query evaluation results for last N hours"
+	@echo ""
+	@echo "Observability Dashboard:"
+	@echo "  make observability-frontend-install - Install frontend npm dependencies"
+	@echo "  make observability-frontend-build  - Build frontend for production"
+	@echo "  make observability-dashboard       - Launch observability web dashboard"
+	@echo "  make observability-frontend-dev    - Start frontend dev server (port 3000)"
 	@echo ""
 	@echo "Convenience Targets:"
 	@echo "  make all-tests                     - Run all tests (infrastructure + manual)"

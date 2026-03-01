@@ -11,3 +11,5 @@ cdk.context.json
 CLAUDE.md
 .ruff_cache/
 .pytest_cache/
+node_modules/
+src/observability/frontend/dist/
