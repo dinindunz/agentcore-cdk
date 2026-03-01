@@ -1,14 +1,21 @@
 # ==============================================================================
+# Manual Tests - Python Interpreter
+# ==============================================================================
+
+# Set PYTHONPATH to project root so tests can import from tests.common
+PYTHON := PYTHONPATH=. .venv/bin/python
+
+# ==============================================================================
 # Manual Tests - Agent Runtime
 # ==============================================================================
 
 agent-hello:
 	@echo "Sending hello to agent runtime..."
-	@cd tests/manual/runtimes/agent && python hello.py
+	@$(PYTHON) tests/manual/runtimes/agent/hello.py
 
 agent-chat:
 	@echo "Starting interactive chat with agent..."
-	@cd tests/manual/runtimes/agent && python chat_client.py
+	@$(PYTHON) tests/manual/runtimes/agent/chat_client.py
 
 # ==============================================================================
 # Manual Tests - Agent Skills
@@ -16,23 +23,23 @@ agent-chat:
 
 skill-issue-heat-map:
 	@echo "Running Issue Heat Map skill test..."
-	@cd tests/manual/runtimes/agent/skill_tests && python issue_heat_map.py
+	@$(PYTHON) tests/manual/runtimes/agent/skill_tests/issue_heat_map.py
 
 skill-portfolio-summary:
 	@echo "Running Portfolio Summary skill test..."
-	@cd tests/manual/runtimes/agent/skill_tests && python portfolio_summary.py
+	@$(PYTHON) tests/manual/runtimes/agent/skill_tests/portfolio_summary.py
 
 skill-repo-comparison:
 	@echo "Running Repo Comparison skill test..."
-	@cd tests/manual/runtimes/agent/skill_tests && python repo_comparison.py
+	@$(PYTHON) tests/manual/runtimes/agent/skill_tests/repo_comparison.py
 
 skill-repo-hotness:
 	@echo "Running Repo Hotness Rating skill test..."
-	@cd tests/manual/runtimes/agent/skill_tests && python repo_hotness_rating.py
+	@$(PYTHON) tests/manual/runtimes/agent/skill_tests/repo_hotness_rating.py
 
 skill-trending-topic:
 	@echo "Running Trending Topic Scout skill test..."
-	@cd tests/manual/runtimes/agent/skill_tests && python trending_topic_scout.py
+	@$(PYTHON) tests/manual/runtimes/agent/skill_tests/trending_topic_scout.py
 
 # ==============================================================================
 # Manual Tests - IAM Gateway
@@ -40,29 +47,29 @@ skill-trending-topic:
 
 iam-list-tools:
 	@echo "Listing tools via IAM Gateway..."
-	@cd tests/manual/gateways/iam && python list_tools.py
+	@$(PYTHON) tests/manual/gateways/iam/list_tools.py
 
 iam-search-tools:
 	@echo "Searching tools via IAM Gateway..."
-	@cd tests/manual/gateways/iam && python search_tools.py
+	@$(PYTHON) tests/manual/gateways/iam/search_tools.py
 
 iam-invoke-tool:
-	@ifndef TOOL
-		$(error TOOL is not set. Usage: make iam-invoke-tool TOOL=<tool_name> ARGS='<json>')
-	@endif
-	@ifndef ARGS
-		$(error ARGS is not set. Usage: make iam-invoke-tool TOOL=<tool_name> ARGS='<json>')
-	@endif
+ifndef TOOL
+	$(error TOOL is not set. Usage: make iam-invoke-tool TOOL=<tool_name> ARGS='<json>')
+endif
+ifndef ARGS
+	$(error ARGS is not set. Usage: make iam-invoke-tool TOOL=<tool_name> ARGS='<json>')
+endif
 	@echo "Invoking tool $(TOOL) via IAM Gateway..."
-	@cd tests/manual/gateways/iam && python invoke_tool.py $(TOOL) '$(ARGS)'
+	@$(PYTHON) tests/manual/gateways/iam/invoke_tool.py $(TOOL) '$(ARGS)'
 
 iam-test-calculator:
 	@echo "Testing Calculator via IAM Gateway..."
-	@cd tests/manual/gateways/iam/mcp_tests && python calculator.py
+	@$(PYTHON) tests/manual/gateways/iam/mcp_tests/calculator.py
 
 iam-test-skill-search:
 	@echo "Testing Skill Search via IAM Gateway..."
-	@cd tests/manual/gateways/iam/mcp_tests && python skill_search.py
+	@$(PYTHON) tests/manual/gateways/iam/mcp_tests/skill_search.py
 
 iam-mcp-tests: iam-test-calculator iam-test-skill-search
 
@@ -72,29 +79,29 @@ iam-mcp-tests: iam-test-calculator iam-test-skill-search
 
 jwt-list-tools:
 	@echo "Listing tools via JWT Gateway..."
-	@cd tests/manual/gateways/jwt && python list_tools.py
+	@$(PYTHON) tests/manual/gateways/jwt/list_tools.py
 
 jwt-search-tools:
 	@echo "Searching tools via JWT Gateway..."
-	@cd tests/manual/gateways/jwt && python search_tools.py
+	@$(PYTHON) tests/manual/gateways/jwt/search_tools.py
 
 jwt-invoke-tool:
-	@ifndef TOOL
-		$(error TOOL is not set. Usage: make jwt-invoke-tool TOOL=<tool_name> ARGS='<json>')
-	@endif
-	@ifndef ARGS
-		$(error ARGS is not set. Usage: make jwt-invoke-tool TOOL=<tool_name> ARGS='<json>')
-	@endif
+ifndef TOOL
+	$(error TOOL is not set. Usage: make jwt-invoke-tool TOOL=<tool_name> ARGS='<json>')
+endif
+ifndef ARGS
+	$(error ARGS is not set. Usage: make jwt-invoke-tool TOOL=<tool_name> ARGS='<json>')
+endif
 	@echo "Invoking tool $(TOOL) via JWT Gateway..."
-	@cd tests/manual/gateways/jwt && python invoke_tool.py $(TOOL) '$(ARGS)'
+	@$(PYTHON) tests/manual/gateways/jwt/invoke_tool.py $(TOOL) '$(ARGS)'
 
 jwt-test-github:
 	@echo "Testing GitHub MCP via JWT Gateway..."
-	@cd tests/manual/gateways/jwt/mcp_tests && python github.py
+	@$(PYTHON) tests/manual/gateways/jwt/mcp_tests/github.py
 
 jwt-test-temperature:
 	@echo "Testing Temperature Converter via JWT Gateway..."
-	@cd tests/manual/gateways/jwt/mcp_tests && python temperature_converter.py
+	@$(PYTHON) tests/manual/gateways/jwt/mcp_tests/temperature_converter.py
 
 jwt-mcp-tests: jwt-test-github jwt-test-temperature
 
@@ -104,7 +111,7 @@ jwt-mcp-tests: jwt-test-github jwt-test-temperature
 
 mcp-invoke-calculator:
 	@echo "Directly invoking Calculator MCP runtime..."
-	@cd tests/manual/runtimes/mcp && python invoke_calculator.py
+	@$(PYTHON) tests/manual/runtimes/mcp/invoke_calculator.py
 
 # ==============================================================================
 # Manual Tests - Memory
@@ -112,13 +119,11 @@ mcp-invoke-calculator:
 
 view-memory:
 	@echo "Viewing AgentCore memory..."
-	@python tests/manual/memory/view_memory.py
+	@$(PYTHON) tests/manual/memory/view_memory.py
 
 # ==============================================================================
 # Manual Tests - Evaluations
 # ==============================================================================
-
-PYTHON := .venv/bin/python
 
 eval-list:
 	@echo "📊 Listing online evaluation configurations..."
