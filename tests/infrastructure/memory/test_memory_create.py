@@ -8,6 +8,8 @@ Run with:
     pytest tests/infrastructure/memory/test_memory_create.py -v -m infrastructure
 """
 
+from datetime import UTC, datetime
+
 import pytest
 
 
@@ -47,31 +49,35 @@ def test_create_memory_event(
         user_message = f"Here's an important fact: {content}"
         assistant_message = f"Understood. I've noted this fact: {content}"
 
-    # Create the event
+    # Create the event with new API format (tagged union with conversational wrapper)
     response = bedrock_agentcore_client.create_event(
         memoryId=memory_id,
         actorId=test_actor_id,
         sessionId=unique_session_id,
-        contents=[
+        eventTimestamp=datetime.now(UTC),
+        payload=[
             {
-                "role": "USER",
-                "turn": 1,
-                "value": user_message,
+                "conversational": {
+                    "role": "USER",
+                    "content": {"text": user_message},
+                }
             },
             {
-                "role": "ASSISTANT",
-                "turn": 2,
-                "value": assistant_message,
+                "conversational": {
+                    "role": "ASSISTANT",
+                    "content": {"text": assistant_message},
+                }
             },
         ],
     )
 
-    # Assertions
-    assert "eventId" in response, "Response should contain eventId"
-    assert response["eventId"], "Event ID should not be empty"
+    # Assertions - eventId is now nested in 'event' object
+    assert "event" in response, "Response should contain event"
+    assert "eventId" in response["event"], "Event should contain eventId"
+    assert response["event"]["eventId"], "Event ID should not be empty"
 
-    # Verify response metadata
-    assert response["ResponseMetadata"]["HTTPStatusCode"] == 200
+    # Verify response metadata - 201 for created
+    assert response["ResponseMetadata"]["HTTPStatusCode"] == 201
 
 
 @pytest.mark.infrastructure
@@ -88,9 +94,10 @@ def test_create_event_invalid_memory_id(
             memoryId=invalid_memory_id,
             actorId=test_actor_id,
             sessionId=unique_session_id,
-            contents=[
-                {"role": "USER", "turn": 1, "value": "Test message"},
-                {"role": "ASSISTANT", "turn": 2, "value": "Test response"},
+            eventTimestamp=datetime.now(UTC),
+            payload=[
+                {"conversational": {"role": "USER", "content": {"text": "Test message"}}},
+                {"conversational": {"role": "ASSISTANT", "content": {"text": "Test response"}}},
             ],
         )
 
@@ -99,7 +106,6 @@ def test_create_event_invalid_memory_id(
 
 
 @pytest.mark.infrastructure
-@pytest.mark.slow
 def test_memory_event_extraction_delay(
     bedrock_agentcore_client,
     memory_id,
@@ -121,9 +127,15 @@ def test_memory_event_extraction_delay(
         memoryId=memory_id,
         actorId=test_actor_id,
         sessionId=unique_session_id,
-        contents=[
-            {"role": "USER", "turn": 1, "value": f"Remember: {test_content}"},
-            {"role": "ASSISTANT", "turn": 2, "value": f"Noted: {test_content}"},
+        eventTimestamp=datetime.now(UTC),
+        payload=[
+            {"conversational": {"role": "USER", "content": {"text": f"Remember: {test_content}"}}},
+            {
+                "conversational": {
+                    "role": "ASSISTANT",
+                    "content": {"text": f"Noted: {test_content}"},
+                }
+            },
         ],
     )
 

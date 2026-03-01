@@ -47,7 +47,7 @@ def invoke_agent_with_session_manager(
     tools: list,
     system_prompt: str,
     payload: dict[str, Any],
-) -> dict[str, str]:
+) -> dict[str, Any]:
     """
     Process user input with agent using session manager for automatic memory.
 
@@ -62,18 +62,23 @@ def invoke_agent_with_session_manager(
         config: Application configuration with region and memory settings
         tools: List of tools loaded from MCP gateways (reused across requests)
         system_prompt: System prompt with skills (reused across requests)
-        payload: Request payload with fields:
-            - prompt: User message (default: "Hello")
-            - actor_id: User identifier (default: "default_actor")
-            - session_id: Session identifier (default: "default_session")
+        payload: Request payload with AgentCore standard format:
+            - input.value: User message (default: "Hello")
+            - actorId: User identifier (default: "default_actor")
+            - sessionId: Session identifier (default: "default_session")
 
     Returns:
-        Response dictionary with 'result' key containing agent response text
+        Response dictionary with AgentCore standard format:
+            {
+                "output": {"value": text},
+                "sessionId": session_id,
+                "actorId": actor_id
+            }
     """
-    # Extract parameters from payload with defaults
-    user_message = payload.get("prompt", DEFAULT_USER_MESSAGE)
-    actor_id = payload.get("actor_id", DEFAULT_ACTOR_ID)
-    session_id = payload.get("session_id", DEFAULT_SESSION_ID)
+    # Extract parameters from payload with defaults (AgentCore standard format)
+    user_message = payload.get("input", {}).get("value", DEFAULT_USER_MESSAGE)
+    actor_id = payload.get("actorId", DEFAULT_ACTOR_ID)
+    session_id = payload.get("sessionId", DEFAULT_SESSION_ID)
 
     # Log invocation
     logger.info(f"[Agent] Invoked: actor={actor_id} session={session_id}")
@@ -135,4 +140,9 @@ def invoke_agent_with_session_manager(
     # Log completion
     logger.info("[Agent] Completed")
 
-    return {"result": text}
+    # Return AgentCore standard response format
+    return {
+        "output": {"value": text},
+        "sessionId": session_id,
+        "actorId": actor_id,
+    }

@@ -65,23 +65,28 @@ def invoke(payload):
     AgentCore runtime entrypoint with session manager.
 
     Processes incoming requests by creating an agent instance with session manager
-    for automatic memory handling. MCP clients, tools, and prompts are initialized
+    for automatic memory handling. MCP clients, tools, and prompts are initialised
     globally once per container for performance.
 
     Args:
         payload: Request payload from AgentCore runtime with fields:
-            - prompt: User message (optional, default: "Hello")
-            - actor_id: User identifier (optional, default: "default_actor")
-            - session_id: Session identifier (optional, default: "default_session")
+            - input.value: User message (optional, default: "Hello")
+            - actorId: User identifier (optional, default: "default_actor")
+            - sessionId: Session identifier (optional, default: "default_session")
 
     Returns:
-        Response dictionary with 'result' key containing agent response text
+        Response dictionary with AgentCore standard format:
+            {
+                "output": {"value": text},
+                "sessionId": session_id,
+                "actorId": actor_id
+            }
 
     Example payload:
         {
-            "prompt": "What tools do you have access to?",
-            "actor_id": "user123",
-            "session_id": "sess456"
+            "input": {"value": "What tools do you have access to?"},
+            "actorId": "user123",
+            "sessionId": "sess456"
         }
     """
     # Lazy initialize global dependencies (once per container)

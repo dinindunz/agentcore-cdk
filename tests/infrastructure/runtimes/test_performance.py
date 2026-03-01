@@ -9,7 +9,6 @@ import pytest
 
 
 @pytest.mark.infrastructure
-@pytest.mark.slow
 def test_agent_response_time(agent_runtime_arn, region_name, test_actor_id):
     """Measure agent response time for simple query (not a strict performance test)."""
     secrets_manager = boto3.client("secretsmanager", region_name=region_name)
@@ -95,6 +94,7 @@ def test_mcp_runtime_response_time(mcp_calculator_runtime_arn, region_name):
         headers={
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/json",
+            "Accept": "application/json, text/event-stream",
         },
     )
     duration = time.time() - start_time

@@ -59,12 +59,24 @@ def invoke_agent(prompt: str) -> None:
         },
         data=json.dumps(
             {
-                "prompt": prompt,
-                "session_id": session_id,
-                "actor_id": actor_id,
+                "input": {"value": prompt},
+                "sessionId": session_id,
+                "actorId": actor_id,
             }
         ),
     )
 
     print(f"Status: {response.status_code}")
-    print(f"Response: {response.content.decode()}")
+
+    # Parse and display the response
+    if response.status_code == 200:
+        try:
+            response_data = response.json()
+            if "output" in response_data and "value" in response_data["output"]:
+                print(f"Response: {response_data['output']['value']}")
+            else:
+                print(f"Response: {response.content.decode()}")
+        except json.JSONDecodeError:
+            print(f"Response: {response.content.decode()}")
+    else:
+        print(f"Response: {response.content.decode()}")

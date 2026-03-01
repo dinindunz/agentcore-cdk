@@ -6,7 +6,6 @@ Automated infrastructure tests for AgentCore runtime invocation and performance.
 
 ```bash
 make test-runtimes         # Run all runtime tests
-make test-runtimes-quick   # Skip slow tests (faster development)
 ```
 
 See **[Infrastructure Testing Guide](../../../docs/INFRASTRUCTURE_TESTING.md#runtime-infrastructure-tests)** for complete documentation.
@@ -15,7 +14,7 @@ See **[Infrastructure Testing Guide](../../../docs/INFRASTRUCTURE_TESTING.md#run
 
 - **`test_agent_invocation.py`** - Agent runtime end-to-end orchestration tests
 - **`test_mcp_invocation.py`** - MCP runtime direct invocation tests
-- **`test_performance.py`** - Basic response time measurements (marked as slow)
+- **`test_performance.py`** - Basic response time measurements
 - **`conftest.py`** - Shared fixtures (runtime ARNs, test-user)
 
 ## What These Tests Validate
@@ -51,10 +50,7 @@ Tests automatically skip if:
 
 ## Performance Tests
 
-Performance tests are marked as `@pytest.mark.slow` and can be skipped:
+Performance tests measure response times but are not strict performance benchmarks - they just ensure reasonable response times:
 
-```bash
-make test-runtimes-quick   # Skip performance tests
-```
-
-These tests measure response times but are not strict performance benchmarks - they just ensure reasonable response times.
+- Agent response time: < 30 seconds
+- MCP runtime response time: < 5 seconds

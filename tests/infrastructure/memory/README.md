@@ -6,7 +6,6 @@ Automated infrastructure tests for AgentCore memory functionality.
 
 ```bash
 make test-memory           # Run all memory tests
-make test-memory-quick     # Skip slow tests (faster development)
 ```
 
 See **[Infrastructure Testing Guide](../../../docs/INFRASTRUCTURE_TESTING.md#memory-infrastructure-tests)** for complete documentation.

@@ -207,7 +207,7 @@ cognito:
 
 ## Monitoring
 
-Token cache behaviour is logged at `DEBUG` level:
+Token cache behaviour is logged at `INFO` or `DEBUG` level:
 
 ```
 [Auth] Requesting fresh OAuth2 token: endpoint=https://...
@@ -218,3 +218,17 @@ Token cache behaviour is logged at `DEBUG` level:
 ```
 
 Set `agent_runtime.log_level: DEBUG` in your environment config to see cache hits/misses.
+
+### Expected Logging Behavior
+
+**Important**: You may **not** see token logs on every conversational turn. This is normal and indicates efficient connection reuse:
+
+- **First invocation** (e.g., 4:02): MCP client creates connection → token fetched → logged
+- **Subsequent invocations** (e.g., 4:05): MCP client reuses existing connection → **no token logs**
+
+Token logs only appear when:
+- Container cold starts (new session)
+- MCP connection re-establishes (network issue, timeout, error recovery)
+- Connection lifetime expires and reconnects
+
+**No token logs ≠ broken caching**. It means the persistent connection is working efficiently.

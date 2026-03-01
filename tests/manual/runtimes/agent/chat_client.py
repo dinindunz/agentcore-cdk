@@ -55,9 +55,9 @@ def send_message(prompt: str, session_id: str, actor_id: str, access_token: str)
         },
         data=json.dumps(
             {
-                "prompt": prompt,
-                "session_id": session_id,
-                "actor_id": actor_id,
+                "input": {"value": prompt},
+                "sessionId": session_id,
+                "actorId": actor_id,
             }
         ),
     )
@@ -65,11 +65,11 @@ def send_message(prompt: str, session_id: str, actor_id: str, access_token: str)
     if response.status_code != 200:
         return f"Error: {response.status_code} - {response.content.decode()}"
 
-    # Parse JSON response and extract the result
+    # Parse JSON response and extract output.value from AgentCore standard format
     try:
         response_data = response.json()
-        if isinstance(response_data, dict) and "result" in response_data:
-            return response_data["result"]
+        if isinstance(response_data, dict) and "output" in response_data:
+            return response_data["output"]["value"]
         return response.content.decode()
     except json.JSONDecodeError:
         # If not JSON, return raw response

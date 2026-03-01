@@ -9,11 +9,8 @@ Automated infrastructure tests using pytest that interact with live AWS services
 | `make test` | Run all tests |
 | `make test-infrastructure` | Run all infrastructure tests |
 | `make test-memory` | Run memory infrastructure tests |
-| `make test-memory-quick` | Skip slow tests (faster development) |
 | `make test-gateways` | Run gateway infrastructure tests |
-| `make test-gateways-quick` | Skip slow gateway tests |
 | `make test-runtimes` | Run runtime infrastructure tests |
-| `make test-runtimes-quick` | Skip slow runtime tests |
 
 ## Test Categories
 
@@ -24,9 +21,6 @@ Automated infrastructure tests using pytest that interact with live AWS services
 ```bash
 # All memory tests
 make test-memory
-
-# Skip slow tests (60-90s waits)
-make test-memory-quick
 
 # Using pytest directly
 pytest tests/infrastructure/memory/ -v
@@ -76,14 +70,10 @@ Defined in `tests/infrastructure/memory/conftest.py`:
 Configure in `pytest.ini`:
 
 - `@pytest.mark.infrastructure` - Requires AWS services
-- `@pytest.mark.slow` - Long-running tests (> 60 seconds)
 
 ```bash
 # Run only infrastructure tests
 pytest -m infrastructure
-
-# Skip slow tests
-pytest -m "infrastructure and not slow"
 ```
 
 ## Prerequisites
@@ -124,9 +114,6 @@ Tests for AgentCore gateway authentication and tool invocation.
 # All gateway tests
 make test-gateways
 
-# Skip slow tests
-make test-gateways-quick
-
 # Using pytest directly
 pytest tests/infrastructure/gateways/ -v
 ```
@@ -165,9 +152,6 @@ Tests for AgentCore runtime invocation and basic performance.
 # All runtime tests
 make test-runtimes
 
-# Skip slow tests (performance benchmarks)
-make test-runtimes-quick
-
 # Using pytest directly
 pytest tests/infrastructure/runtimes/ -v
 ```
@@ -176,7 +160,7 @@ pytest tests/infrastructure/runtimes/ -v
 
 - **`test_agent_invocation.py`** - Agent runtime end-to-end orchestration
 - **`test_mcp_invocation.py`** - MCP runtime direct invocation
-- **`test_performance.py`** - Basic response time measurements (marked as slow)
+- **`test_performance.py`** - Basic response time measurements
 
 #### What's Tested
 
@@ -201,7 +185,7 @@ pytest tests/infrastructure/runtimes/ -v
 
 1. **Organise by feature** - Group related tests in subdirectories
 2. **Use fixtures** - Share common setup via `conftest.py` files
-3. **Mark tests** - Use `@pytest.mark.infrastructure` and `@pytest.mark.slow`
+3. **Mark tests** - Use `@pytest.mark.infrastructure` for tests requiring AWS services
 4. **Test isolation** - Use unique IDs (e.g., `test-user`, unique session IDs)
 5. **Document prerequisites** - Clear requirements in README files
 6. **Skip gracefully** - Skip tests when prerequisites aren't met

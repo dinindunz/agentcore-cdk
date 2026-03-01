@@ -6,7 +6,6 @@ Automated infrastructure tests for AgentCore gateway authentication and tool inv
 
 ```bash
 make test-gateways         # Run all gateway tests
-make test-gateways-quick   # Skip slow tests (faster development)
 ```
 
 See **[Infrastructure Testing Guide](../../../docs/INFRASTRUCTURE_TESTING.md#gateway-infrastructure-tests)** for complete documentation.

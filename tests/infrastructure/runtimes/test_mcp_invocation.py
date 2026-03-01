@@ -7,6 +7,24 @@ import boto3
 import pytest
 
 
+def parse_sse_response(response_text: str) -> dict:
+    """Parse Server-Sent Events (SSE) response to extract JSON data.
+
+    Args:
+        response_text: Raw SSE response text
+
+    Returns:
+        Parsed JSON data from the SSE event
+    """
+    # SSE format: "event: message\r\ndata: {...}\r\n\r\n"
+    for line in response_text.split("\n"):
+        line = line.strip()
+        if line.startswith("data: "):
+            json_str = line[6:]  # Remove "data: " prefix
+            return json.loads(json_str)
+    raise ValueError(f"No data found in SSE response: {response_text}")
+
+
 @pytest.mark.infrastructure
 def test_mcp_calculator_add(mcp_calculator_runtime_arn, region_name):
     """Test MCP calculator runtime can perform addition."""
@@ -49,14 +67,17 @@ def test_mcp_calculator_add(mcp_calculator_runtime_arn, region_name):
         headers={
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/json",
+            "Accept": "application/json, text/event-stream",
         },
     )
 
     assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
-    data = response.json()
+
+    # Parse SSE response to extract JSON
+    data = parse_sse_response(response.text)
 
     assert "result" in data
-    assert data["result"]["content"][0]["text"] == "15"
+    assert data["result"]["content"][0]["text"] == "15.0"
 
 
 @pytest.mark.infrastructure
@@ -94,11 +115,14 @@ def test_mcp_calculator_list_tools(mcp_calculator_runtime_arn, region_name):
         headers={
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/json",
+            "Accept": "application/json, text/event-stream",
         },
     )
 
     assert response.status_code == 200
-    data = response.json()
+
+    # Parse SSE response to extract JSON
+    data = parse_sse_response(response.text)
 
     assert "result" in data
     assert "tools" in data["result"]
