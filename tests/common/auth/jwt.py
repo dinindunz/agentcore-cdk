@@ -6,6 +6,7 @@ AgentCore gateways using Cognito OAuth2 client_credentials flow.
 
 import json
 import os
+import time
 from typing import Any
 
 import boto3
@@ -15,6 +16,9 @@ from dotenv import load_dotenv
 load_dotenv()
 
 REGION_NAME = os.environ["REGION_NAME"]
+
+# Token cache: stores (token, expiry_time)
+_token_cache: tuple[str, float] | None = None
 
 
 def get_gateway_url() -> str:
@@ -32,9 +36,19 @@ def get_gateway_url() -> str:
 def get_access_token() -> str:
     """Get OAuth2 access token from Cognito using client_credentials flow.
 
+    Tokens are cached and reused until they expire (with 5-minute buffer).
+
     Returns:
         str: The access token for Bearer authentication
     """
+    global _token_cache
+
+    # Check if we have a valid cached token
+    if _token_cache is not None:
+        cached_token, expiry_time = _token_cache
+        if time.time() < expiry_time:
+            return cached_token
+
     sm_client = boto3.client("secretsmanager", region_name=REGION_NAME)
 
     # Fetch Cognito credentials from Secrets Manager
@@ -52,7 +66,18 @@ def get_access_token() -> str:
         auth=(gateway_cognito["client_id"], gateway_cognito["client_secret"]),
     )
     token_response.raise_for_status()
-    return token_response.json()["access_token"]
+    token_data = token_response.json()
+    access_token = token_data["access_token"]
+
+    # Cache the token with expiry (value from Cognito reflects configured lifetime)
+    # Use dynamic buffer: 10% of token lifetime (minimum 60s, maximum 300s)
+    # This adapts automatically to different token validity configurations
+    expires_in = token_data.get("expires_in", 900)
+    buffer_seconds = max(60, min(300, int(expires_in * 0.10)))
+    expiry_time = time.time() + expires_in - buffer_seconds
+    _token_cache = (access_token, expiry_time)
+
+    return access_token
 
 
 def get_headers(include_event_stream: bool = True) -> dict[str, str]:

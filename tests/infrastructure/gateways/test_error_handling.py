@@ -59,6 +59,5 @@ def test_iam_gateway_invalid_method():
 
     status_code, response = iam_auth.make_request(payload)
 
-    # Should return error
-    assert status_code == 200  # JSON-RPC errors are HTTP 200
-    assert "error" in response
+    # Gateway returns HTTP 400 for truly invalid methods (not supported operations)
+    assert status_code == 400, f"Expected 400 for invalid method, got {status_code}: {response}"

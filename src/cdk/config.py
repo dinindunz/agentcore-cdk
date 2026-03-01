@@ -176,6 +176,51 @@ class EvaluationConfig:
 
 
 @dataclass
+class OAuthCacheConfig:
+    """OAuth2 access token caching configuration for agent runtime."""
+
+    buffer_percent: float = 10.0  # Buffer as percentage of token lifetime (0.0-50.0)
+    buffer_min_seconds: int = 60  # Minimum buffer in seconds
+    buffer_max_seconds: int = 300  # Maximum buffer in seconds (5 minutes)
+
+    def __post_init__(self):
+        """Validate OAuth cache configuration."""
+        if not 0.0 <= self.buffer_percent <= 50.0:
+            raise ValueError(
+                f"buffer_percent must be between 0.0 and 50.0, got {self.buffer_percent}"
+            )
+        if self.buffer_min_seconds < 0:
+            raise ValueError(f"buffer_min_seconds must be >= 0, got {self.buffer_min_seconds}")
+        if self.buffer_max_seconds < self.buffer_min_seconds:
+            raise ValueError(
+                f"buffer_max_seconds ({self.buffer_max_seconds}) must be >= "
+                f"buffer_min_seconds ({self.buffer_min_seconds})"
+            )
+
+
+@dataclass
+class CognitoConfig:
+    """Cognito user pool configuration."""
+
+    access_token_validity_minutes: int = 15  # Access token expiry in minutes (5-1440)
+    oauth_cache: OAuthCacheConfig | None = None  # OAuth token caching for agent runtime
+
+    def __post_init__(self):
+        """Validate access token validity."""
+        if not 5 <= self.access_token_validity_minutes <= 1440:
+            raise ValueError(
+                f"access_token_validity_minutes must be between 5 and 1440 (24 hours), "
+                f"got {self.access_token_validity_minutes}"
+            )
+
+        # Initialise OAuth cache config
+        if self.oauth_cache is None:
+            self.oauth_cache = OAuthCacheConfig()
+        elif isinstance(self.oauth_cache, dict):
+            self.oauth_cache = OAuthCacheConfig(**self.oauth_cache)
+
+
+@dataclass
 class InferenceProfileConfig:
     """Bedrock inference profile configuration for cost tracking."""
 
@@ -206,6 +251,7 @@ class AgentCoreConfig:
     lambda_targets: LambdaTargetsConfig
     observability: ObservabilityConfig
     evaluation: EvaluationConfig
+    cognito: CognitoConfig | None = None
     inference_profile: InferenceProfileConfig | None = None
 
     def __post_init__(self):
@@ -222,6 +268,10 @@ class AgentCoreConfig:
             self.observability = ObservabilityConfig(**self.observability)
         if isinstance(self.evaluation, dict):
             self.evaluation = EvaluationConfig(**self.evaluation)
+        if self.cognito is None:
+            self.cognito = CognitoConfig()
+        elif isinstance(self.cognito, dict):
+            self.cognito = CognitoConfig(**self.cognito)
         if self.inference_profile is None:
             self.inference_profile = InferenceProfileConfig()
         elif isinstance(self.inference_profile, dict):

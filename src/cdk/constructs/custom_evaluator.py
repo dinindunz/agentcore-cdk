@@ -210,7 +210,7 @@ class CustomEvaluatorConstruct(Construct):
                                 "bedrock-agentcore:DeleteEvaluator",
                                 "bedrock-agentcore:ListEvaluators",
                             ],
-                            resources=["*"],
+                            resources=["*"],  # CDK role will be used when moved to L2 constructs
                         ),
                         # Permission to invoke Bedrock models for evaluation
                         iam.PolicyStatement(

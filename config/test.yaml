@@ -35,6 +35,14 @@ lambda_targets:
   temperature_converter:
     log_level: DEBUG                  # Verbose Lambda logging for debugging
 
+# Cognito Configuration
+cognito:
+  access_token_validity_minutes: 15   # OAuth2 access token expiry (5-1440 minutes / 24 hours)
+  oauth_cache:                        # OAuth token caching strategy for agent runtime
+    buffer_percent: 10.0              # Cache buffer as % of token lifetime (0.0-50.0)
+    buffer_min_seconds: 60            # Minimum cache buffer (seconds)
+    buffer_max_seconds: 300           # Maximum cache buffer (seconds, 5 minutes)
+
 # Observability Configuration
 observability:
   enabled: true                       # Enable AgentCore tracing and observability

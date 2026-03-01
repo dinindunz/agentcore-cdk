@@ -64,6 +64,9 @@ class AgentCoreStack(cdk.Stack):
             "AgentUserPool",
             name="agent",
             scope_description="Invoke agent runtime",
+            access_token_validity=cdk.Duration.minutes(
+                config.cognito.access_token_validity_minutes
+            ),
         )
 
         # Gateway User Pool — used for authentication to access the JWT gateway.
@@ -72,6 +75,9 @@ class AgentCoreStack(cdk.Stack):
             "JwtGatewayUserPool",
             name="gateway",
             scope_description="Invoke AgentCore Gateway",
+            access_token_validity=cdk.Duration.minutes(
+                config.cognito.access_token_validity_minutes
+            ),
         )
 
         # MCP Runtime User Pool — used for authentication to invoke the MCP runtime and as the identity source for the MCP OAuth2 credential provider.
@@ -80,6 +86,9 @@ class AgentCoreStack(cdk.Stack):
             "McpUserPool",
             name="mcp",
             scope_description="Invoke MCP runtimes",
+            access_token_validity=cdk.Duration.minutes(
+                config.cognito.access_token_validity_minutes
+            ),
         )
 
         # ---------------------------------------------------------------
@@ -185,6 +194,10 @@ class AgentCoreStack(cdk.Stack):
             "INFERENCE_PROFILE_ARN": self.inference_profile.inference_profile_arn,
             "MODEL_TEMPERATURE": str(config.agent_runtime.model_temperature),
             "MODEL_MAX_TOKENS": str(config.agent_runtime.model_max_tokens),
+            # OAuth token cache configuration
+            "OAUTH_CACHE_BUFFER_PERCENT": str(config.cognito.oauth_cache.buffer_percent),
+            "OAUTH_CACHE_BUFFER_MIN_SEC": str(config.cognito.oauth_cache.buffer_min_seconds),
+            "OAUTH_CACHE_BUFFER_MAX_SEC": str(config.cognito.oauth_cache.buffer_max_seconds),
         }
         # Add memory configuration if memory is enabled
         if self.memory:
