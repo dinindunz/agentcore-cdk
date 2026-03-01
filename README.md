@@ -103,7 +103,10 @@ The diagram shows the complete authentication and data flow, including:
 │   │   └── github/               # GitHub API MCP server (OpenAPI Target)
 │   │       └── schema.json       # GitHub OpenAPI schema for Gateway target
 │   │
-│   ├── observability/            # Observability setup
+│   ├── observability/            # Observability dashboard and setup
+│   │   ├── backend/              # Flask API (CloudWatch Logs queries, OTEL span parsing)
+│   │   ├── frontend/             # React + Cloudscape UI (trace visualisation)
+│   │   ├── run.py                # Dashboard launcher
 │   │   └── setup.sh              # One-time account setup for AgentCore observability (X-Ray tracing)
 │   │
 │   └── skills/                   # Agent skill definitions
@@ -266,7 +269,33 @@ This launches an interactive chat client where you can have continuous conversat
 
 > **Note**: Set `ACTOR_ID` in your `.env` file to maintain the same identity across multiple chat sessions. This enables long-term memory strategies (Preference, Semantic, Summary, Episodic) to learn your patterns over time. Without it, a random ID is generated each time.
 
-### 7. Test and Monitor
+### 7. View Agent Traces (Observability Dashboard)
+
+Monitor and analyse your agent executions with the built-in observability dashboard:
+
+**First-time setup:**
+```bash
+# Install frontend dependencies (one-time)
+make observability-frontend-install
+
+# Build the React frontend (one-time)
+make observability-frontend-build
+
+# Launch the dashboard
+make observability-dashboard
+```
+
+The dashboard provides:
+- **Agent Discovery** - Automatically finds deployed AgentCore runtimes
+- **Trace Visualisation** - Shows sessions, LLM calls, and tool invocations
+
+The dashboard will auto-open at `http://localhost:5000` and query CloudWatch Logs for your agent traces.
+
+> **Note**: Traces appear in CloudWatch 1-2 minutes after agent invocations. Select your agent from the dropdown and choose a time window (1h, 6h, 24h, 48h) to view traces.
+
+Full documentation: [src/observability/README.md](src/observability/README.md)
+
+### 8. Test and Monitor
 
 The project includes comprehensive testing organised into infrastructure tests (pytest) and manual tests (scripts).
 
