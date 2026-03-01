@@ -15,11 +15,13 @@ from ...evals import (
     skill_workflow,
     temperature_conversion,
 )
+from ..config import AgentCoreConfig
 from ..constructs import (
     ApiKeyCredentialProviderConstruct,
     BucketDeploymentConstruct,
     CustomEvaluatorConstruct,
     GatewayConstruct,
+    InferenceProfileConstruct,
     LambdaTargetConstruct,
     McpServerTargetConstruct,
     MemoryConstruct,
@@ -39,9 +41,13 @@ class AgentCoreStack(cdk.Stack):
         self,
         scope: Construct,
         construct_id: str,
+        config: AgentCoreConfig,
         **kwargs,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
+
+        # Store configuration for use throughout the stack
+        self.config = config
 
         # Ensure all log groups in this stack are cleaned up on deletion
         cdk.Aspects.of(self).add(DestroyLogGroups())
@@ -58,6 +64,9 @@ class AgentCoreStack(cdk.Stack):
             "AgentUserPool",
             name="agent",
             scope_description="Invoke agent runtime",
+            access_token_validity=cdk.Duration.minutes(
+                config.cognito.access_token_validity_minutes
+            ),
         )
 
         # Gateway User Pool — used for authentication to access the JWT gateway.
@@ -66,6 +75,9 @@ class AgentCoreStack(cdk.Stack):
             "JwtGatewayUserPool",
             name="gateway",
             scope_description="Invoke AgentCore Gateway",
+            access_token_validity=cdk.Duration.minutes(
+                config.cognito.access_token_validity_minutes
+            ),
         )
 
         # MCP Runtime User Pool — used for authentication to invoke the MCP runtime and as the identity source for the MCP OAuth2 credential provider.
@@ -74,6 +86,9 @@ class AgentCoreStack(cdk.Stack):
             "McpUserPool",
             name="mcp",
             scope_description="Invoke MCP runtimes",
+            access_token_validity=cdk.Duration.minutes(
+                config.cognito.access_token_validity_minutes
+            ),
         )
 
         # ---------------------------------------------------------------
@@ -135,17 +150,30 @@ class AgentCoreStack(cdk.Stack):
         )
 
         # ---------------------------------------------------------------
-        # Create Memory
+        # Create Memory (optional - controlled via configuration)
         # ---------------------------------------------------------------
-        self.memory = MemoryConstruct(
+        self.memory = None
+        if config.memory.enabled:
+            self.memory = MemoryConstruct(
+                self,
+                "AgentMemory",
+                memory_name="agent-memory",
+                event_expiry_days=config.memory.event_expiry_days,
+                enable_summary_strategy=config.memory.strategies.summary,
+                enable_preference_strategy=config.memory.strategies.preference,
+                enable_semantic_strategy=config.memory.strategies.semantic,
+            )
+
+        # ---------------------------------------------------------------
+        # Create Inference Profile
+        # ---------------------------------------------------------------
+        self.inference_profile = InferenceProfileConstruct(
             self,
-            "AgentMemory",
-            memory_name="agent-memory",
-            event_expiry_days=90,
-            enable_summary_strategy=True,
-            enable_preference_strategy=True,
-            enable_semantic_strategy=True,
-            enable_episodic_strategy=False,  # TODO: Disabled - Fix configuration issues
+            "AgentInferenceProfile",
+            profile_name="agent-profile",
+            model_id=config.inference_profile.model_id,
+            description=config.inference_profile.description,
+            tags=config.inference_profile.tags,
         )
 
         # ---------------------------------------------------------------
@@ -159,10 +187,29 @@ class AgentCoreStack(cdk.Stack):
             "IAM_GATEWAY_SSM_PATH": iam_gw.ssm_url_param_name,
             "GATEWAY_COGNITO_SECRET": gateway_auth.secret_name,
             "SKILLS_BUCKET": skills_bucket.bucket_name_value,
-            "MEMORY_ID": self.memory.memory_id,
-            "LOG_LEVEL": "INFO",  # Configurable logging level (DEBUG, INFO, WARNING, ERROR)
-            "OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED": "false",  # Disable OTEL log duplication
+            "LOG_LEVEL": config.agent_runtime.log_level,
+            "OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED": str(
+                config.agent_runtime.otel_logging_enabled
+            ).lower(),
+            "INFERENCE_PROFILE_ARN": self.inference_profile.inference_profile_arn,
+            "MODEL_TEMPERATURE": str(config.agent_runtime.model_temperature),
+            "MODEL_MAX_TOKENS": str(config.agent_runtime.model_max_tokens),
+            # OAuth token cache configuration
+            "OAUTH_CACHE_BUFFER_PERCENT": str(config.cognito.oauth_cache.buffer_percent),
+            "OAUTH_CACHE_BUFFER_MIN_SEC": str(config.cognito.oauth_cache.buffer_min_seconds),
+            "OAUTH_CACHE_BUFFER_MAX_SEC": str(config.cognito.oauth_cache.buffer_max_seconds),
         }
+        # Add memory configuration if memory is enabled
+        if self.memory:
+            agent_env_vars["MEMORY_ID"] = self.memory.memory_id
+            agent_env_vars["MEMORY_PREFERENCE_TOP_K"] = str(config.memory.preference_top_k)
+            agent_env_vars["MEMORY_PREFERENCE_RELEVANCE_SCORE"] = str(
+                config.memory.preference_relevance_score
+            )
+            agent_env_vars["MEMORY_SEMANTIC_TOP_K"] = str(config.memory.semantic_top_k)
+            agent_env_vars["MEMORY_SEMANTIC_RELEVANCE_SCORE"] = str(
+                config.memory.semantic_relevance_score
+            )
 
         # Agent Runtime — the "agent" runtime that will orchestrate calls to the gateways and execute tools
         agent_rt = RuntimeConstruct(
@@ -173,7 +220,9 @@ class AgentCoreStack(cdk.Stack):
             protocol=ProtocolType.HTTP,
             auth_pool=agent_auth,
             environment_variables=agent_env_vars,
-            enable_observability=True,
+            enable_observability=config.observability.enabled,
+            memory=self.memory,
+            inference_profile=self.inference_profile,
         )
 
         # Grant the agent runtime's execution role permission to read skills from S3
@@ -186,25 +235,6 @@ class AgentCoreStack(cdk.Stack):
                 actions=["bedrock-agentcore:InvokeGateway"],
                 resources=[
                     f"arn:aws:bedrock-agentcore:{self.region}:{self.account}:gateway/{iam_gw.gateway.gateway_id}"
-                ],
-            )
-        )
-
-        # Grant agent runtime permissions to use memory
-        agent_rt.role.add_to_policy(
-            iam.PolicyStatement(
-                actions=[
-                    "bedrock-agentcore:CreateEvent",
-                    "bedrock-agentcore:ListEvents",
-                    "bedrock-agentcore:GetEvent",
-                    "bedrock-agentcore:ListSessions",
-                    "bedrock-agentcore:RetrieveMemoryRecords",
-                    "bedrock-agentcore:GetMemoryRecord",
-                    "bedrock-agentcore:ListMemoryRecords",
-                ],
-                resources=[
-                    f"arn:aws:bedrock-agentcore:{self.region}:{self.account}:memory/{self.memory.memory_id}",
-                    f"arn:aws:bedrock-agentcore:{self.region}:{self.account}:memory/{self.memory.memory_id}/*",
                 ],
             )
         )
@@ -337,9 +367,9 @@ class AgentCoreStack(cdk.Stack):
                 github_integrity_eval.to_evaluator_reference(),
                 output_format_eval.to_evaluator_reference(),
             ],
-            sampling_rate=100.0,  # Evaluate 100% of interactions
+            sampling_rate=config.evaluation.sampling_rate,
             description="Comprehensive evaluation with built-in + custom evaluators",
-            enable_on_create=True,
+            enable_on_create=config.evaluation.enable_on_create,
         )
 
         # MCP Calculator Runtime — a simple MCP runtime that exposes calculator tools (add, subtract, multiply, divide) for demonstration purposes
@@ -350,7 +380,7 @@ class AgentCoreStack(cdk.Stack):
             asset_path="mcp/calculator",
             protocol=ProtocolType.MCP,
             auth_pool=mcp_auth,
-            environment_variables={"LOG_LEVEL": "INFO"},
+            environment_variables={"LOG_LEVEL": config.mcp_runtimes.calculator.log_level},
         )
 
         # ---------------------------------------------------------------
@@ -367,7 +397,7 @@ class AgentCoreStack(cdk.Stack):
             description="Search available agent skills by keyword",
             environment={
                 "SKILLS_BUCKET": skills_bucket.bucket_name_value,
-                "LOG_LEVEL": "INFO",
+                "LOG_LEVEL": config.lambda_targets.skill_search.log_level,
             },
         )
         skills_bucket.bucket.grant_read(skill_search.function)
@@ -391,7 +421,7 @@ class AgentCoreStack(cdk.Stack):
             gateway=jwt_gw,
             target_name="temperature-converter",
             description="Temperature conversion tools (Celsius <> Fahrenheit)",
-            environment={"LOG_LEVEL": "INFO"},
+            environment={"LOG_LEVEL": config.lambda_targets.temperature_converter.log_level},
         )
 
         # GitHub Open API Target on JWT Gateway

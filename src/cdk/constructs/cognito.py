@@ -16,7 +16,8 @@ class UserPoolConstruct(Construct):
         agent_pool = UserPoolConstruct(
             self, "AgentPool",
             name="agent",
-            scope_description="Invoke agent runtime"
+            scope_description="Invoke agent runtime",
+            access_token_validity=cdk.Duration.hours(1)
         )
     """
 
@@ -27,6 +28,7 @@ class UserPoolConstruct(Construct):
         *,
         name: str,
         scope_description: str,
+        access_token_validity: cdk.Duration | None = None,
     ) -> None:
         """Create a Cognito user pool with domain and OAuth client.
 
@@ -35,12 +37,15 @@ class UserPoolConstruct(Construct):
             id: Construct ID
             name: Short identifier (e.g., "agent", "gateway")
             scope_description: Description for the OAuth invoke scope
+            access_token_validity: Access token expiry duration (default: 1 hour).
+                Must be between 5 minutes and 24 hours for OAuth2 flows.
 
         Example:
             UserPoolConstruct(
                 self, "GatewayPool",
                 name="gateway",
-                scope_description="Invoke gateway endpoints"
+                scope_description="Invoke gateway endpoints",
+                access_token_validity=cdk.Duration.hours(1)
             )
         """
         super().__init__(scope, id)
@@ -81,6 +86,7 @@ class UserPoolConstruct(Construct):
         self._client = self._user_pool.add_client(
             "Client",
             generate_secret=True,
+            access_token_validity=access_token_validity or cdk.Duration.hours(1),
             o_auth=cognito.OAuthSettings(
                 flows=cognito.OAuthFlows(client_credentials=True),
                 scopes=[cognito.OAuthScope.resource_server(resource_server, invoke_scope)],

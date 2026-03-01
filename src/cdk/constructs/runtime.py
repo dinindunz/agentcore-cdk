@@ -1,4 +1,5 @@
 import os
+from typing import TYPE_CHECKING
 
 import aws_cdk as cdk
 from aws_cdk import aws_ecr as ecr
@@ -17,6 +18,10 @@ from constructs import Construct
 
 from ..utils import to_kebab_case, to_snake_case
 from .cognito import UserPoolConstruct
+
+if TYPE_CHECKING:
+    from .inference_profile import InferenceProfileConstruct
+    from .memory import MemoryConstruct
 
 
 class RuntimeConstruct(Construct):
@@ -47,6 +52,8 @@ class RuntimeConstruct(Construct):
         auth_pool: UserPoolConstruct,
         environment_variables: dict[str, str] | None = None,
         enable_observability: bool = False,
+        memory: "MemoryConstruct | None" = None,
+        inference_profile: "InferenceProfileConstruct | None" = None,
     ) -> None:
         """Create an AgentCore runtime with container deployment.
 
@@ -59,6 +66,8 @@ class RuntimeConstruct(Construct):
             auth_pool: Cognito user pool for JWT authorisation
             environment_variables: Environment variables for the container
             enable_observability: Enable X-Ray tracing via CloudWatch Logs delivery
+            memory: Optional MemoryConstruct to grant memory permissions
+            inference_profile: Optional InferenceProfileConstruct to grant model invocation permissions
 
         Example:
             RuntimeConstruct(
@@ -66,7 +75,9 @@ class RuntimeConstruct(Construct):
                 runtime_name="calculator",
                 asset_path="src/mcp/calculator",
                 protocol=ProtocolType.MCP,
-                auth_pool=user_pool
+                auth_pool=user_pool,
+                memory=memory,
+                inference_profile=inference_profile
             )
         """
         super().__init__(scope, id)
@@ -88,15 +99,6 @@ class RuntimeConstruct(Construct):
             inline_policies={
                 "BasePolicy": iam.PolicyDocument(
                     statements=[
-                        iam.PolicyStatement(
-                            actions=[
-                                "bedrock:InvokeModel",
-                                "bedrock:InvokeModelWithResponseStream",
-                            ],
-                            resources=[
-                                "*"
-                            ],  # TODO: scope down permissions to specific Bedrock inference endpoints
-                        ),
                         iam.PolicyStatement(
                             actions=["ssm:GetParameter"],
                             resources=[
@@ -218,6 +220,45 @@ class RuntimeConstruct(Construct):
             self._endpoint = f"https://bedrock-agentcore.{stack.region}.amazonaws.com/runtimes/{escaped_arn}/invocations?qualifier=DEFAULT"
         else:
             self._endpoint = None
+
+        # Grant permissions for inference profile if provided
+        if inference_profile:
+            # Grant permissions for the inference profile and foundation models
+            # Cross-region inference profiles can route to any region,
+            # so we use wildcard for foundation models
+            self._role.add_to_policy(
+                iam.PolicyStatement(
+                    actions=[
+                        "bedrock:InvokeModel",
+                        "bedrock:InvokeModelWithResponseStream",
+                        "bedrock:GetInferenceProfile",
+                    ],
+                    resources=[
+                        "arn:aws:bedrock:*::foundation-model/*",
+                        inference_profile.inference_profile_arn,
+                    ],
+                )
+            )
+
+        # Grant permissions for memory if provided
+        if memory:
+            self._role.add_to_policy(
+                iam.PolicyStatement(
+                    actions=[
+                        "bedrock-agentcore:CreateEvent",
+                        "bedrock-agentcore:ListEvents",
+                        "bedrock-agentcore:GetEvent",
+                        "bedrock-agentcore:ListSessions",
+                        "bedrock-agentcore:RetrieveMemoryRecords",
+                        "bedrock-agentcore:GetMemoryRecord",
+                        "bedrock-agentcore:ListMemoryRecords",
+                    ],
+                    resources=[
+                        f"arn:aws:bedrock-agentcore:{stack.region}:{stack.account}:memory/{memory.memory_id}",
+                        f"arn:aws:bedrock-agentcore:{stack.region}:{stack.account}:memory/{memory.memory_id}/*",
+                    ],
+                )
+            )
 
     @property
     def runtime(self) -> Runtime:

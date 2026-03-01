@@ -1,93 +1,28 @@
-"""Core agent invocation handler with conversation memory integration.
+"""Core agent invocation handler with Strands SDK session manager.
 
-This module provides the main agent execution logic, broken down into composable
-functions for building context, enhancing prompts, extracting results, and storing
-interactions in memory.
+This module creates agent instances per request with AgentCoreMemorySessionManager
+for automatic conversation memory handling (short-term + long-term strategies).
 """
 
+import os
 from typing import Any
 
+from bedrock_agentcore.memory.integrations.strands.config import (
+    AgentCoreMemoryConfig,
+    RetrievalConfig,
+)
+from bedrock_agentcore.memory.integrations.strands.session_manager import (
+    AgentCoreMemorySessionManager,
+)
 from strands import Agent
+from strands.models.bedrock import BedrockModel
 
 from common.logger import logger
-from memory.short_term import ShortTermMemory
 
 # Default values for optional payload fields
 DEFAULT_ACTOR_ID = "default_actor"
 DEFAULT_SESSION_ID = "default_session"
 DEFAULT_USER_MESSAGE = "Hello"
-
-
-def build_context_from_memory(
-    memory: ShortTermMemory,
-    actor_id: str,
-    session_id: str,
-    max_turns: int = 5,
-) -> str:
-    """
-    Retrieve recent conversation context from memory.
-
-    Fetches the most recent conversation turns from memory and formats them
-    as a context string with role labels (USER/ASSISTANT) for inclusion in
-    the agent's prompt.
-
-    Args:
-        memory: Memory client instance
-        actor_id: User identifier
-        session_id: Session identifier
-        max_turns: Maximum number of conversation turns to retrieve (default: 5)
-
-    Returns:
-        Formatted conversation context string with newline-separated turns,
-        or empty string if no context is available or an error occurs
-
-    Example output:
-        USER: What's the weather like today?
-        ASSISTANT: I'll check that for you.
-        USER: Thanks!
-    """
-    try:
-        recent_events = memory.get_recent_context(
-            actor_id=actor_id,
-            session_id=session_id,
-            max_turns=max_turns,
-        )
-
-        # Build context string from recent events
-        context_messages = []
-        for event in recent_events:
-            for turn in event.get("payload", []):
-                if "conversational" in turn:
-                    role = turn["conversational"]["role"]
-                    text = turn["conversational"]["content"].get("text", "")
-                    context_messages.append(f"{role}: {text}")
-
-        if context_messages:
-            return "\n".join(context_messages) + "\n\n"
-        return ""
-
-    except Exception as e:
-        logger.error(f"[Memory] Error retrieving context: {e}")
-        return ""
-
-
-def enhance_prompt_with_context(user_message: str, context: str) -> str:
-    """
-    Prepend conversation context to user message.
-
-    Combines historical conversation context with the current user message
-    to provide the agent with full conversational context.
-
-    Args:
-        user_message: Current user message
-        context: Historical conversation context from memory
-
-    Returns:
-        Enhanced prompt with context prepended, or original message if no context
-    """
-    if context:
-        return f"{context}USER: {user_message}"
-    return user_message
 
 
 def extract_text_from_result(result: Any) -> str:
@@ -107,105 +42,107 @@ def extract_text_from_result(result: Any) -> str:
     return "".join(block["text"] for block in result.message.get("content", []) if "text" in block)
 
 
-def store_interaction_in_memory(
-    memory: ShortTermMemory,
-    actor_id: str,
-    session_id: str,
-    user_message: str,
-    assistant_response: str,
-) -> None:
-    """
-    Store user-assistant interaction in memory.
-
-    Persists the conversation turn (user message and assistant response) to
-    AgentCore Memory for future context retrieval.
-
-    Args:
-        memory: Memory client instance
-        actor_id: User identifier
-        session_id: Session identifier
-        user_message: User's input message
-        assistant_response: Agent's response text
-    """
-    try:
-        memory.create_event(
-            actor_id=actor_id,
-            session_id=session_id,
-            messages=[(user_message, "USER"), (assistant_response, "ASSISTANT")],
-        )
-    except Exception as e:
-        logger.error(f"[Memory] Error storing event: {e}")
-
-
-def invoke_agent(
-    agent: Agent,
+def invoke_agent_with_session_manager(
+    config: Any,
+    tools: list,
+    system_prompt: str,
     payload: dict[str, Any],
-    memory: ShortTermMemory | None,
-) -> dict[str, str]:
+) -> dict[str, Any]:
     """
-    Process user input and return an agent response.
+    Process user input with agent using session manager for automatic memory.
 
-    This is the main agent invocation handler that orchestrates the full
-    request-response cycle:
-    1. Extract parameters from payload
-    2. Log invocation details
-    3. Retrieve conversation context from memory (if enabled)
-    4. Enhance user prompt with historical context
-    5. Execute agent with enhanced prompt
-    6. Extract text response from agent result
-    7. Store interaction in memory (if enabled)
-    8. Log completion and return result
+    Creates a new agent instance with AgentCoreMemorySessionManager configured
+    for the request's actor and session. The session manager automatically:
+    - Retrieves short-term conversation context
+    - Retrieves long-term memory (preferences, facts, summaries)
+    - Enhances prompts with memory context
+    - Stores events after agent execution
 
     Args:
-        agent: Configured strands Agent instance with tools and system prompt
-        payload: Request payload with fields:
-            - prompt: User message (default: "Hello")
-            - actor_id: User identifier (default: "default_actor")
-            - session_id: Session identifier (default: "default_session")
-        memory: Optional memory client for conversation context. If None,
-            context retrieval and storage are skipped.
+        config: Application configuration with region and memory settings
+        tools: List of tools loaded from MCP gateways (reused across requests)
+        system_prompt: System prompt with skills (reused across requests)
+        payload: Request payload with AgentCore standard format:
+            - input.value: User message (default: "Hello")
+            - actorId: User identifier (default: "default_actor")
+            - sessionId: Session identifier (default: "default_session")
 
     Returns:
-        Response dictionary with 'result' key containing agent response text
+        Response dictionary with AgentCore standard format:
+            {
+                "output": {"value": text},
+                "sessionId": session_id,
+                "actorId": actor_id
+            }
     """
-    # Extract parameters from payload with defaults
-    user_message = payload.get("prompt", DEFAULT_USER_MESSAGE)
-    actor_id = payload.get("actor_id", DEFAULT_ACTOR_ID)
-    session_id = payload.get("session_id", DEFAULT_SESSION_ID)
+    # Extract parameters from payload with defaults (AgentCore standard format)
+    user_message = payload.get("input", {}).get("value", DEFAULT_USER_MESSAGE)
+    actor_id = payload.get("actorId", DEFAULT_ACTOR_ID)
+    session_id = payload.get("sessionId", DEFAULT_SESSION_ID)
 
     # Log invocation
     logger.info(f"[Agent] Invoked: actor={actor_id} session={session_id}")
 
-    # Retrieve recent conversation context (if memory is enabled)
-    context = ""
-    if memory:
-        context = build_context_from_memory(
-            memory=memory,
-            actor_id=actor_id,
+    # Create session manager for automatic memory handling (if configured)
+    session_manager = None
+    if config.memory_id:
+        # Load retrieval configuration from environment variables
+        preference_top_k = int(os.environ["MEMORY_PREFERENCE_TOP_K"])
+        preference_relevance_score = float(os.environ["MEMORY_PREFERENCE_RELEVANCE_SCORE"])
+        semantic_top_k = int(os.environ["MEMORY_SEMANTIC_TOP_K"])
+        semantic_relevance_score = float(os.environ["MEMORY_SEMANTIC_RELEVANCE_SCORE"])
+
+        # Configure retrieval for long-term memory strategies
+        # Map namespaces to retrieval configs for preference and semantic memory
+        retrieval_config = {
+            f"/preferences/{actor_id}/": RetrievalConfig(
+                top_k=preference_top_k,
+                relevance_score=preference_relevance_score,
+            ),
+            f"/facts/{actor_id}/": RetrievalConfig(
+                top_k=semantic_top_k,
+                relevance_score=semantic_relevance_score,
+            ),
+        }
+
+        agentcore_memory_config = AgentCoreMemoryConfig(
+            memory_id=config.memory_id,
             session_id=session_id,
-            max_turns=5,
+            actor_id=actor_id,
+            retrieval_config=retrieval_config,  # Namespace-specific retrieval configs
+        )
+        session_manager = AgentCoreMemorySessionManager(
+            agentcore_memory_config=agentcore_memory_config,
+            region_name=config.region_name,
         )
 
-    # Enhance prompt with conversation context
-    enhanced_prompt = enhance_prompt_with_context(user_message, context)
+    # Create Bedrock model with inference profile (if available)
+    model = BedrockModel(
+        model_id=config.inference_profile_arn,
+        max_tokens=config.model_max_tokens,
+        temperature=config.model_temperature,
+    )
 
-    # Execute agent with enhanced prompt
-    result = agent(enhanced_prompt)
+    # Create agent with session manager (automatic memory!)
+    agent = Agent(
+        model=model,
+        tools=tools,
+        system_prompt=system_prompt,
+        session_manager=session_manager,
+    )
+
+    # Execute agent (session manager handles context retrieval and storage automatically)
+    result = agent(user_message)
 
     # Extract text from agent response
     text = extract_text_from_result(result)
 
-    # Store this interaction in memory (if memory is enabled)
-    if memory:
-        store_interaction_in_memory(
-            memory=memory,
-            actor_id=actor_id,
-            session_id=session_id,
-            user_message=user_message,
-            assistant_response=text,
-        )
-
     # Log completion
     logger.info("[Agent] Completed")
 
-    return {"result": text}
+    # Return AgentCore standard response format
+    return {
+        "output": {"value": text},
+        "sessionId": session_id,
+        "actorId": actor_id,
+    }

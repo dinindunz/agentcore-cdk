@@ -2,7 +2,7 @@
 
 ## Architecture
 
-![AgentCore Architecture](./architecture.png)
+![AgentCore Architecture](docs/architecture.png)
 
 The diagram shows the complete authentication and data flow, including:
 - Cognito UserPools for authentication (Agent Runtimes, Gateways, MCP Runtimes)
@@ -13,7 +13,7 @@ The diagram shows the complete authentication and data flow, including:
 - AgentCore Memory for short-term and long-term conversation memory (Summary, Preference, Semantic, and Episodic strategies)
 - Skills S3 bucket
 
-[View editable diagram](./architecture.excalidraw)
+[View editable diagram](docs/architecture.excalidraw)
 
 ## Project Structure
 
@@ -21,74 +21,90 @@ The diagram shows the complete authentication and data flow, including:
 .
 ├── app.py                        # CDK application entry point
 ├── pyproject.toml                # Python project dependencies
-├── Makefile                      # Build, deploy, and test commands
+├── Makefile                      # Main Makefile (includes sub-makefiles)
+├── pytest.ini                    # Pytest configuration
+│
+├── makefiles/                    # Modular Makefile organisation
+│   ├── setup.mk                  # Setup and installation commands
+│   ├── config.mk                 # Configuration validation
+│   ├── code-quality.mk           # Linting and formatting
+│   ├── cdk.mk                    # CDK deployment commands
+│   ├── infrastructure-tests.mk   # Pytest infrastructure tests
+│   ├── manual-tests.mk           # Manual testing scripts
+│   └── convenience.mk            # Convenience targets
+│
+├── config/                       # Environment-specific configurations
+│   ├── dev.yaml                  # Development environment settings
+│   ├── test.yaml                 # Test environment settings
+│   └── prod.yaml                 # Production environment settings
 │
 ├── src/
 │   ├── cdk/                      # CDK infrastructure code
+│   │   ├── config.py             # Configuration loader (type-safe YAML parsing)
 │   │   ├── stacks/               # CloudFormation stacks
-│   │   │   └── agentcore.py      - Main AgentCore stack (gateways, runtimes, memory, evals, observability, and MCP targets)
+│   │   │   └── agentcore.py      # Main AgentCore stack (gateways, runtimes, memory, evals, observability, and MCP targets)
 │   │   ├── constructs/           # Reusable L3 constructs
-│   │   │   ├── cognito.py        - Cognito user pools and app clients
-│   │   │   ├── gateway.py        - AgentCore Gateways
-│   │   │   ├── runtime.py        - AgentCore Runtimes
-│   │   │   ├── identity.py       - Credential providers (OAuth2, API keys) in AgentCore Identity
-│   │   │   ├── evaluation.py     - Online evaluation configurations for runtime monitoring
-│   │   │   ├── custom_evaluator.py - Custom evaluators with configurable models, prompts, and scoring
-│   │   │   ├── memory.py         - AgentCore Memory with Summary, Preference, Semantic, and Episodic strategies
-│   │   │   ├── bucket.py         - S3 buckets with lifecycle policies (store skills)
-│   │   │   └── gateway_targets/  - Gateway target configurations
-│   │   │       ├── lambda_.py    - Lambda function targets
-│   │   │       ├── mcp_server.py - MCP server targets
-│   │   │       └── open_api.py   - OpenAPI targets
+│   │   │   ├── cognito.py        # Cognito user pools and app clients
+│   │   │   ├── gateway.py        # AgentCore Gateways
+│   │   │   ├── runtime.py        # AgentCore Runtimes
+│   │   │   ├── identity.py       # Credential providers (OAuth2, API keys) in AgentCore Identity
+│   │   │   ├── evaluation.py     # Online evaluation configurations for runtime monitoring
+│   │   │   ├── custom_evaluator.py # Custom evaluators with configurable models, prompts, and scoring
+│   │   │   ├── memory.py         # AgentCore Memory with Summary, Preference, Semantic, and Episodic strategies
+│   │   │   ├── bucket.py         # S3 buckets with lifecycle policies (store skills)
+│   │   │   └── gateway_targets/  # Gateway target configurations
+│   │   │       ├── lambda_.py    # Lambda function targets
+│   │   │       ├── mcp_server.py # MCP server targets
+│   │   │       └── open_api.py   # OpenAPI targets
 │   │   └── utils/                # Utility functions
-│   │       ├── cleanup.py        - Log group cleanup aspects and custom resources
-│   │       └── strings.py        - Case conversion utilities (kebab/PascalCase/snake_case)
+│   │       ├── cleanup.py        # Log group cleanup aspects and custom resources
+│   │       └── strings.py        # Case conversion utilities (kebab/PascalCase/snake_case)
+│   │
+│   ├── common/                   # Shared utilities
+│   │   └── logger.py             # Structured logging module (shared across Agent and MCP targets)
 │   │
 │   ├── agent/                    # Agent runtime implementation (modular Python structure)
-│   │   ├── main.py               - Minimal entry point and orchestration
-│   │   ├── config.py             - Configuration management with lazy loading
-│   │   ├── logger.py             - Reusable structured logging module
-│   │   ├── agent_handler.py      - Core agent invocation logic
+│   │   ├── main.py               # Minimal entry point and orchestration
+│   │   ├── config.py             # Configuration management with lazy loading
+│   │   ├── agent_handler.py      # Core agent invocation logic
+│   │   ├── pyproject.toml        # Agent dependencies
+│   │   ├── Dockerfile            # Agent container image
 │   │   ├── auth/                 # Authentication modules
-│   │   │   ├── cognito.py        - OAuth2 token management for JWT gateway
-│   │   │   └── sigv4.py          - AWS SigV4 authentication for IAM gateway
+│   │   │   ├── cognito.py        # OAuth2 token management for JWT gateway
+│   │   │   └── sigv4.py          # AWS SigV4 authentication for IAM gateway
 │   │   ├── gateway/              # MCP client management
-│   │   │   └── clients.py        - MCP client setup and tool aggregation
+│   │   │   └── clients.py        # MCP client setup and tool aggregation
 │   │   ├── prompts/              # System prompt management
-│   │   │   ├── system_prompt.md  - Base system prompt (markdown format)
-│   │   │   └── loader.py         - Load and compose system prompts
-│   │   ├── skills/               # Skills loading from S3
-│   │   │   └── loader.py         - Extract and format skill definitions for system prompt
-│   │   ├── memory/               # Conversation memory integration
-│   │   │   └── short_term.py     - Short-term memory for conversation context
-│   │   ├── pyproject.toml        - Agent dependencies
-│   │   └── Dockerfile            - Agent container image
+│   │   │   ├── system_prompt.md  # Base system prompt (markdown format)
+│   │   │   └── loader.py         # Load and compose system prompts
+│   │   └── skills/               # Skills loading from S3
+│   │       └── loader.py         # Extract and format skill definitions for system prompt
 │   │
 │   ├── evals/                    # Custom evaluator definitions
-│   │   ├── math_accuracy.py      - Calculator operation validation
-│   │   ├── temperature_conversion.py - Temperature formula validation
-│   │   ├── skill_workflow.py     - Skill completeness checking
-│   │   ├── github_integrity.py   - Data hallucination detection
-│   │   └── output_format.py      - Output format validation
+│   │   ├── math_accuracy.py      # Calculator operation validation
+│   │   ├── temperature_conversion.py # Temperature formula validation
+│   │   ├── skill_workflow.py     # Skill completeness checking
+│   │   ├── github_integrity.py   # Data hallucination detection
+│   │   └── output_format.py      # Output format validation
 │   │
 │   ├── mcp/                      # MCP server implementations
-│   │   ├── calculator/           - Basic calculator MCP server (MCP Server Target)
-│   │   │   ├── main.py           - FastMCP server with arithmetic tools
-│   │   │   ├── pyproject.toml    - Server dependencies (fastmcp)
-│   │   │   └── Dockerfile        - Container image for Runtime deployment
-│   │   ├── temperature_converter/ - Temperature conversion MCP server (Lambda Target)
-│   │   │   ├── main.py           - FastMCP server with temp conversion tools
-│   │   │   ├── schema.json       - Schema for Gateway integration
-│   │   │   └── Dockerfile        - Container image for Runtime deployment
-│   │   ├── skill_search/         - Skill search MCP server (Lambda Target)
-│   │   │   ├── main.py           - FastMCP server with skill search tools
-│   │   │   ├── schema.json       - Schema for Gateway integration
-│   │   │   └── Dockerfile        - Container image for Runtime deployment
-│   │   └── github/               - GitHub API MCP server (OpenAPI Target)
-│   │       └── schema.json       - GitHub OpenAPI schema for Gateway target
+│   │   ├── calculator/           # Basic calculator MCP server (MCP Server Target)
+│   │   │   ├── main.py           # FastMCP server with arithmetic tools
+│   │   │   ├── pyproject.toml    # Server dependencies (fastmcp)
+│   │   │   └── Dockerfile        # Container image for Runtime deployment
+│   │   ├── temperature_converter/ # Temperature conversion MCP server (Lambda Target)
+│   │   │   ├── main.py           # FastMCP server with temp conversion tools
+│   │   │   ├── schema.json       # Schema for Gateway integration
+│   │   │   └── Dockerfile        # Container image for Runtime deployment
+│   │   ├── skill_search/         # Skill search MCP server (Lambda Target)
+│   │   │   ├── main.py           # FastMCP server with skill search tools
+│   │   │   ├── schema.json       # Schema for Gateway integration
+│   │   │   └── Dockerfile        # Container image for Runtime deployment
+│   │   └── github/               # GitHub API MCP server (OpenAPI Target)
+│   │       └── schema.json       # GitHub OpenAPI schema for Gateway target
 │   │
 │   ├── observability/            # Observability setup
-│   │   └── setup.sh               - One-time account setup for AgentCore observability (X-Ray tracing)
+│   │   └── setup.sh              # One-time account setup for AgentCore observability (X-Ray tracing)
 │   │
 │   └── skills/                   # Agent skill definitions
 │       ├── issue_heat_map.md
@@ -98,33 +114,58 @@ The diagram shows the complete authentication and data flow, including:
 │       └── trending_topic_scout.md
 │
 ├── layers/                       # Lambda layer source directories
-│   └── agentcore_sdk/            - AgentCore Starter Toolkit SDK layer (bundled at deploy time)
+│   └── agentcore_sdk/            # AgentCore Starter Toolkit SDK layer (bundled at deploy time)
 │
-└── scripts/                      # Testing and invocation scripts
-    ├── runtimes/
-    │   ├── agent/                # Agent runtime testing
-    │   │   ├── invoke_agent.py   - Invoke agent with OAuth2 authentication (single prompt)
-    │   │   ├── chat_client.py    - Interactive chat client for continuous conversation
-    │   │   └── skill_tests/      - Test scripts for each agent skill
-    │   └── mcp/                  # MCP runtime testing
-    │       └── invoke_calculator.py
-    └── gateways/
-        ├── iam/                  # IAM-authenticated gateway testing
-        │   ├── auth.py           - SigV4 signing helper
-        │   ├── list_tools.py     - List available tools
-        │   ├── search_tools.py   - Search tools by keyword
-        │   ├── invoke_tool.py    - Invoke a specific tool
-        │   └── mcp_tests/        - MCP tools tests
-        │       ├── calculator.py - Test calculator tools
-        │       └── skill_search.py - Test skill search tool
-        └── jwt/                  # JWT-authenticated gateway testing
-            ├── auth.py           - Cognito authentication helper
-            ├── list_tools.py     - List available tools
-            ├── search_tools.py   - Search tools by keyword
-            ├── invoke_tool.py    - Invoke a specific tool
-            └── mcp_tests/        - MCP tools tests
-                ├── github.py     - Test GitHub tools
-                └── temperature_converter.py - Test temperature converter tools
+└── tests/                        # Tests and manual invocation scripts
+    ├── common/                   # Shared test utilities
+    │   └── auth/                 # Authentication modules (IAM SigV4, JWT OAuth2)
+    │       ├── iam.py            # SigV4 auth for IAM gateway
+    │       └── jwt.py            # OAuth2 auth for JWT gateway
+    ├── infrastructure/           # Automated infrastructure tests (pytest)
+    │   ├── memory/               # Memory service validation
+    │   │   ├── conftest.py       # Shared fixtures (test-user, memory_id, etc.)
+    │   │   ├── test_memory_create.py  # Create memory events
+    │   │   ├── test_memory_queries.py # Query memory records
+    │   │   └── test_memory_view.py    # View stored memories
+    │   ├── gateways/             # Gateway deployment validation
+    │   │   ├── conftest.py       # Shared fixtures (gateway URLs, test-user)
+    │   │   ├── test_iam_auth.py  # IAM SigV4 authentication tests
+    │   │   ├── test_jwt_auth.py  # JWT OAuth2 authentication tests
+    │   │   ├── test_tool_invocation.py # End-to-end tool invocation
+    │   │   └── test_error_handling.py  # Error scenarios
+    │   └── runtimes/             # Runtime deployment validation
+    │       ├── conftest.py       # Shared fixtures (runtime ARNs, test-user)
+    │       ├── test_agent_invocation.py   # Agent orchestration tests
+    │       ├── test_mcp_invocation.py     # MCP runtime tests
+    │       └── test_performance.py        # Basic performance benchmarks
+    └── manual/                   # Manual testing and invocation scripts
+        ├── runtimes/
+        │   ├── agent/            # Agent runtime testing
+        │   │   ├── invoke_agent.py   # Invoke agent with OAuth2 authentication (single prompt)
+        │   │   ├── chat_client.py    # Interactive chat client for continuous conversation
+        │   │   └── skill_tests/  # Test scripts for each agent skill
+        │   └── mcp/              # MCP runtime testing
+        │       └── invoke_calculator.py # Calculator runtime invocation
+        ├── gateways/
+        │   ├── iam/              # IAM-authenticated gateway testing
+        │   │   ├── list_tools.py # List available tools
+        │   │   ├── search_tools.py # Search tools by keyword
+        │   │   ├── invoke_tool.py # Invoke a specific tool
+        │   │   └── mcp_tests/    # MCP tools tests
+        │   │       ├── calculator.py # Test calculator tools
+        │   │       └── skill_search.py # Test skill search tool
+        │   └── jwt/              # JWT-authenticated gateway testing
+        │       ├── list_tools.py # List available tools
+        │       ├── search_tools.py # Search tools by keyword
+        │       ├── invoke_tool.py # Invoke a specific tool
+        │       └── mcp_tests/    # MCP tools tests
+        │           ├── github.py # Test GitHub tools
+        │           └── temperature_converter.py # Test temperature converter tools
+        ├── memory/               # Memory utility
+        │   └── view_memory.py    # View memory records for an actor
+        └── evaluations/          # Evaluation utilities
+            ├── list_evals.py     # List online evaluation configurations
+            └── query_results.py  # Query evaluation results
 ```
 
 ## Prerequisites
@@ -139,12 +180,13 @@ The diagram shows the complete authentication and data flow, including:
 - AWS account bootstrapped for CDK
   ```bash
   # Bootstrap your AWS account (one-time per account/region)
-  cdk bootstrap aws://AWS_ACCOUNT_ID/REGION_NAME
-  ```
+  cdk bootstrap aws://AWS_ACCOUNT_ID/REGION_NAME --context env=dev
 
 ## Quick Start
 
-### 1. Configure Environment Variables
+### 1. Configure Environment and Stack Settings
+
+#### Environment Variables
 
 Copy the example environment file and update it with your values:
 
@@ -157,6 +199,18 @@ Edit `.env` and set:
 - `AWS_ACCOUNT_ID` - Your AWS account ID (e.g., `123456789012`)
 - `REGION_NAME` - AWS region where resources will be deployed (e.g., `ap-southeast-2`)
 - `GITHUB_TOKEN` - Your GitHub personal access token (for GitHub MCP server)
+- `ACTOR_ID` - (Optional) Unique identifier for memory personalisation across sessions
+
+#### Stack Configuration (Memory, Runtime, Observability, Evaluation)
+
+Environment-specific stack configuration is managed in YAML files under `config/`:
+
+```bash
+config/
+├── dev.yaml   # Development environment settings
+├── test.yaml  # Test environment settings
+└── prod.yaml  # Production environment settings
+```
 
 ### 2. Install Dependencies
 
@@ -212,67 +266,23 @@ This launches an interactive chat client where you can have continuous conversat
 
 > **Note**: Set `ACTOR_ID` in your `.env` file to maintain the same identity across multiple chat sessions. This enables long-term memory strategies (Preference, Semantic, Summary, Episodic) to learn your patterns over time. Without it, a random ID is generated each time.
 
-### 7. Run Tests
+### 7. Test and Monitor
 
-Test the deployed infrastructure with different test suites:
+The project includes comprehensive testing organised into infrastructure tests (pytest) and manual tests (scripts).
 
+**Quick Start:**
 ```bash
-# Run all tests
-make all-tests
-
-# Agent skill tests (GitHub analysis skills)
-make skill-tests               # Run all agent skill tests
-make skill-issue-heat-map      # Test Issue Heat Map skill
-make skill-portfolio-summary   # Test Portfolio Summary skill
-make skill-repo-comparison     # Test Repo Comparison skill
-make skill-repo-hotness        # Test Repo Hotness Rating skill
-make skill-trending-topic      # Test Trending Topic Scout skill
-
-# IAM Gateway tests
-make iam-tests                 # Run all IAM gateway tests
-make iam-list-tools            # List available tools
-make iam-search-tools          # Search for tools
-make iam-test-calculator       # Test calculator MCP server
-make iam-test-skill-search     # Test skill search MCP server
-
-# JWT Gateway tests
-make jwt-tests                 # Run all JWT gateway tests
-make jwt-list-tools            # List available tools
-make jwt-search-tools          # Search for tools
-make jwt-test-github           # Test GitHub MCP server
-make jwt-test-temperature      # Test temperature converter MCP server
+make agent-chat                # Interactive chat with the agent
+make test-memory               # Run memory infrastructure tests
+make iam-tests                 # Test IAM gateway
+make jwt-tests                 # Test JWT gateway
 ```
 
-### 8. Monitor Evaluations
+**Full Documentation:**
+- **[Manual Testing Guide](docs/MANUAL_TESTING.md)** - Interactive scripts for agent, gateways, memory, and evaluations
+- **[Infrastructure Testing Guide](docs/INFRASTRUCTURE_TESTING.md)** - Automated pytest infrastructure validation
 
-The stack includes online evaluations that continuously monitor agent performance with 10 evaluators (5 built-in + 5 custom):
-
-```bash
-# List evaluation configurations
-make eval-list
-
-# View recent evaluation results (last 1 hour by default)
-make eval-results
-
-# View evaluation results from a longer time window
-make eval-results HOURS=6
-```
-
-**Built-in Evaluators** (general quality):
-- **Helpfulness** — Assesses whether responses help users achieve goals
-- **Correctness** — Evaluates factual accuracy
-- **Tool Selection Accuracy** — Validates appropriate tool selection
-- **Tool Parameter Accuracy** — Checks tool parameters are correct
-- **Response Relevance** — Measures relevance to user queries
-
-**Custom Evaluators** (domain-specific validation):
-- **Math Accuracy** — Validates calculator operation correctness
-- **Temperature Conversion Accuracy** — Validates C↔F conversion formulas
-- **Skill Workflow Completeness** — Ensures all required workflow steps completed
-- **GitHub Data Integrity** — Detects hallucinated GitHub data
-- **Structured Output Format** — Validates response formatting and required fields
-
-**For complete evaluator documentation**, including how to create custom evaluators with configurable models, prompts, and scoring schemas, see **[`src/evals/README.md`](src/evals/README.md)**
+Run `make help` for the complete list of available commands.
 
 ## Cleanup
 
@@ -283,6 +293,10 @@ make destroy
 ```
 
 **Note**: Destroying the stack will permanently delete all resources.
+
+## Troubleshooting
+
+If you encounter issues during deployment, see the **[Deployment Troubleshooting Guide](docs/DEPLOYMENT_TROUBLESHOOTING.md)** for common problems and solutions.
 
 ## Available Commands
 

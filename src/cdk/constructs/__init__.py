@@ -16,6 +16,7 @@ from .identity import (
     ApiKeyCredentialProviderConstruct,
     OAuth2CredentialProviderConstruct,
 )
+from .inference_profile import InferenceProfileConstruct
 from .memory import MemoryConstruct
 from .runtime import RuntimeConstruct
 
@@ -34,4 +35,5 @@ __all__ = [
     "ModelConfiguration",
     "ScoringSchemaDefinition",
     "MemoryConstruct",
+    "InferenceProfileConstruct",
 ]

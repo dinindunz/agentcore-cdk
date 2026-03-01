@@ -1,9 +1,16 @@
 import aws_cdk as cdk
 from aws_cdk import aws_iam as iam
+from aws_cdk import aws_ssm as ssm
 from aws_cdk import custom_resources as cr
 from constructs import Construct
 
-from ..utils import to_snake_case
+from ..utils import to_kebab_case, to_snake_case
+
+# Default namespace patterns
+DEFAULT_SUMMARY_NAMESPACES = ["/summaries/{actorId}/{sessionId}/"]
+DEFAULT_PREFERENCE_NAMESPACES = ["/preferences/{actorId}/"]
+DEFAULT_SEMANTIC_NAMESPACES = ["/facts/{actorId}/"]
+DEFAULT_EPISODIC_NAMESPACES = ["/episodes/{actorId}/{sessionId}/"]
 
 
 # TODO: Refactor to use L2 constructs once they are available.
@@ -29,8 +36,12 @@ class MemoryConstruct(Construct):
         event_expiry_days: int = 90,
         enable_summary_strategy: bool = True,
         enable_preference_strategy: bool = True,
-        enable_semantic_strategy: bool = False,
-        enable_episodic_strategy: bool = False,
+        enable_semantic_strategy: bool = True,
+        enable_episodic_strategy: bool = False,  # TODO: Disabled - Fix configuration issues
+        summary_namespaces: list[str] | None = None,
+        preference_namespaces: list[str] | None = None,
+        semantic_namespaces: list[str] | None = None,
+        episodic_namespaces: list[str] | None = None,
     ) -> None:
         """Create an AgentCore memory with configurable strategies.
 
@@ -43,13 +54,20 @@ class MemoryConstruct(Construct):
             enable_preference_strategy: Enable user preference learning
             enable_semantic_strategy: Enable fact extraction
             enable_episodic_strategy: Enable episode tracking
+            summary_namespaces: Custom namespaces for summary strategy (default: DEFAULT_SUMMARY_NAMESPACES)
+            preference_namespaces: Custom namespaces for preference strategy (default: DEFAULT_PREFERENCE_NAMESPACES)
+            semantic_namespaces: Custom namespaces for semantic strategy (default: DEFAULT_SEMANTIC_NAMESPACES)
+            episodic_namespaces: Custom namespaces for episodic strategy (default: DEFAULT_EPISODIC_NAMESPACES)
 
         Example:
             MemoryConstruct(
-                self, "ShortTermMemory",
-                memory_name="short_term",
-                event_expiry_days=7,
-                enable_summary_strategy=True
+                self, "Memory",
+                memory_name="agent_memory",
+                event_expiry_days=90,
+                enable_summary_strategy=True,
+                enable_preference_strategy=True,
+                # Optional: override default namespaces
+                preference_namespaces=["/custom/prefs/{actorId}/"]
             )
         """
         super().__init__(scope, id)
@@ -67,9 +85,7 @@ class MemoryConstruct(Construct):
                 {
                     "summaryMemoryStrategy": {
                         "name": "SessionSummarizer",
-                        "namespaces": [
-                            "/strategies/summaries/actors/{actorId}/sessions/{sessionId}/"
-                        ],
+                        "namespaces": summary_namespaces or DEFAULT_SUMMARY_NAMESPACES,
                     }
                 }
             )
@@ -79,7 +95,7 @@ class MemoryConstruct(Construct):
                 {
                     "userPreferenceMemoryStrategy": {
                         "name": "PreferenceLearner",
-                        "namespaces": ["/strategies/preferences/actors/{actorId}/"],
+                        "namespaces": preference_namespaces or DEFAULT_PREFERENCE_NAMESPACES,
                     }
                 }
             )
@@ -89,7 +105,7 @@ class MemoryConstruct(Construct):
                 {
                     "semanticMemoryStrategy": {
                         "name": "FactExtractor",
-                        "namespaces": ["/strategies/semantic/actors/{actorId}/"],
+                        "namespaces": semantic_namespaces or DEFAULT_SEMANTIC_NAMESPACES,
                     }
                 }
             )
@@ -99,9 +115,7 @@ class MemoryConstruct(Construct):
                 {
                     "episodicMemoryStrategy": {
                         "name": "EpisodeTracker",
-                        "namespaces": [
-                            "/strategies/episodic/actors/{actorId}/sessions/{sessionId}/"
-                        ],
+                        "namespaces": episodic_namespaces or DEFAULT_EPISODIC_NAMESPACES,
                     }
                 }
             )
@@ -147,6 +161,18 @@ class MemoryConstruct(Construct):
         )
 
         self._memory_id = self._memory.get_response_field("memory.id")
+
+        # Export memory ID to SSM for easy script access (matches gateway naming convention)
+        stack = cdk.Stack.of(self)
+        stack_prefix = to_kebab_case(stack.stack_name)
+        ssm_prefix = f"/{stack_prefix}"
+        ssm.StringParameter(
+            self,
+            "MemoryIdParam",
+            parameter_name=f"{ssm_prefix}/memory-id",
+            string_value=self._memory_id,
+            description="AgentCore Memory ID for agent memory strategies",
+        )
 
     @property
     def memory_id(self) -> str:

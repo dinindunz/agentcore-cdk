@@ -1,0 +1,63 @@
+# Production Environment Configuration
+# This file defines all configurable parameters for the AgentCore CDK stack in the prod environment
+
+# AgentCore Memory Configuration
+memory:
+  enabled: true                       # Enable AgentCore Memory for conversation history and context
+  event_expiry_days: 180              # Memory retention period (6 months for production)
+  strategies:
+    summary: true                     # Enable summary memory strategy (conversation summaries)
+    preference: true                  # Enable user preference memory strategy (user preferences)
+    semantic: true                    # Enable semantic memory strategy (knowledge graphs)
+    # episodic: false                 # Episodic memory (currently disabled - AgentCore validation issue)
+  # Retrieval configuration for long-term memory strategies
+  preference_top_k: 10                # Maximum number of preference records to retrieve
+  preference_relevance_score: 0.2     # Minimum relevance threshold for preference retrieval (0.0-1.0)
+  semantic_top_k: 10                  # Maximum number of semantic facts to retrieve
+  semantic_relevance_score: 0.2       # Minimum relevance threshold for semantic retrieval (0.0-1.0)
+
+# Agent Runtime Configuration (AgentCore Runtime construct)
+agent_runtime:
+  log_level: WARNING                  # Production agent runtime logging (less verbose)
+  otel_logging_enabled: true          # Set to true to enable OTEL logging
+  model_temperature: 0.5              # Lower temperature for more consistent production responses
+  model_max_tokens: 4096              # Maximum tokens to generate in response
+
+# MCP Runtimes Configuration (AgentCore Runtime constructs for MCP servers)
+mcp_runtimes:
+  calculator:
+    log_level: WARNING                # Production MCP runtime logging (less verbose)
+
+# Lambda Targets Configuration (Lambda functions invoked via Gateway)
+lambda_targets:
+  skill_search:
+    log_level: INFO                   # Standard Lambda logging (INFO for diagnostics)
+  temperature_converter:
+    log_level: INFO                   # Standard Lambda logging (INFO for diagnostics)
+
+# Cognito Configuration
+cognito:
+  access_token_validity_minutes: 15   # OAuth2 access token expiry (5-1440 minutes / 24 hours)
+  oauth_cache:                        # OAuth token caching strategy for agent runtime
+    buffer_percent: 10.0              # Cache buffer as % of token lifetime (0.0-50.0)
+    buffer_min_seconds: 60            # Minimum cache buffer (seconds)
+    buffer_max_seconds: 300           # Maximum cache buffer (seconds, 5 minutes)
+
+# Observability Configuration
+observability:
+  enabled: true                       # Enable AgentCore tracing and observability
+
+# Online Evaluation Configuration
+evaluation:
+  sampling_rate: 10.0                 # Evaluate 10% of interactions in production (cost optimisation)
+  enable_on_create: true              # Automatically enable evaluation config after creation
+
+# Inference Profile Configuration
+inference_profile:
+  model_id: "au.anthropic.claude-sonnet-4-5-20250929-v1:0"  # AU Claude Sonnet 4.5 cross-region profile
+  description: "Production inference profile for cost tracking"
+  tags:
+    Environment: "Production"
+    CostCentre: "AI-Engineering"
+    Project: "AgentCore"
+    ManagedBy: "CDK"

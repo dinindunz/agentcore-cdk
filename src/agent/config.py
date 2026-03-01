@@ -40,6 +40,9 @@ class AgentConfig:
         region_name: AWS region name (from REGION_NAME env var)
         skills_bucket: S3 bucket name for skills (from SKILLS_BUCKET env var, optional)
         memory_id: AgentCore Memory ID (from MEMORY_ID env var, optional)
+        inference_profile_arn: Bedrock inference profile ARN (from INFERENCE_PROFILE_ARN env var, optional)
+        model_temperature: Model temperature for generation (from MODEL_TEMPERATURE env var)
+        model_max_tokens: Maximum tokens to generate (from MODEL_MAX_TOKENS env var)
     """
 
     def __init__(self) -> None:
@@ -47,11 +50,17 @@ class AgentConfig:
         self.region_name: str = os.environ["REGION_NAME"]
         self.skills_bucket: str | None = os.environ.get("SKILLS_BUCKET")
         self.memory_id: str | None = os.environ.get("MEMORY_ID")
+        self.inference_profile_arn: str | None = os.environ.get("INFERENCE_PROFILE_ARN")
+        self.model_temperature: float = float(os.environ.get("MODEL_TEMPERATURE", "0.7"))
+        self.model_max_tokens: int = int(os.environ.get("MODEL_MAX_TOKENS", "4096"))
 
         logger.debug(
             f"[Config] Initialised: region={self.region_name} "
             f"skills_bucket={self.skills_bucket or 'None'} "
-            f"memory_id={self.memory_id or 'None'}"
+            f"memory_id={self.memory_id or 'None'} "
+            f"inference_profile_arn={self.inference_profile_arn or 'None'} "
+            f"model_temperature={self.model_temperature} "
+            f"model_max_tokens={self.model_max_tokens}"
         )
 
         # Private cached properties (lazy-loaded)
