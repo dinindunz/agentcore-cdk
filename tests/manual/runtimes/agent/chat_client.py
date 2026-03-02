@@ -10,6 +10,10 @@ import boto3
 import requests
 from dotenv import load_dotenv
 
+# Add tests directory to Python path for imports
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../.."))
+from tests.common.auth.cognito_user import validate_and_lookup_actor
+
 load_dotenv()
 
 REGION_NAME = os.environ["REGION_NAME"]
@@ -78,18 +82,29 @@ def send_message(prompt: str, session_id: str, actor_id: str, access_token: str)
 
 def main():
     """Run the interactive chat client."""
-    print("Starting interactive chat with agent...")
     print("🤖 AgentCore Chat Client")
     print("Type 'exit' or 'quit' to end the conversation")
     print("-" * 50)
 
-    # Initialise session
-    session_id = str(uuid.uuid4())
-    actor_id = os.environ.get("ACTOR_ID", f"user-{uuid.uuid4().hex[:8]}")
+    # Get preferred_username from env
+    preferred_username = os.environ.get("ACTOR_ID", f"user-{uuid.uuid4().hex[:8]}")
+
+    # Step 1: Validate user exists and get Cognito username (exits if not found)
+    actor_id = validate_and_lookup_actor(
+        preferred_username=preferred_username,
+        region_name=REGION_NAME,
+        user_pool_id=_agent_cognito["user_pool_id"],
+    )
+
+    # Step 2: Only get access token if user is authorised
     access_token = _get_access_token()
 
+    # Step 3: Create session for this conversation
+    session_id = str(uuid.uuid4())
+
     print(f"Session ID: {session_id}")
-    print(f"Actor ID: {actor_id}\n")
+    print(f"Actor ID: {actor_id}")
+    print("\nStarting conversation...\n")
 
     while True:
         try:

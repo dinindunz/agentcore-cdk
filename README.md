@@ -127,9 +127,10 @@ The diagram shows the complete authentication and data flow, including:
 │
 └── tests/                        # Tests and manual invocation scripts
     ├── common/                   # Shared test utilities
-    │   └── auth/                 # Authentication modules (IAM SigV4, JWT OAuth2)
+    │   └── auth/                 # Authentication modules (IAM SigV4, JWT OAuth2, Cognito user validation)
     │       ├── iam.py            # SigV4 auth for IAM gateway
-    │       └── jwt.py            # OAuth2 auth for JWT gateway
+    │       ├── jwt.py            # OAuth2 auth for JWT gateway
+    │       └── cognito_user.py   # Cognito user validation (lookup by preferred_username)
     ├── infrastructure/           # Automated infrastructure tests (pytest)
     │   ├── memory/               # Memory service validation
     │   │   ├── conftest.py       # Shared fixtures (test-user, memory_id, etc.)
