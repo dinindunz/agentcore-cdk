@@ -29,8 +29,10 @@ The diagram shows the complete authentication and data flow, including:
 │   ├── config.mk                 # Configuration validation
 │   ├── code-quality.mk           # Linting and formatting
 │   ├── cdk.mk                    # CDK deployment commands
+│   ├── users.mk                  # Cognito user management (create, list)
 │   ├── infrastructure-tests.mk   # Pytest infrastructure tests
 │   ├── manual-tests.mk           # Manual testing scripts
+│   ├── observability.mk          # Observability dashboard commands
 │   └── convenience.mk            # Convenience targets
 │
 ├── config/                       # Environment-specific configurations
@@ -119,6 +121,10 @@ The diagram shows the complete authentication and data flow, including:
 ├── layers/                       # Lambda layer source directories
 │   └── agentcore_sdk/            # AgentCore Starter Toolkit SDK layer (bundled at deploy time)
 │
+├── scripts/                      # Utility scripts
+│   ├── create_user.py            # Create Cognito users for agent authentication
+│   └── list_users.py             # List all users in Cognito User Pool
+│
 └── tests/                        # Tests and manual invocation scripts
     ├── common/                   # Shared test utilities
     │   └── auth/                 # Authentication modules (IAM SigV4, JWT OAuth2)
@@ -202,7 +208,8 @@ Edit `.env` and set:
 - `AWS_ACCOUNT_ID` - Your AWS account ID (e.g., `123456789012`)
 - `REGION_NAME` - AWS region where resources will be deployed (e.g., `ap-southeast-2`)
 - `GITHUB_TOKEN` - Your GitHub personal access token (for GitHub MCP server)
-- `ACTOR_ID` - (Optional) Unique identifier for memory personalisation across sessions
+- `ACTOR_ID` - Your username for Cognito user creation (e.g., `actor-123`) - used for agent chat identity and memory
+- `USER_DOMAIN` - Email domain for Cognito users (e.g., `agentcore-cdk.com`)
 
 #### Stack Configuration (Memory, Runtime, Observability, Evaluation)
 
@@ -257,9 +264,15 @@ make deploy
 
 This will deploy the AgentCore stack with all gateways, runtimes, and MCP servers.
 
-### 6. Chat with the Agent
+### 6. Create User and Chat with the Agent
 
-Start an interactive chat session with the agent:
+**First-time setup:** Create a Cognito user for your actor ID:
+```bash
+# Create the Cognito user
+make create-user
+```
+
+Then start chatting:
 
 ```bash
 make agent-chat
@@ -267,7 +280,7 @@ make agent-chat
 
 This launches an interactive chat client where you can have continuous conversations with the agent. Type `exit`, `quit`, or `q` to end the session.
 
-> **Note**: Set `ACTOR_ID` in your `.env` file to maintain the same identity across multiple chat sessions. This enables long-term memory strategies (Preference, Semantic, Summary, Episodic) to learn your patterns over time. Without it, a random ID is generated each time.
+> **Note**: The `ACTOR_ID` maintains your identity across chat sessions, enabling long-term memory strategies (Preference, Semantic, Summary, Episodic) to learn your patterns over time.
 
 ### 7. View Agent Traces (Observability Dashboard)
 

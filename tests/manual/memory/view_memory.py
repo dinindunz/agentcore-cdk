@@ -3,7 +3,7 @@
 
 Usage:
     python view_memory.py              # Uses ACTOR_ID from .env
-    python view_memory.py dini-123     # Specific actor ID
+    python view_memory.py actor-123    # Specific actor ID
 """
 
 import os
