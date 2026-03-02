@@ -12,6 +12,7 @@ include makefiles/setup.mk
 include makefiles/config.mk
 include makefiles/code-quality.mk
 include makefiles/cdk.mk
+include makefiles/users.mk
 include makefiles/infrastructure-tests.mk
 include makefiles/manual-tests.mk
 include makefiles/observability.mk
@@ -39,6 +40,10 @@ help:
 	@echo "  make deploy                        - Deploy AgentCore stack (ENV=dev by default)"
 	@echo "  make diff                          - Show AgentCore stack changes"
 	@echo "  make destroy                       - Destroy AgentCore stack"
+	@echo ""
+	@echo "User Management:"
+	@echo "  make create-user                   - Create Cognito user for ACTOR_ID from .env"
+	@echo "  make list-users                    - List all Cognito users in the pool"
 	@echo ""
 	@echo "Infrastructure Tests (Pytest):"
 	@echo "  make test                          - Run all tests"
